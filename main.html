@@ -7,12 +7,22 @@
       <li>Dual language mode for language learners, with colour coding to highlight word-for-word translation</li>
       <li>Potential for voice generation in different languages</li>
     </ul>
-    <textarea id="inputText" rows="5" cols="50" placeholder="Enter text to detect language..."></textarea>
+    <textarea id="inputText" rows="5" cols="50" placeholder="Enter text to translate..."></textarea>
     <br><br>
     <button id="detectButton">Detect Language</button>
-    <br><br>
-    <p><b>Results:</b> <span id="results"></span></p>
-    </ul>
+    <p><b>Detected Language:</b> <span id="detectedLanguage"></span></p>
+    <br>
+    <label for="targetLanguage">Translate to:</label>
+    <select id="targetLanguage">
+      <option value="en">English</option>
+      <option value="es">Spanish</option>
+      <option value="fr">French</option>
+      <option value="de">German</option>
+      <option value="ja">Japanese</option>
+    </select>
+    <button id="translateButton">Translate</button>
+    <p><b>Translated Text:</b> <span id="translatedText"></span></p>
+    <script type="module" src="language-translation.js"></script>
     <script src="popup.js"></script>
     <script src="language_detection.js"></script>
   </body>
