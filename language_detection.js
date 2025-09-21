@@ -1,55 +1,34 @@
-// Initialises the Language Detector API
-async function initialiseLanguageDetector() {
-  if ('LanguageDetector' in self) {
-    try {
-      const detector = await LanguageDetector.create({
-        monitor(m) {
-          m.addEventListener('downloadprogress', (e) => {
-            console.log(`Model download progress: ${e.loaded * 100}%`);
-          });
-        },
-      });
-      console.log("Language detector instance created successfully.");
-      return detector;
-    } catch (error) {
-      console.error("Failed to initialise Language Detector:", error);
-      return null;
-    }
-  } else {
-    console.log("Language Detector API is not supported in this browser.");
+// language-detection.js
+
+/**
+ * Initialises the Language Detector API.
+ * @returns {Promise<object|null>} The detector object or null if not available.
+ */
+export async function initialiseLanguageDetector() {
+  if (!('LanguageDetector' in self)) {
+    console.error("Language Detector API is not supported.");
+    return null;
+  }
+  try {
+    const detector = await LanguageDetector.create();
+    return detector;
+  } catch (error) {
+    console.error("Failed to initialise Language Detector:", error);
     return null;
   }
 }
 
-// Use the API to detect language
-async function detectLanguage(text) {
+/**
+ * Detects the language of a given text.
+ * @param {string} text - The text to analyse.
+ * @returns {Promise<string>} The detected language or 'unknown'.
+ */
+export async function detectLanguage(text) {
   const detector = await initialiseLanguageDetector();
-  if (detector) {
-    const results = await detector.detect(text);
-    const topResult = results[0];
-    if (topResult && topResult.confidence > 0.5) { // Use a confidence threshold
-      return `Language: ${topResult.detectedLanguage} (Confidence: ${Math.round(topResult.confidence * 100)}%)`;
-    } else {
-      return "Could not detect the language with high confidence.";
-    }
+  if (!detector) {
+    return "unknown";
   }
-  return "Language Detector not available.";
+  const results = await detector.detect(text);
+  const topResult = results[0];
+  return (topResult && topResult.confidence > 0.5) ? topResult.detectedLanguage : "unknown";
 }
-
-// Retrieve HTML elements
-const detectButton = document.getElementById('detectButton');
-const inputText = document.getElementById('inputText');
-const resultsSpan = document.getElementById('results');
-
-// Add a click event listener to the button
-detectButton.addEventListener('click', async () => {
-  const text = inputText.value; // Get the text from the textarea
-  if (text.trim() === '') {
-    resultsSpan.textContent = "Please enter some text.";
-    return;
-  }
-  
-  resultsSpan.textContent = "Detecting..."; // Show a loading message
-  const resultText = await detectLanguage(text);
-  resultsSpan.textContent = resultText; // Display the final result
-});
