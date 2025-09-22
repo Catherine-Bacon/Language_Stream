@@ -1,4 +1,3 @@
-// Global variable to store the floating window element
 let floatingWindow = null;
 let subtitleObserver = null;
 
@@ -63,50 +62,28 @@ function makeDraggable(element) {
   });
 }
 
-// Function to send subtitles to the popup
-function sendSubtitleToPopup(text) {
-  chrome.runtime.sendMessage({ subtitle: text });
-}
-
-// Add a listener to receive messages from the popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.command === "ping") {
-    sendResponse({ status: "ready" });
-    return true; // Keep the message channel open
-  }
-  if (request.command === "create_window") {
-    createFloatingWindow();
-    
-    // Start observing only after the window is created
-    const playerContainer = document.querySelector('.PlayerControls--container');
-    if (playerContainer) {
-      subtitleObserver.observe(playerContainer, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-    }
-    return false;
-  }
-  if (request.translatedText) {
-    if (floatingWindow) {
-      floatingWindow.innerHTML = request.translatedText;
-    }
-    return false;
-  }
-});
-
-// The observer is declared, but not started yet
-const playerContainer = document.querySelector('.PlayerControls--container');
-if (playerContainer) {
-  subtitleObserver = new MutationObserver((mutations) => {
+// The observer that will watch for subtitle changes
+subtitleObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (mutation.type === 'childList' || mutation.type === 'characterData') {
         const subtitleElement = getNetflixSubtitleElement();
         if (subtitleElement && subtitleElement.textContent.trim() !== '') {
-          sendSubtitleToPopup(subtitleElement.textContent.trim());
+          // Display the subtitle directly in the floating window
+          if (floatingWindow) {
+            floatingWindow.innerHTML = subtitleElement.textContent.trim();
+          }
         }
       }
     });
-  });
+});
+
+// Start creating the window and observing as soon as the script loads
+createFloatingWindow();
+const playerContainer = document.querySelector('.PlayerControls--container');
+if (playerContainer) {
+    subtitleObserver.observe(playerContainer, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
 }
