@@ -95,7 +95,7 @@ subtitleObserver = new MutationObserver((mutations) => {
     });
 });
 
-const playerContainer = document.querySelector('.watch-video--player-view'); // Corrected selector
+const playerContainer = document.body; // Corrected to watch the entire body
 if (playerContainer) {
     subtitleObserver.observe(playerContainer, {
       childList: true,
