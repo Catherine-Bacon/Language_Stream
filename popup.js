@@ -5,30 +5,35 @@ const confirmButton = document.getElementById('confirmButton');
 
 // Listen for the confirm button click
 confirmButton.addEventListener('click', () => {
-  const baseLanguage = baseLanguageSelect.value;
-  const targetLanguage = targetLanguageSelect.value;
-  
-  chrome.storage.local.set({ baseLanguage, targetLanguage }, () => {
-    // Send a message to the content script to create the window
-    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      // Check if the content script is ready to receive messages
-      try {
-        chrome.tabs.sendMessage(tabs[0].id, { command: "ping" }, function(response) {
-          if (chrome.runtime.lastError || !response || response.status !== "ready") {
-            console.error("Content script not ready:", chrome.runtime.lastError ? chrome.runtime.lastError.message : "No response.");
-            alert("Please reload the Netflix page and try again.");
-          } else {
-            // If the ping is successful, send the create_window command
-            chrome.tabs.sendMessage(tabs[0].id, { command: "create_window" });
-            alert(`Languages set to: ${baseLanguage} and ${targetLanguage}.`);
-          }
+    const baseLanguage = baseLanguageSelect.value;
+    const targetLanguage = targetLanguageSelect.value;
+
+    chrome.storage.local.set({ baseLanguage, targetLanguage }, () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+            const currentTab = tabs[0];
+            
+            // First, try to send a ping to see if content script is already injected
+            chrome.tabs.sendMessage(currentTab.id, { command: "ping" }, function (response) {
+                if (chrome.runtime.lastError) {
+                    // Content script not yet injected, so inject it now
+                    chrome.scripting.executeScript({
+                        target: { tabId: currentTab.id },
+                        files: ['content.js']
+                    }, () => {
+                        // After injection, wait a moment to ensure the script is ready, then send the command
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(currentTab.id, { command: "create_window" });
+                            alert(`Languages set to: ${baseLanguage} and ${targetLanguage}.`);
+                        }, 500); // Wait 500ms
+                    });
+                } else {
+                    // Content script is already running, just send the command
+                    chrome.tabs.sendMessage(currentTab.id, { command: "create_window" });
+                    alert(`Languages set to: ${baseLanguage} and ${targetLanguage}.`);
+                }
+            });
         });
-      } catch (error) {
-        console.error("Error sending ping:", error);
-        alert("An error occurred. Please try again.");
-      }
     });
-  });
 });
 
 // Listener to receive subtitles from the content script
