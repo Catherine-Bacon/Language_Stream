@@ -1,3 +1,6 @@
+// Global variable to store the floating window element
+let floatingWindow = null;
+
 // Function to find the Netflix subtitle element
 function getNetflixSubtitleElement() {
   return document.querySelector('.player-timed-text-track');
@@ -5,6 +8,10 @@ function getNetflixSubtitleElement() {
 
 // Function to create and inject the floating window
 function createFloatingWindow() {
+  if (floatingWindow) {
+    console.log("Floating window already exists.");
+    return;
+  }
   const windowDiv = document.createElement('div');
   windowDiv.id = 'language-stream-window';
   windowDiv.style.cssText = `
@@ -26,10 +33,11 @@ function createFloatingWindow() {
     cursor: move;
   `;
   document.body.appendChild(windowDiv);
-  return windowDiv;
+  floatingWindow = windowDiv;
+  makeDraggable(floatingWindow);
 }
 
-// Function to make the window draggable
+// Function to make the window draggable (no changes)
 function makeDraggable(element) {
   let isDragging = false;
   let offsetX, offsetY;
@@ -54,24 +62,29 @@ function makeDraggable(element) {
   });
 }
 
-// Function to send subtitles to the popup
+// Function to send subtitles to the popup (no changes)
 function sendSubtitleToPopup(text) {
   chrome.runtime.sendMessage({ subtitle: text });
 }
 
-// Get or create the floating window
-const floatingWindow = createFloatingWindow();
-makeDraggable(floatingWindow);
-
-// Add a listener to receive translated text from the popup
+// Add a listener to receive messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.command === "create_window") {
+    createFloatingWindow();
+    return; // Don't proceed to translation logic
+  }
   if (request.translatedText) {
-    floatingWindow.innerHTML = request.translatedText;
+    if (floatingWindow) {
+      floatingWindow.innerHTML = request.translatedText;
+    }
   }
 });
 
 // Observe the Netflix player for subtitle changes
 const observer = new MutationObserver((mutations) => {
+  if (!floatingWindow) {
+    return; // Do nothing until the window is created
+  }
   mutations.forEach((mutation) => {
     if (mutation.type === 'childList' || mutation.type === 'characterData') {
       const subtitleElement = getNetflixSubtitleElement();
