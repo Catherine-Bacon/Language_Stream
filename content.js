@@ -1,9 +1,9 @@
 let floatingWindow = null;
 let subtitleObserver = null;
 
-// Function to find the Netflix subtitle element
+// Function to find the Netflix subtitle element with the corrected selector
 function getNetflixSubtitleElement() {
-  return document.querySelector('.player-timed-text-track');
+  return document.querySelector('.player-timedtext-text-container');
 }
 
 // Function to create and inject the floating window
@@ -81,7 +81,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // ----- DEBUG TEST: Verify Subtitle Element exists -----
-const subtitleElementTest = document.querySelector('.player-timed-text-track');
+const subtitleElementTest = document.querySelector('.player-timedtext-text-container');
 if (subtitleElementTest) {
     console.log("Subtitle element found!");
 } else {
