@@ -76,6 +76,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.command === "create_window") {
     createFloatingWindow();
+    
+    // Start observing only after the window is created
+    const playerContainer = document.querySelector('.PlayerControls--container');
+    if (playerContainer) {
+      subtitleObserver.observe(playerContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
     return false;
   }
   if (request.translatedText) {
@@ -86,26 +96,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// Observe the Netflix player for subtitle changes
-subtitleObserver = new MutationObserver((mutations) => {
-  if (!floatingWindow) {
-    return; // Do nothing until the window is created
-  }
-  mutations.forEach((mutation) => {
-    if (mutation.type === 'childList' || mutation.type === 'characterData') {
-      const subtitleElement = getNetflixSubtitleElement();
-      if (subtitleElement && subtitleElement.textContent.trim() !== '') {
-        sendSubtitleToPopup(subtitleElement.textContent.trim());
-      }
-    }
-  });
-});
-
+// The observer is declared, but not started yet
 const playerContainer = document.querySelector('.PlayerControls--container');
 if (playerContainer) {
-  subtitleObserver.observe(playerContainer, {
-    childList: true,
-    subtree: true,
-    characterData: true,
+  subtitleObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList' || mutation.type === 'characterData') {
+        const subtitleElement = getNetflixSubtitleElement();
+        if (subtitleElement && subtitleElement.textContent.trim() !== '') {
+          sendSubtitleToPopup(subtitleElement.textContent.trim());
+        }
+      }
+    });
   });
 }
