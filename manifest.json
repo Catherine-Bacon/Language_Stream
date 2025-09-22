@@ -13,6 +13,7 @@
       "js": ["content.js"],
       "run_at": "document_idle"
     }
-],
-  "permissions": ["scripting", "storage", "activeTab", "tabs"]
+  ],
+  "permissions": ["scripting", "storage", "activeTab", "tabs"],
+  "host_permissions": ["*://*.netflix.com/*"]
 }
