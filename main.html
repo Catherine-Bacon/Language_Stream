@@ -1,27 +1,34 @@
 <html>
-    <body>
+  <body>
     <h1>Language Stream</h1>
-    <p>Subtitle generator built for binge watchers and language learners.</p>
-    <ul>
-      <li>Generates subtitles for shows without subtitles in any language</li>
-      <li>Dual language mode for language learners, with colour coding to highlight word-for-word translation</li>
-      <li>Potential for voice generation in different languages</li>
-    </ul>
-    <textarea id="inputText" rows="5" cols="50" placeholder="Enter text to translate..."></textarea>
+    <p>Subtitle generator for binge watchers and language learners.</p>
+
+    <h2>Settings</h2>
+    <label for="baseLanguage">Base Language:</label>
+    <select id="baseLanguage">
+      <option value="en">English</option>
+      <option value="es">Spanish</option>
+      <option value="fr">French</option>
+      <option value="de">German</option>
+      <option value="ja">Japanese</option>
+      <option value="ko">Korean</option>
+    </select>
     <br><br>
-    <button id="detectButton">Detect Language</button>
-    <p><b>Detected Language:</b> <span id="detectedLanguage"></span></p>
-    <br>
-    <label for="targetLanguage">Translate to:</label>
+    <label for="targetLanguage">Target Language:</label>
     <select id="targetLanguage">
       <option value="en">English</option>
       <option value="es">Spanish</option>
       <option value="fr">French</option>
       <option value="de">German</option>
       <option value="ja">Japanese</option>
+      <option value="ko">Korean</option>
     </select>
-    <button id="translateButton">Translate</button>
-    <p><b>Translated Text:</b> <span id="translatedText"></span></p>
+    <br><br>
+    <button id="confirmButton">Confirm Languages</button>
+    
+    <h2>Live Subtitles</h2>
+    <div id="liveSubtitles"></div>
+
     <script src="popup.js"></script>
     <script src="language_detection_and_translation.js"></script>
   </body>
