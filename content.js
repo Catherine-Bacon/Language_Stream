@@ -1,5 +1,6 @@
 let floatingWindow = null;
 let subtitleObserver = null;
+let mainObserver = null;
 
 // Function to find the Netflix subtitle element with the corrected selector
 function getNetflixSubtitleElement() {
@@ -8,14 +9,11 @@ function getNetflixSubtitleElement() {
 
 // Function to create and inject the floating window
 function createFloatingWindow() {
-  // Check if an instance of the window already exists.
   const existingWindow = document.getElementById('language-stream-window');
   if (existingWindow) {
-    // If it does, don't create a new one.
     console.log("Floating window already exists. Reusing it.");
     floatingWindow = existingWindow;
   } else {
-    // If it doesn't, create it.
     const windowDiv = document.createElement('div');
     windowDiv.id = 'language-stream-window';
     windowDiv.style.cssText = `
@@ -71,7 +69,7 @@ function makeDraggable(element) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === "ping") {
     sendResponse({ status: "ready" });
-    return true; // Keep the message channel open
+    return true;
   }
   if (request.command === "create_window") {
     console.log("Received create_window command. Creating window.");
@@ -80,26 +78,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// The observer that will watch for subtitle changes
-// This now starts immediately when the script is injected
-subtitleObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList' || mutation.type === 'characterData') {
-        const subtitleElement = getNetflixSubtitleElement();
-        if (subtitleElement && subtitleElement.textContent.trim() !== '') {
-          if (floatingWindow) {
-              floatingWindow.innerHTML = subtitleElement.textContent.trim();
-          }
+// The main observer to detect when the subtitle element appears on the page
+mainObserver = new MutationObserver((mutations) => {
+  const subtitleContainer = getNetflixSubtitleElement();
+  if (subtitleContainer) {
+    // Subtitle container found, disconnect the main observer
+    mainObserver.disconnect();
+    
+    // Attach the new, more specific observer to the subtitle container
+    subtitleObserver = new MutationObserver(() => {
+        const subtitleText = subtitleContainer.textContent.trim();
+        if (subtitleText !== '') {
+            if (floatingWindow) {
+                floatingWindow.innerHTML = subtitleText;
+            }
         }
-      }
     });
-});
 
-const playerContainer = document.querySelector('.player-timedtext-text-container').parentElement;
-if (playerContainer) {
-    subtitleObserver.observe(playerContainer, {
+    subtitleObserver.observe(subtitleContainer, {
       childList: true,
       subtree: true,
       characterData: true,
     });
-}
+    console.log("Subtitle observer attached.");
+  }
+});
+
+// Start the main observer to watch the entire body for the subtitle container
+mainObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
