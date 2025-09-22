@@ -113,7 +113,7 @@ subtitleObserver = new MutationObserver((mutations) => {
     });
 });
 
-const playerContainer = document.querySelector('.PlayerControls--container');
+const playerContainer = document.querySelector('.watch-video--player-view'); // Corrected selector
 if (playerContainer) {
     subtitleObserver.observe(playerContainer, {
       childList: true,
