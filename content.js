@@ -1,12 +1,3 @@
-// content.js
-
-// This file is designed to be injected.
-// Check if an instance of the window already exists
-const existingWindow = document.getElementById('language-stream-window');
-if (existingWindow) {
-    existingWindow.remove();
-}
-
 let floatingWindow = null;
 let subtitleObserver = null;
 
@@ -17,29 +8,38 @@ function getNetflixSubtitleElement() {
 
 // Function to create and inject the floating window
 function createFloatingWindow() {
-  const windowDiv = document.createElement('div');
-  windowDiv.id = 'language-stream-window';
-  windowDiv.style.cssText = `
-    position: absolute;
-    top: 50px;
-    left: 50px;
-    width: 400px;
-    min-height: 100px;
-    background-color: rgba(0, 0, 0, 0.8);
-    border: 1px solid #333;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    padding: 15px;
-    color: white;
-    font-family: Arial, sans-serif;
-    resize: both;
-    overflow: auto;
-    cursor: move;
-  `;
-  document.body.appendChild(windowDiv);
-  floatingWindow = windowDiv;
-  makeDraggable(floatingWindow);
+  // Check if an instance of the window already exists.
+  const existingWindow = document.getElementById('language-stream-window');
+  if (existingWindow) {
+    // If it does, don't create a new one.
+    console.log("Floating window already exists. Reusing it.");
+    floatingWindow = existingWindow;
+  } else {
+    // If it doesn't, create it.
+    const windowDiv = document.createElement('div');
+    windowDiv.id = 'language-stream-window';
+    windowDiv.style.cssText = `
+      position: absolute;
+      top: 50px;
+      left: 50px;
+      width: 400px;
+      min-height: 100px;
+      background-color: rgba(0, 0, 0, 0.8);
+      border: 1px solid #333;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      padding: 15px;
+      color: white;
+      font-family: Arial, sans-serif;
+      resize: both;
+      overflow: auto;
+      cursor: move;
+    `;
+    document.body.appendChild(windowDiv);
+    floatingWindow = windowDiv;
+    makeDraggable(floatingWindow);
+  }
 }
 
 // Function to make the window draggable (no changes)
@@ -69,33 +69,38 @@ function makeDraggable(element) {
 
 // Add a listener to receive messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.command === "ping") {
+    sendResponse({ status: "ready" });
+    return true; // Keep the message channel open
+  }
   if (request.command === "create_window") {
     createFloatingWindow();
-    
-    // Start observing only after the window is created
-    const playerContainer = document.querySelector('.PlayerControls--container');
-    if (playerContainer) {
-      subtitleObserver.observe(playerContainer, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
+
+    // Start observing only after the window is created and if it's not already observing
+    if (!subtitleObserver) {
+      const playerContainer = document.querySelector('.PlayerControls--container');
+      if (playerContainer) {
+        subtitleObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+              if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                const subtitleElement = getNetflixSubtitleElement();
+                if (subtitleElement && subtitleElement.textContent.trim() !== '') {
+                  // Display the subtitle directly in the floating window
+                  if (floatingWindow) {
+                    floatingWindow.innerHTML = subtitleElement.textContent.trim();
+                  }
+                }
+              }
+            });
+        });
+        subtitleObserver.observe(playerContainer, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+        });
+      }
     }
+    return false;
   }
   // The popup no longer sends translated text. The content script handles everything.
-});
-
-// The observer that will watch for subtitle changes
-subtitleObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.type === 'childList' || mutation.type === 'characterData') {
-        const subtitleElement = getNetflixSubtitleElement();
-        if (subtitleElement && subtitleElement.textContent.trim() !== '') {
-          // Display the subtitle directly in the floating window
-          if (floatingWindow) {
-            floatingWindow.innerHTML = subtitleElement.textContent.trim();
-          }
-        }
-      }
-    });
 });
