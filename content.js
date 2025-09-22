@@ -95,7 +95,7 @@ subtitleObserver = new MutationObserver((mutations) => {
     });
 });
 
-const playerContainer = document.body; // Corrected to watch the entire body
+const playerContainer = document.querySelector('.player-timedtext-text-container').parentElement;
 if (playerContainer) {
     subtitleObserver.observe(playerContainer, {
       childList: true,
