@@ -71,7 +71,7 @@ function sendSubtitleToPopup(text) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === "ping") {
     sendResponse({ status: "ready" });
-    return;
+    return; // Don't proceed to other logic
   }
   if (request.command === "create_window") {
     createFloatingWindow();
