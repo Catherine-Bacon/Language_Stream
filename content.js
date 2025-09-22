@@ -75,32 +75,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.command === "create_window") {
     createFloatingWindow();
-
-    // Start observing only after the window is created and if it's not already observing
-    if (!subtitleObserver) {
-      const playerContainer = document.querySelector('.PlayerControls--container');
-      if (playerContainer) {
-        subtitleObserver = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-              if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                const subtitleElement = getNetflixSubtitleElement();
-                if (subtitleElement && subtitleElement.textContent.trim() !== '') {
-                  // Display the subtitle directly in the floating window
-                  if (floatingWindow) {
-                    floatingWindow.innerHTML = subtitleElement.textContent.trim();
-                  }
-                }
-              }
-            });
-        });
-        subtitleObserver.observe(playerContainer, {
-          childList: true,
-          subtree: true,
-          characterData: true,
-        });
-      }
-    }
     return false;
   }
-  // The popup no longer sends translated text. The content script handles everything.
 });
+
+// The observer that will watch for subtitle changes
+// This now starts immediately when the script is injected
+subtitleObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList' || mutation.type === 'characterData') {
+        const subtitleElement = getNetflixSubtitleElement();
+        if (subtitleElement && subtitleElement.textContent.trim() !== '') {
+          // Display the subtitle directly in the floating window
+          if (floatingWindow) {
+            floatingWindow.innerHTML = subtitleElement.textContent.trim();
+          }
+        }
+      }
+    });
+});
+
+const playerContainer = document.querySelector('.PlayerControls--container');
+if (playerContainer) {
+    subtitleObserver.observe(playerContainer, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+}
