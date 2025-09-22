@@ -23,8 +23,7 @@ async function detectLanguage(text) {
   return (topResult && topResult.confidence > 0.5) ? topResult.detectedLanguage : "unknown";
 }
 
-// LANGUAGE TRANSLATION:
-// Initialise the translator
+// LANGUAGE TRANSLATION
 async function initialiseTranslator(sourceLang, targetLang) {
   if (!('Translator' in self)) {
     console.error("Translator API is not supported.");
@@ -42,89 +41,27 @@ async function initialiseTranslator(sourceLang, targetLang) {
   }
 }
 
-// Function to handle the entire translation process
-async function processTranslation(text) {
-    // Get the selected target language from the dropdown
-    const targetLanguage = targetLanguageSelect.value;
-    
-    // First, detect the language of the subtitle text
-    const sourceLanguage = await detectLanguage(text);
-    
-    // Update the UI with the detected language
-    detectedLanguageSpan.textContent = sourceLanguage === 'unknown' ? 'Could not detect language.' : sourceLanguage;
-    
-    // If a language was detected, proceed with translation
-    if (sourceLanguage !== 'unknown') {
-        translatedTextSpan.textContent = "Translating...";
-        
-        const translator = await initialiseTranslator(sourceLanguage, targetLanguage);
-        if (translator) {
-            try {
-                const translatedText = await translator.translate(text);
-                translatedTextSpan.textContent = translatedText;
-            } catch (error) {
-                console.error("Translation failed:", error);
-                translatedTextSpan.textContent = "Translation failed.";
-            }
-        } else {
-            translatedTextSpan.textContent = "Translator not available for this language pair.";
-        }
-    } else {
-        translatedTextSpan.textContent = "Cannot translate without a detected language.";
-    }
-}
+// Global variables for user's selected languages
+let baseLanguage = '';
+let targetLanguage = '';
 
 // Get HTML elements
-const detectButton = document.getElementById('detectButton');
-const translateButton = document.getElementById('translateButton');
-const inputText = document.getElementById('inputText');
-const detectedLanguageSpan = document.getElementById('detectedLanguage');
+const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
-const translatedTextSpan = document.getElementById('translatedText');
+const confirmButton = document.getElementById('confirmButton');
+const liveSubtitlesDiv = document.getElementById('liveSubtitles');
 
-let sourceLanguage = '';
-
-// Event listener for the "Detect Language" button
-detectButton.addEventListener('click', async () => {
-    const text = inputText.value.trim();
-    if (text === '') {
-        detectedLanguageSpan.textContent = "Please enter some text.";
-        return;
-    }
-    detectedLanguageSpan.textContent = "Detecting...";
-    sourceLanguage = await detectLanguage(text);
-    detectedLanguageSpan.textContent = sourceLanguage === 'unknown' ? 'Could not detect language.' : sourceLanguage;
+// Event listener for the "Confirm Languages" button
+confirmButton.addEventListener('click', () => {
+  baseLanguage = baseLanguageSelect.value;
+  targetLanguage = targetLanguageSelect.value;
+  
+  // Save languages to chrome storage so content.js can access them
+  chrome.storage.local.set({
+    baseLanguage: baseLanguage,
+    targetLanguage: targetLanguage
+  });
+  
+  console.log(`Languages confirmed: Base: ${baseLanguage}, Target: ${targetLanguage}`);
+  alert(`Languages set to: ${baseLanguage} and ${targetLanguage}. You can now start the show.`);
 });
-
-// Event listener for the "Translate" button
-translateButton.addEventListener('click', async () => {
-    const text = inputText.value.trim();
-    const targetLanguage = targetLanguageSelect.value;
-
-    if (text === '') {
-        translatedTextSpan.textContent = "Please enter some text.";
-        return;
-    }
-
-    if (sourceLanguage === '') {
-        translatedTextSpan.textContent = "Please detect the source language first.";
-        return;
-    }
-
-    translatedTextSpan.textContent = "Translating...";
-
-    const translator = await initialiseTranslator(sourceLanguage, targetLanguage);
-    if (translator) {
-        try {
-            const translatedText = await translator.translate(text);
-            translatedTextSpan.textContent = translatedText;
-        } catch (error) {
-            console.error("Translation failed:", error);
-            translatedTextSpan.textContent = "Translation failed.";
-        }
-    } else {
-        translatedTextSpan.textContent = "Translator not available for this language pair.";
-    }
-});
-
-window.processTranslation = processTranslation;
