@@ -24,6 +24,7 @@ async function detectLanguage(text) {
 }
 
 // LANGUAGE TRANSLATION:
+// Initialise the translator
 async function initialiseTranslator(sourceLang, targetLang) {
   if (!('Translator' in self)) {
     console.error("Translator API is not supported.");
@@ -39,6 +40,38 @@ async function initialiseTranslator(sourceLang, targetLang) {
     console.error("Failed to initialise Translator:", error);
     return null;
   }
+}
+
+// Function to handle the entire translation process
+async function processTranslation(text) {
+    // Get the selected target language from the dropdown
+    const targetLanguage = targetLanguageSelect.value;
+    
+    // First, detect the language of the subtitle text
+    const sourceLanguage = await detectLanguage(text);
+    
+    // Update the UI with the detected language
+    detectedLanguageSpan.textContent = sourceLanguage === 'unknown' ? 'Could not detect language.' : sourceLanguage;
+    
+    // If a language was detected, proceed with translation
+    if (sourceLanguage !== 'unknown') {
+        translatedTextSpan.textContent = "Translating...";
+        
+        const translator = await initialiseTranslator(sourceLanguage, targetLanguage);
+        if (translator) {
+            try {
+                const translatedText = await translator.translate(text);
+                translatedTextSpan.textContent = translatedText;
+            } catch (error) {
+                console.error("Translation failed:", error);
+                translatedTextSpan.textContent = "Translation failed.";
+            }
+        } else {
+            translatedTextSpan.textContent = "Translator not available for this language pair.";
+        }
+    } else {
+        translatedTextSpan.textContent = "Cannot translate without a detected language.";
+    }
 }
 
 // Get HTML elements
@@ -93,3 +126,5 @@ translateButton.addEventListener('click', async () => {
         translatedTextSpan.textContent = "Translator not available for this language pair.";
     }
 });
+
+window.processTranslation = processTranslation;
