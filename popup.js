@@ -13,10 +13,8 @@ confirmButton.addEventListener('click', () => {
                     target: { tabId: currentTabId },
                     files: ['content.js']
                 }, () => {
-                    // Send the command after a slight delay to ensure the script is ready.
-                    setTimeout(() => {
-                        chrome.tabs.sendMessage(currentTabId, { command: "create_window" });
-                    }, 200);
+                    // Send the command inside the callback to ensure it's ready.
+                    chrome.tabs.sendMessage(currentTabId, { command: "create_window" });
                 });
             } else {
                 // The content script is already running, just send the command.
