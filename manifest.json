@@ -5,13 +5,13 @@
   "manifest_version": 3,
   "action": {
     "default_popup": "main.html",
-    "default_icon": "logo.png",
+    "default_icon": "logo.png"
+  },
   "content_scripts": [
     {
       "matches": ["*://*.netflix.com/*"],
       "js": ["content.js"]
     }
   ],
-  "permissions": ["scripting"]
-  }
+  "permissions": ["scripting", "storage"]
 }
