@@ -41,26 +41,23 @@ async function initialiseTranslator(sourceLang, targetLang) {
   }
 }
 
-// Global variables for user's selected languages
-let baseLanguage = '';
-let targetLanguage = '';
+// NOTE: All redundant declarations removed from here.
 
-// Get HTML elements
-const baseLanguageSelect = document.getElementById('baseLanguage');
-const targetLanguageSelect = document.getElementById('targetLanguage');
-const confirmButton = document.getElementById('confirmButton');
-
-// Event listener for the "Confirm Languages" button
-confirmButton.addEventListener('click', () => {
-  baseLanguage = baseLanguageSelect.value;
-  targetLanguage = targetLanguageSelect.value;
-  
-  // Save languages to chrome storage so content.js can access them
-  chrome.storage.local.set({
-    baseLanguage: baseLanguage,
-    targetLanguage: targetLanguage
-  });
-  
-  console.log(`Languages confirmed: Base: ${baseLanguage}, Target: ${targetLanguage}`);
-  alert(`Languages set to: ${baseLanguage} and ${targetLanguage}. You can now start the show.`);
-});
+// A small utility function that can be used by the listener
+async function detectLanguage(text) {
+  const detector = await initialiseLanguageDetector();
+  if (!detector) return "unknown";
+  const results = await detector.detect(text);
+  const topResult = results[0];
+  return (topResult && topResult.confidence > 0.5) ? topResult.detectedLanguage : "unknown";
+}
+async function initialiseLanguageDetector() {
+  if (!('LanguageDetector' in self)) return null;
+  const detector = await LanguageDetector.create();
+  return detector;
+}
+async function initialiseTranslator(sourceLang, targetLang) {
+  if (!('Translator' in self)) return null;
+  const translator = await Translator.create({ sourceLanguage: sourceLang, targetLanguage: targetLang });
+  return translator;
+}
