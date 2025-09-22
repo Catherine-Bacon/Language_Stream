@@ -1,3 +1,12 @@
+// content.js
+
+// This file is designed to be injected.
+// Check if an instance of the window already exists
+const existingWindow = document.getElementById('language-stream-window');
+if (existingWindow) {
+    existingWindow.remove();
+}
+
 let floatingWindow = null;
 let subtitleObserver = null;
 
@@ -8,10 +17,6 @@ function getNetflixSubtitleElement() {
 
 // Function to create and inject the floating window
 function createFloatingWindow() {
-  if (floatingWindow) {
-    console.log("Floating window already exists.");
-    return;
-  }
   const windowDiv = document.createElement('div');
   windowDiv.id = 'language-stream-window';
   windowDiv.style.cssText = `
@@ -37,7 +42,7 @@ function createFloatingWindow() {
   makeDraggable(floatingWindow);
 }
 
-// Function to make the window draggable
+// Function to make the window draggable (no changes)
 function makeDraggable(element) {
   let isDragging = false;
   let offsetX, offsetY;
@@ -62,6 +67,24 @@ function makeDraggable(element) {
   });
 }
 
+// Add a listener to receive messages from the popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.command === "create_window") {
+    createFloatingWindow();
+    
+    // Start observing only after the window is created
+    const playerContainer = document.querySelector('.PlayerControls--container');
+    if (playerContainer) {
+      subtitleObserver.observe(playerContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
+  }
+  // The popup no longer sends translated text. The content script handles everything.
+});
+
 // The observer that will watch for subtitle changes
 subtitleObserver = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
@@ -76,14 +99,3 @@ subtitleObserver = new MutationObserver((mutations) => {
       }
     });
 });
-
-// Start creating the window and observing as soon as the script loads
-createFloatingWindow();
-const playerContainer = document.querySelector('.PlayerControls--container');
-if (playerContainer) {
-    subtitleObserver.observe(playerContainer, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-}
