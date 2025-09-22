@@ -1,5 +1,6 @@
 // Global variable to store the floating window element
 let floatingWindow = null;
+let subtitleObserver = null;
 
 // Function to find the Netflix subtitle element
 function getNetflixSubtitleElement() {
@@ -37,7 +38,7 @@ function createFloatingWindow() {
   makeDraggable(floatingWindow);
 }
 
-// Function to make the window draggable (no changes)
+// Function to make the window draggable
 function makeDraggable(element) {
   let isDragging = false;
   let offsetX, offsetY;
@@ -62,7 +63,7 @@ function makeDraggable(element) {
   });
 }
 
-// Function to send subtitles to the popup (no changes)
+// Function to send subtitles to the popup
 function sendSubtitleToPopup(text) {
   chrome.runtime.sendMessage({ subtitle: text });
 }
@@ -71,21 +72,22 @@ function sendSubtitleToPopup(text) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === "ping") {
     sendResponse({ status: "ready" });
-    return; // Don't proceed to other logic
+    return true; // Keep the message channel open
   }
   if (request.command === "create_window") {
     createFloatingWindow();
-    return;
+    return false;
   }
   if (request.translatedText) {
     if (floatingWindow) {
       floatingWindow.innerHTML = request.translatedText;
     }
+    return false;
   }
 });
 
 // Observe the Netflix player for subtitle changes
-const observer = new MutationObserver((mutations) => {
+subtitleObserver = new MutationObserver((mutations) => {
   if (!floatingWindow) {
     return; // Do nothing until the window is created
   }
@@ -101,7 +103,7 @@ const observer = new MutationObserver((mutations) => {
 
 const playerContainer = document.querySelector('.PlayerControls--container');
 if (playerContainer) {
-  observer.observe(playerContainer, {
+  subtitleObserver.observe(playerContainer, {
     childList: true,
     subtree: true,
     characterData: true,
