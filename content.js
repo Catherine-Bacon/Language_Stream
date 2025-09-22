@@ -69,9 +69,13 @@ function sendSubtitleToPopup(text) {
 
 // Add a listener to receive messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.command === "ping") {
+    sendResponse({ status: "ready" });
+    return;
+  }
   if (request.command === "create_window") {
     createFloatingWindow();
-    return; // Don't proceed to translation logic
+    return;
   }
   if (request.translatedText) {
     if (floatingWindow) {
