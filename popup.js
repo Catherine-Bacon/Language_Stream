@@ -1,3 +1,5 @@
+// popup.js
+
 // Language selection and confirmation logic
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
