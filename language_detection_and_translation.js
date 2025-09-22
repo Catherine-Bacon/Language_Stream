@@ -49,7 +49,6 @@ let targetLanguage = '';
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const confirmButton = document.getElementById('confirmButton');
-const liveSubtitlesDiv = document.getElementById('liveSubtitles');
 
 // Event listener for the "Confirm Languages" button
 confirmButton.addEventListener('click', () => {
