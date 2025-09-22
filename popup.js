@@ -9,7 +9,7 @@ chrome.runtime.onMessage.addListener(
       const languages = await chrome.storage.local.get(['baseLanguage', 'targetLanguage']);
       const baseLang = languages.baseLanguage;
       const targetLang = languages.targetLanguage;
-
+        
       if (!baseLang || !targetLang) {
         // Stop if languages are not set
         liveSubtitlesDiv.textContent = "Please select languages and click 'Confirm'.";
