@@ -11,9 +11,18 @@ confirmButton.addEventListener('click', () => {
   chrome.storage.local.set({ baseLanguage, targetLanguage }, () => {
     // Send a message to the content script to create the window
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, { command: "create_window" });
+      // Check if the content script is ready to receive messages
+      chrome.tabs.sendMessage(tabs[0].id, { command: "ping" }, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error("Content script not ready:", chrome.runtime.lastError.message);
+          alert("Please reload the Netflix page and try again.");
+        } else {
+          // If the ping is successful, send the create_window command
+          chrome.tabs.sendMessage(tabs[0].id, { command: "create_window" });
+          alert(`Languages set to: ${baseLanguage} and ${targetLanguage}.`);
+        }
+      });
     });
-    alert(`Languages set to: ${baseLanguage} and ${targetLanguage}.`);
   });
 });
 
@@ -41,7 +50,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       }
     } else if (detectedLang === targetLanguage) {
       translatedText = request.subtitle;
-      const translator = await initialiseTranslator(targetLanguage, baseLanguage);
+      const translator = await initialiseTranslator(targetLang, baseLanguage);
       if (translator) {
         baseText = await translator.translate(request.subtitle);
       }
