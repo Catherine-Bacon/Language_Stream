@@ -74,22 +74,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep the message channel open
   }
   if (request.command === "create_window") {
+    console.log("Received create_window command. Creating window.");
     createFloatingWindow();
     return false;
   }
 });
 
+// ----- DEBUG TEST: Verify Subtitle Element exists -----
+const subtitleElementTest = document.querySelector('.player-timed-text-track');
+if (subtitleElementTest) {
+    console.log("Subtitle element found!");
+} else {
+    console.error("Subtitle element NOT found. The CSS selector may be outdated.");
+}
+// ----- END DEBUG TEST -----
+
 // The observer that will watch for subtitle changes
 // This now starts immediately when the script is injected
 subtitleObserver = new MutationObserver((mutations) => {
+    // ----- DEBUG TEST: Check if observer is triggering -----
+    console.log("MutationObserver triggered. Mutating nodes:", mutations.length);
+    // ----- END DEBUG TEST -----
     mutations.forEach((mutation) => {
       if (mutation.type === 'childList' || mutation.type === 'characterData') {
         const subtitleElement = getNetflixSubtitleElement();
         if (subtitleElement && subtitleElement.textContent.trim() !== '') {
-          // Display the subtitle directly in the floating window
+          // ----- DEBUG TEST: Check if subtitle and window exist -----
+          console.log("Subtitle text captured:", subtitleElement.textContent.trim());
           if (floatingWindow) {
-            floatingWindow.innerHTML = subtitleElement.textContent.trim();
+              console.log("Floating window exists, attempting to update.");
+              floatingWindow.innerHTML = subtitleElement.textContent.trim();
+          } else {
+              console.log("Floating window does NOT exist yet.");
           }
+          // ----- END DEBUG TEST -----
         }
       }
     });
