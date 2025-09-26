@@ -77,24 +77,29 @@ function startSubtitleObserver() {
 
     if (subtitleElement) {
         subtitleObserver = new MutationObserver((mutations) => {
-            // Read the text content from the subtitle container
-            const subtitleText = subtitleElement.textContent.trim();
+            // --- NEW LOGIC: Extract text from inner HTML and handle line breaks ---
+            let subtitleText = '';
             
+            // 1. Check if the container itself has content (in case of simple subs)
+            if (subtitleElement.innerHTML.trim() !== '') {
+                // Temporarily replace <br> with a newline marker, then extract text
+                let tempDiv = document.createElement('div');
+                tempDiv.innerHTML = subtitleElement.innerHTML.replace(/<br\s*\/?>/gi, '\n');
+                subtitleText = tempDiv.textContent.trim();
+            }
+            // --- END NEW LOGIC ---
+
             if (subtitleText !== '' && floatingWindow) {
                 // Update the floating window's content
                 floatingWindow.innerHTML = subtitleText;
             }
         });
 
-        // Observe the subtitle element and all its children for:
-        // childList: when a new <span/> is added (e.g., first subtitle appears)
-        // subtree: to watch all the nested span elements
-        // characterData: when the actual text inside the span changes (most common update)
+        // Observe the subtitle element and all its children for any changes
         subtitleObserver.observe(subtitleElement, {
             childList: true,
             subtree: true,
             characterData: true,
-            // Also observe attributes, as the 'display:none' attribute might change
             attributes: true,
             attributeFilter: ['style', 'class']
         });
