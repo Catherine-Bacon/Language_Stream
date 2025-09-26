@@ -1,8 +1,7 @@
 let floatingWindow = null;
 let subtitleObserver = null;
-let mainObserver = null;
 
-// Function to find the Netflix subtitle element with the corrected selector
+// Function to find the Netflix subtitle element
 function getNetflixSubtitleElement() {
   return document.querySelector('.player-timedtext-text-container');
 }
@@ -38,6 +37,9 @@ function createFloatingWindow() {
     floatingWindow = windowDiv;
     makeDraggable(floatingWindow);
   }
+
+  // Once the window is created, immediately try to start the subtitle observer
+  startSubtitleObserver();
 }
 
 // Function to make the window draggable (no changes)
@@ -65,6 +67,46 @@ function makeDraggable(element) {
   });
 }
 
+// The core logic to observe the subtitle text changes
+function startSubtitleObserver() {
+    const subtitleElement = getNetflixSubtitleElement();
+
+    if (subtitleObserver) {
+        subtitleObserver.disconnect();
+    }
+
+    if (subtitleElement) {
+        subtitleObserver = new MutationObserver((mutations) => {
+            // Read the text content from the subtitle container
+            const subtitleText = subtitleElement.textContent.trim();
+            
+            if (subtitleText !== '' && floatingWindow) {
+                // Update the floating window's content
+                floatingWindow.innerHTML = subtitleText;
+            }
+        });
+
+        // Observe the subtitle element and all its children for:
+        // childList: when a new <span/> is added (e.g., first subtitle appears)
+        // subtree: to watch all the nested span elements
+        // characterData: when the actual text inside the span changes (most common update)
+        subtitleObserver.observe(subtitleElement, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+            // Also observe attributes, as the 'display:none' attribute might change
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
+        console.log("Subtitle observer is active and watching the subtitle element.");
+    } else {
+        // If the subtitle element is not found immediately, retry later.
+        console.log("Subtitle element not found yet. Retrying in 1 second.");
+        setTimeout(startSubtitleObserver, 1000);
+    }
+}
+
+
 // Add a listener to receive messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.command === "ping") {
@@ -76,36 +118,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     createFloatingWindow();
     return false;
   }
-});
-
-// The main observer to detect when the subtitle element appears on the page
-mainObserver = new MutationObserver((mutations) => {
-  const subtitleContainer = getNetflixSubtitleElement();
-  if (subtitleContainer) {
-    // Subtitle container found, disconnect the main observer
-    mainObserver.disconnect();
-    
-    // Attach the new, more specific observer to the subtitle container
-    subtitleObserver = new MutationObserver(() => {
-        const subtitleText = subtitleContainer.textContent.trim();
-        if (subtitleText !== '') {
-            if (floatingWindow) {
-                floatingWindow.innerHTML = subtitleText;
-            }
-        }
-    });
-
-    subtitleObserver.observe(subtitleContainer, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-    console.log("Subtitle observer attached.");
-  }
-});
-
-// Start the main observer to watch the entire body for the subtitle container
-mainObserver.observe(document.body, {
-  childList: true,
-  subtree: true,
 });
