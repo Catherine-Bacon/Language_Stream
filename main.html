@@ -1,9 +1,81 @@
 <html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 15px;
+        width: 300px;
+      }
+      h1 {
+        color: #e50914; /* Netflix Red */
+        font-size: 1.5em;
+        margin-bottom: 5px;
+      }
+      h2 {
+        font-size: 1.1em;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 5px;
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+      label, p {
+        font-size: 0.9em;
+        color: #333;
+      }
+      select, button, input[type="file"] {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        border: 1px solid #ddd;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #e50914;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      button:hover {
+        background-color: #f40a16;
+      }
+      #statusBox {
+        margin-top: 15px;
+        padding: 10px;
+        border: 1px solid #eee;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+        min-height: 20px;
+      }
+      /* Simple Loading Bar CSS */
+      #progressBarContainer {
+        width: 100%;
+        background-color: #ddd;
+        border-radius: 5px;
+        margin-top: 10px;
+        overflow: hidden;
+      }
+      #progressBar {
+        width: 0%;
+        height: 15px;
+        background-color: #4CAF50;
+        text-align: center;
+        line-height: 15px;
+        color: white;
+        transition: width 0.3s;
+      }
+    </style>
+  </head>
   <body>
     <h1>Language Stream</h1>
-    <p>Subtitle generator for binge watchers and language learners.</p>
+    <p>Upload your TTML subtitle XML file to begin.</p>
 
-    <h2>Settings</h2>
+    <h2>1. Upload Subtitles</h2>
+    <input type="file" id="subtitleFileInput" accept=".xml, .ttml">
+    
+    <h2>2. Select Languages</h2>
     <label for="baseLanguage">Base Language:</label>
     <select id="baseLanguage">
       <option value="en">English</option>
@@ -13,18 +85,25 @@
       <option value="ja">Japanese</option>
       <option value="ko">Korean</option>
     </select>
-    <br><br>
     <label for="targetLanguage">Target Language:</label>
     <select id="targetLanguage">
-      <option value="en">English</option>
       <option value="es">Spanish</option>
+      <option value="en">English</option>
       <option value="fr">French</option>
       <option value="de">German</option>
       <option value="ja">Japanese</option>
       <option value="ko">Korean</option>
     </select>
-    <br><br>
-    <button id="confirmButton">Confirm Languages</button>
+    
+    <br>
+    <button id="confirmButton">Load Subtitles & Start Dual-Sub Mode</button>
+
+    <div id="statusBox">
+      <p id="statusText">Waiting for file...</p>
+      <div id="progressBarContainer">
+        <div id="progressBar"></div>
+      </div>
+    </div>
     
     <script src="popup.js"></script>
   </body>
