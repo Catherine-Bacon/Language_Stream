@@ -1,110 +1,143 @@
-// --- DOM Elements ---
+// --- File start: popup.js ---
+
 const confirmButton = document.getElementById('confirmButton');
-const urlInput = document.getElementById('subtitleUrlInput');
+const subtitleUrlInput = document.getElementById('subtitleUrlInput');
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
 const progressBar = document.getElementById('progressBar');
+const resetButton = document.getElementById('resetButton');
 
-// --- Initialization: Load status from storage ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Attempt to load saved status
-    chrome.storage.local.get('ls_status', (data) => {
-        const savedStatus = data.ls_status;
+// --- Status Management Functions ---
 
-        if (savedStatus) {
-            statusText.textContent = savedStatus.message;
-            progressBar.style.width = savedStatus.progress + '%';
+// Function to reset the UI and clear storage
+async function resetStatus() {
+    await chrome.storage.local.remove(['processing_status', 'last_input']);
+    statusText.textContent = "Ready to load new subtitles.";
+    progressBar.style.width = '0%';
+    confirmButton.disabled = false;
+    subtitleUrlInput.disabled = false;
+    baseLanguageSelect.disabled = false;
+    targetLanguageSelect.disabled = false;
+    console.log("Status reset completed.");
+}
 
-            // If a process is active (progress < 100), disable controls and restore input values
-            if (savedStatus.progress < 100) {
-                confirmButton.disabled = true;
-                urlInput.disabled = true;
-                
-                // Restore values if they were saved during processing
-                if (savedStatus.url) urlInput.value = savedStatus.url;
-                if (savedStatus.baseLang) baseLanguageSelect.value = savedStatus.baseLang;
-                if (savedStatus.targetLang) targetLanguageSelect.value = savedStatus.targetLang;
-                
-                // Indicate that the background process is still running
-                statusText.textContent = savedStatus.message + " (Processing in background...)";
-            } else {
-                // If progress is 100, show completion status but enable controls for a new job
-                confirmButton.disabled = false;
-                urlInput.disabled = false;
-            }
+// Function to load status from storage on popup open
+function loadSavedStatus() {
+    chrome.storage.local.get(['processing_status', 'last_input'], (data) => {
+        const status = data.processing_status;
+        const input = data.last_input;
+
+        if (input && subtitleUrlInput) {
+             subtitleUrlInput.value = input.url || '';
+             baseLanguageSelect.value = input.baseLang || 'en';
+             targetLanguageSelect.value = input.targetLang || 'es';
+        }
+
+        if (status && status.progress < 100) {
+            statusText.textContent = status.message;
+            progressBar.style.width = status.progress + '%';
+            
+            // Disable inputs while a background process is running
+            confirmButton.disabled = true;
+            subtitleUrlInput.disabled = true;
+            baseLanguageSelect.disabled = true;
+            targetLanguageSelect.disabled = true;
+        } else if (status && status.progress === 100) {
+            statusText.textContent = status.message;
+            progressBar.style.width = '100%';
+            confirmButton.disabled = true;
         } else {
-            // Default state
-            statusText.textContent = "Enter subtitle URL and click Load.";
-            progressBar.style.width = '0%';
+             // Default state
+             statusText.textContent = "Enter subtitle URL and click Load.";
         }
     });
-});
+}
 
-// --- Main Button Logic ---
-confirmButton.addEventListener('click', () => {
-    const url = urlInput.value;
+// --- Event Listeners ---
+
+// 1. Load saved status immediately when the DOM is ready
+document.addEventListener('DOMContentLoaded', loadSavedStatus);
+
+// 2. Load Subtitles & Start Dual-Sub Mode
+confirmButton.addEventListener('click', async () => {
+    const url = subtitleUrlInput.value.trim();
     const baseLang = baseLanguageSelect.value;
     const targetLang = targetLanguageSelect.value;
 
-    if (!url || !url.startsWith('http')) {
-        statusText.textContent = "Error: Please enter a valid subtitle URL.";
+    if (!url) {
+        statusText.textContent = "Error: Please enter a subtitle URL first.";
         progressBar.style.width = '0%';
         return;
     }
-    
-    // Disable controls while processing starts
-    confirmButton.disabled = true;
-    urlInput.disabled = true;
 
-    statusText.textContent = "Starting process...";
+    // 1. Proactively clear old status and save new input
+    await resetStatus(); 
+    await chrome.storage.local.set({ 
+        last_input: { url, baseLang, targetLang } 
+    });
+
+    // 2. Update UI for start of process
+    statusText.textContent = "URL accepted. Initializing...";
     progressBar.style.width = '10%';
+    confirmButton.disabled = true;
+    subtitleUrlInput.disabled = true;
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTabId = tabs[0].id;
-
-        // Message payload includes URL and language settings
-        const payload = { 
-            command: "fetch_and_process_xml", 
+        
+        // Command to tell the content script to fetch, parse, and translate.
+        const message = { 
+            command: "fetch_and_process_url", 
             url: url,
             baseLang: baseLang,
             targetLang: targetLang
         };
 
-        // Try to send a message to the content script.
-        chrome.tabs.sendMessage(currentTabId, { command: "ping" }, (response) => {
-            // Check for an error. If an error exists, the content script isn't there.
+        // Try to send a message. If the content script isn't loaded, inject it first.
+        chrome.tabs.sendMessage(currentTabId, message, (response) => {
             if (chrome.runtime.lastError) {
-                // No response, inject the content script first
+                // Content script not ready: inject and then send message
                 chrome.scripting.executeScript({
                     target: { tabId: currentTabId },
                     files: ['content.js']
                 }, () => {
-                    // Send the command after a slight delay to ensure the script is ready.
                     setTimeout(() => {
-                        chrome.tabs.sendMessage(currentTabId, payload);
+                        chrome.tabs.sendMessage(currentTabId, message);
                     }, 200);
                 });
-            } else {
-                // The content script is already running, just send the command.
-                chrome.tabs.sendMessage(currentTabId, payload);
-            }
+            } 
+            // Status updates will now come back via chrome.runtime.onMessage listener below.
         });
     });
 });
 
+// 3. Reset Button Listener
+resetButton.addEventListener('click', resetStatus);
 
-// --- Listener to update status from content script ---
+
+// 4. Listener to update status from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "update_status") {
-        statusText.textContent = request.message;
-        progressBar.style.width = request.progress + '%';
+        const progress = request.progress;
+        const message = request.message;
 
-        if (request.progress >= 100) {
+        statusText.textContent = message;
+        progressBar.style.width = progress + '%';
+        
+        if (progress >= 100) {
+            confirmButton.disabled = true;
+            subtitleUrlInput.disabled = false;
+        } else if (progress > 0) {
+             // Disable controls while processing
+            confirmButton.disabled = true;
+            subtitleUrlInput.disabled = true;
+        } else {
+            // Error case, re-enable controls
             confirmButton.disabled = false;
-            urlInput.disabled = false;
-            // Also clear the saved state on successful completion
-            chrome.storage.local.remove('ls_status');
+            subtitleUrlInput.disabled = false;
         }
     }
 });
+
+// --- File end: popup.js ---
