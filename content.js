@@ -104,10 +104,10 @@ function parseTtmlXml(xmlString, url) {
 
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = innerHTML;
-            text = tempDiv.textContent; // Don't trim yet
+            text = tempDiv.textContent; // Extract all text content.
 
             // 2. Normalize all whitespace (including newlines and multiple spaces) to a single space.
-            // This ensures words separated by a <br/> or extra whitespace are joined by exactly one space.
+            // This is the CRITICAL FIX to ensure words separated by the old <br/> are correctly spaced.
             text = text.replace(/\s+/g, ' ').trim(); 
 
             if (beginTick && endTick && text) {
