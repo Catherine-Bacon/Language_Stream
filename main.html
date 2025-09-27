@@ -41,6 +41,14 @@
       button:hover {
         background-color: #f40a16;
       }
+      /* Added a secondary style for the reset button for visual distinction */
+      button#resetButton { 
+        background-color: #777; 
+        margin-top: 0px; /* Adjust spacing */
+      }
+      button#resetButton:hover {
+        background-color: #999;
+      }
       #statusBox {
         margin-top: 15px;
         padding: 10px;
@@ -98,6 +106,7 @@
     
     <br>
     <button id="confirmButton">Load Subtitles & Start Dual-Sub Mode</button>
+    <button id="resetButton">Reset Status & Clear URL</button>
 
     <div id="statusBox">
       <p id="statusText">Waiting for URL...</p>
