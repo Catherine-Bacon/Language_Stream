@@ -15,13 +15,30 @@ var API_KEY = API_KEY || ""; // Placeholder - Canvas will provide this at runtim
 
 // --- Utility Functions ---
 
-// Helper to send status updates back to the popup
+/**
+ * Helper to send status updates back to the popup and save state to local storage.
+ */
 function sendStatusUpdate(message, progress) {
+    // 1. Save state to local storage (for persistent popup display)
+    chrome.storage.local.set({
+        'ls_status': {
+            message: message,
+            progress: progress,
+            // Only store current languages if progress is < 100 (still processing)
+            baseLang: progress < 100 ? subtitleLanguages.base : null,
+            targetLang: progress < 100 ? subtitleLanguages.target : null,
+            url: progress < 100 && typeof request !== 'undefined' ? request.url : null // If possible, save the URL being processed
+        }
+    }).catch(e => console.error("Could not save status to storage:", e));
+
+    // 2. Send state to the currently open popup
     chrome.runtime.sendMessage({
         command: "update_status",
         message: message,
         progress: progress
-    }).catch(e => console.error("Could not send status:", e)); // Ignore if popup closed
+    }).catch(e => {
+        // console.error("Could not send status:", e); // Ignore if popup closed
+    }); 
 }
 
 // Converts a tick value string (e.g., "95095000t") to seconds (number)
@@ -314,8 +331,8 @@ function startSubtitleSync() {
         clearInterval(syncInterval);
     }
     
-    let currentSubtitleIndex = -1;
-    let lastTime = 0;
+    var currentSubtitleIndex = -1;
+    var lastTime = 0;
     
     if (floatingWindow) {
         floatingWindow.style.display = 'block';
