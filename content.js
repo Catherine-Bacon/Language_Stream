@@ -1,19 +1,17 @@
 // --- File start: content.js ---
 // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
-// This pattern prevents '...has already been declared' errors when the content script 
-// is injected multiple times (e.g., when the extension popup is repeatedly opened).
 
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null; 
 var subtitleLanguages = subtitleLanguages || { base: 'en', target: 'es' };
-var translationCache = translationCache || {}; // Cache for API responses
+var translationCache = translationCache || {}; // Cache for translations
 
-// Constants must also be declared this way using 'var'
+// NEW GLOBAL: Holds the native Translator API instance
+var currentTranslator = currentTranslator || null; 
+
+// REMOVED: GEMINI API CONSTANTS (TICK_RATE, API_URL, API_KEY, CONCURRENCY_LIMIT)
 var TICK_RATE = TICK_RATE || 10000000; 
-var API_URL = API_URL || "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
-var API_KEY = API_KEY || ""; // Placeholder - Canvas will provide this at runtime
-var CONCURRENCY_LIMIT = CONCURRENCY_LIMIT || 5; // Max number of parallel translation requests
 
 // --- Utility Functions ---
 
@@ -22,12 +20,10 @@ var CONCURRENCY_LIMIT = CONCURRENCY_LIMIT || 5; // Max number of parallel transl
  */
 function sendStatusUpdate(message, progress, url = null) {
     // 1. Save state to local storage (for persistent popup display)
-    // FIXED: Using 'ls_status' key for consistency with popup.js
     chrome.storage.local.set({
         'ls_status': { 
             message: message,
             progress: progress,
-            // Only store state info if progress is less than 100
             baseLang: progress < 100 ? subtitleLanguages.base : null,
             targetLang: progress < 100 ? subtitleLanguages.target : null,
             url: progress < 100 ? url : null 
@@ -62,6 +58,8 @@ function getNetflixVideoElement() {
 }
 
 // --- XML Fetching, Parsing, and Window Logic ---
+// (fetchXmlContent, parseTtmlXml, createFloatingWindow, makeDraggable functions remain the same as previous step, omitted for brevity)
+// NOTE: Assuming standard implementations of fetchXmlContent, parseTtmlXml, createFloatingWindow, makeDraggable
 
 async function fetchXmlContent(url) {
     try {
@@ -122,7 +120,7 @@ function parseTtmlXml(xmlString, url) {
         });
 
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting batch translation...`, 80, url);
+        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting translation setup...`, 80, url);
         return true;
 
     } catch (e) {
@@ -214,134 +212,108 @@ function makeDraggable(element) {
   element.addEventListener('touchstart', startDrag);
 }
 
-// --- Translation Logic ---
+
+// --- Translation Logic (REWRITTEN FOR NATIVE API) ---
 
 /**
- * Translates the given text using the Gemini API with exponential backoff.
+ * Translates the given text using the native Chrome Translator API.
+ * Handles Translator instance creation and model download monitoring.
  */
 async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
     if (translationCache[cacheKey]) {
         return translationCache[cacheKey];
     }
-
-    const systemPrompt = `You are an expert, fluent language translator. Translate the following text from ${sourceLang} to ${targetLang}. Provide only the translation, with no extra commentary, formatting, or punctuation unless it is part of the translation.`;
-    const userQuery = textToTranslate;
     
-    const payload = {
-        contents: [{ parts: [{ text: userQuery }] }],
-        systemInstruction: {
-            parts: [{ text: systemPrompt }]
-        },
-    };
+    // Check if the translator needs to be created or updated
+    if (!currentTranslator || 
+        currentTranslator.sourceLanguage !== sourceLang || 
+        currentTranslator.targetLanguage !== targetLang) {
 
-    let translatedText = `(Translation Failed)`;
-    const maxRetries = 3;
-    let delay = 1000;
-
-    for (let i = 0; i < maxRetries; i++) {
+        if (!('Translator' in self)) {
+            // Feature detection check
+            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
+            return "(Translation Failed - API Missing)";
+        }
+        
         try {
-            const response = await fetch(`${API_URL}?key=${API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                    translatedText = text.trim();
-                    translationCache[cacheKey] = translatedText;
-                    return translatedText;
+             // 1. Create the new translator instance, monitoring download progress
+             currentTranslator = await Translator.create({
+                sourceLanguage: sourceLang,
+                targetLanguage: targetLang,
+                monitor(m) {
+                    m.addEventListener('downloadprogress', (e) => {
+                        const loaded = Math.floor(e.loaded * 100);
+                        // Progress from 80% (parsing complete) to 99% (just before starting sync)
+                        const overallProgress = 80 + Math.floor(loaded * 0.19); // Use 19% for download phase
+                        sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
+                    });
                 }
-            }
-             throw new Error(`API response failed or content was empty. Status: ${response.status}`);
+            });
+            sendStatusUpdate("Translator model ready. Starting translation...", 99);
 
-        } catch (error) {
-            console.warn(`Translation attempt ${i + 1} failed for: "${textToTranslate}". Retrying in ${delay / 1000}s.`);
-            if (i < maxRetries - 1) {
-                await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; 
-            } else {
-                console.error("Gemini API translation failed after all retries.", error);
-            }
+        } catch (e) {
+            console.error("Native Translator API failed to create:", e);
+            sendStatusUpdate(`Translation failed during model setup: ${e.message}`, 0);
+            return "(Translation Failed - Model Setup Error)";
         }
     }
 
-    return translatedText; 
+    // 2. Perform the translation
+    try {
+        const translatedText = await currentTranslator.translate(textToTranslate);
+        if (translatedText) {
+            translationCache[cacheKey] = translatedText.trim();
+            return translatedText.trim();
+        }
+        throw new Error("Empty translation result.");
+
+    } catch (e) {
+        console.error(`Native translation failed for: "${textToTranslate}"`, e);
+        // This usually means the API or language pair is unavailable.
+        return `(Translation Failed - Unavailable)`;
+    }
 }
 
 
 /**
- * Runs batch translation for all parsed subtitles using concurrency.
+ * Runs sequential translation for all parsed subtitles.
+ * NO BATCHING/CONCURRENCY NEEDED with the native API.
  */
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
-    const baseProgress = 80;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
-
-    // Filter out subtitles that are just sound effects and need to be skipped
-    const subtitlesToTranslate = parsedSubtitles.filter(sub => !sub.text.match(/^\[.*\]$/));
-    const totalToTranslate = subtitlesToTranslate.length;
-    
-    // Mark skipped subtitles as ready
-    parsedSubtitles.filter(sub => sub.text.match(/^\[.*\]$/)).forEach(sub => {
-        sub.translatedText = sub.text; // Use original text for display, maybe add a gray style later
-    });
-
     let translatedCount = 0;
     
-    // Create an array of promises for the translation tasks
-    const translationTasks = subtitlesToTranslate.map((sub) => async () => {
-        try {
-            const translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
-            sub.translatedText = translatedText;
-        } catch (e) {
-            sub.translatedText = "(Translation failed permanently)";
-            console.error(`Permanent translation failure for subtitle: "${sub.text}"`, e);
+    // Sequentially translate all lines
+    for (let i = 0; i < totalSubs; i++) {
+        const sub = parsedSubtitles[i];
+
+        // Skip lines that are just sound effects (e.g., [Music], [Sigh])
+        if (sub.text.match(/^\[.*\]$/)) {
+             sub.translatedText = sub.text;
+        } else {
+             // Use the single translateSubtitle function
+             sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         }
         
         translatedCount++;
+        
         // Update progress bar
-        const progress = baseProgress + Math.floor((translatedCount / totalToTranslate) * 20);
-        sendStatusUpdate(`Translating: ${translatedCount}/${totalToTranslate} lines...`, progress, url);
-    });
-
-    // Function to run tasks with a concurrency limit
-    const runInBatches = async (tasks, limit) => {
-        const results = [];
-        const activePromises = new Set();
-        let taskIndex = 0;
-
-        while (taskIndex < tasks.length || activePromises.size > 0) {
-            // Start new tasks up to the concurrency limit
-            while (taskIndex < tasks.length && activePromises.size < limit) {
-                const task = tasks[taskIndex](); // Start the async task
-                const promise = task.then(() => {
-                    activePromises.delete(promise); // Remove when resolved
-                });
-                activePromises.add(promise);
-                taskIndex++;
-            }
-            
-            // Wait for at least one active promise to finish
-            if (activePromises.size > 0) {
-                await Promise.race(activePromises);
-            }
+        // We only update translation progress between 99% and 100% since 80-99 is model download/setup
+        const progress = 99 + Math.floor((translatedCount / totalSubs) * 1); 
+        if (progress < 100) { 
+             sendStatusUpdate(`Translating: ${translatedCount}/${totalSubs} lines...`, progress, url);
         }
-        return results;
-    };
-    
-    await runInBatches(translationTasks, CONCURRENCY_LIMIT);
+    }
 
     sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
-    console.log("Batch translation finished. All subtitles are ready.");
+    console.log("Native translation process finished. All subtitles are ready.");
 }
 
-
-// --- Floating Window & Sync Logic ---
+// --- Floating Window & Sync Logic (Remains the same as previous step, omitted for brevity) ---
+// NOTE: Assuming standard implementations of startSubtitleSync and disableNetflixSubObserver
 
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
@@ -456,6 +428,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 2. Clear status locally and start UI update
         const url = request.url;
+        // ADDED API CHECK STATUS UPDATE
+        if (!('Translator' in self)) {
+            sendStatusUpdate("ERROR: Chrome Translator API not detected. Translations are unavailable.", 0, url);
+            return false;
+        }
+
         sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10, url);
 
         // 3. Async wrapper to handle the fetch/parse/translate sequence
@@ -471,7 +449,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const parseSuccess = parseTtmlXml(xmlContent, url);
                 
                 if (parseSuccess && parsedSubtitles.length > 0) {
-                    // 6. Run batch translation (80% -> 100%)
+                    // 6. Run sequential translation (80% -> 100%)
                     await translateAllSubtitles(url);
 
                     // 7. Start synchronization after translation is 100% complete
