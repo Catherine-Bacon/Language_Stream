@@ -1,18 +1,17 @@
-// Use 'var' or check for existence to prevent re-declaration errors upon re-injection.
-// We are ensuring these are global only within this content script's scope.
-if (typeof floatingWindow === 'undefined') {
-    var floatingWindow = null;
-    var parsedSubtitles = [];
-    var syncInterval = null; 
-    var subtitleLanguages = { base: 'en', target: 'es' };
-    var translationCache = {};
-    console.log("Initializing global variables for content script.");
-}
+// --- SAFE GLOBAL VARIABLE INITIALIZATION ---
+// This pattern prevents '...has already been declared' errors when the content script 
+// is injected multiple times (e.g., when the extension popup is repeatedly opened).
 
-const TICK_RATE = 10000000; 
-// --- Gemini API Configuration ---
-const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
-const API_KEY = ""; // Placeholder - Canvas will provide this at runtime
+var floatingWindow = floatingWindow || null;
+var parsedSubtitles = parsedSubtitles || [];
+var syncInterval = syncInterval || null; 
+var subtitleLanguages = subtitleLanguages || { base: 'en', target: 'es' };
+var translationCache = translationCache || {};
+
+// Constants must also be declared this way to prevent 'Identifier has already been declared'
+var TICK_RATE = TICK_RATE || 10000000; 
+var API_URL = API_URL || "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
+var API_KEY = API_KEY || ""; // Placeholder - Canvas will provide this at runtime
 
 // --- Utility Functions ---
 
