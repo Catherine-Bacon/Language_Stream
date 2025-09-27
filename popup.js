@@ -1,38 +1,79 @@
+// --- DOM Elements ---
 const confirmButton = document.getElementById('confirmButton');
-const urlInput = document.getElementById('subtitleUrlInput'); 
+const urlInput = document.getElementById('subtitleUrlInput');
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
 const progressBar = document.getElementById('progressBar');
 
+// --- Initialization: Load status from storage ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Attempt to load saved status
+    chrome.storage.local.get('ls_status', (data) => {
+        const savedStatus = data.ls_status;
+
+        if (savedStatus) {
+            statusText.textContent = savedStatus.message;
+            progressBar.style.width = savedStatus.progress + '%';
+
+            // If a process is active (progress < 100), disable controls and restore input values
+            if (savedStatus.progress < 100) {
+                confirmButton.disabled = true;
+                urlInput.disabled = true;
+                
+                // Restore values if they were saved during processing
+                if (savedStatus.url) urlInput.value = savedStatus.url;
+                if (savedStatus.baseLang) baseLanguageSelect.value = savedStatus.baseLang;
+                if (savedStatus.targetLang) targetLanguageSelect.value = savedStatus.targetLang;
+                
+                // Indicate that the background process is still running
+                statusText.textContent = savedStatus.message + " (Processing in background...)";
+            } else {
+                // If progress is 100, show completion status but enable controls for a new job
+                confirmButton.disabled = false;
+                urlInput.disabled = false;
+            }
+        } else {
+            // Default state
+            statusText.textContent = "Enter subtitle URL and click Load.";
+            progressBar.style.width = '0%';
+        }
+    });
+});
+
+// --- Main Button Logic ---
 confirmButton.addEventListener('click', () => {
-    const subtitleUrl = urlInput.value.trim();
+    const url = urlInput.value;
     const baseLang = baseLanguageSelect.value;
     const targetLang = targetLanguageSelect.value;
 
-    if (!subtitleUrl) {
-        statusText.textContent = "Error: Please enter a subtitle URL.";
+    if (!url || !url.startsWith('http')) {
+        statusText.textContent = "Error: Please enter a valid subtitle URL.";
         progressBar.style.width = '0%';
         return;
     }
+    
+    // Disable controls while processing starts
+    confirmButton.disabled = true;
+    urlInput.disabled = true;
 
-    statusText.textContent = "Requesting subtitle data...";
+    statusText.textContent = "Starting process...";
     progressBar.style.width = '10%';
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTabId = tabs[0].id;
 
-        // Message contains the URL and language preferences
-        const message = { 
+        // Message payload includes URL and language settings
+        const payload = { 
             command: "fetch_and_process_xml", 
-            url: subtitleUrl,
+            url: url,
             baseLang: baseLang,
             targetLang: targetLang
         };
 
         // Try to send a message to the content script.
-        chrome.tabs.sendMessage(currentTabId, message, (response) => {
-            // Check for error/response to determine if content script is loaded
+        chrome.tabs.sendMessage(currentTabId, { command: "ping" }, (response) => {
+            // Check for an error. If an error exists, the content script isn't there.
             if (chrome.runtime.lastError) {
                 // No response, inject the content script first
                 chrome.scripting.executeScript({
@@ -41,30 +82,29 @@ confirmButton.addEventListener('click', () => {
                 }, () => {
                     // Send the command after a slight delay to ensure the script is ready.
                     setTimeout(() => {
-                        chrome.tabs.sendMessage(currentTabId, message);
+                        chrome.tabs.sendMessage(currentTabId, payload);
                     }, 200);
                 });
-            } 
+            } else {
+                // The content script is already running, just send the command.
+                chrome.tabs.sendMessage(currentTabId, payload);
+            }
         });
     });
 });
 
 
-// Listener to update status from content script
+// --- Listener to update status from content script ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "update_status") {
         statusText.textContent = request.message;
-        // Ensure progress is clamped between 0 and 100
-        const progress = Math.max(0, Math.min(100, request.progress || 0));
-        progressBar.style.width = progress + '%';
+        progressBar.style.width = request.progress + '%';
 
-        if (progress >= 100) {
-            confirmButton.disabled = true;
-            urlInput.disabled = true;
-        } else {
-             // Re-enable if processing fails and progress is reset
-             confirmButton.disabled = false;
-             urlInput.disabled = false;
+        if (request.progress >= 100) {
+            confirmButton.disabled = false;
+            urlInput.disabled = false;
+            // Also clear the saved state on successful completion
+            chrome.storage.local.remove('ls_status');
         }
     }
 });
