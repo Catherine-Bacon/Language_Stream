@@ -150,7 +150,7 @@ function createFloatingWindow() {
       padding: 20px 30px; /* Increased padding slightly */
       color: white;
       font-family: 'Inter', sans-serif;
-      font-size: 3.6rem; /* DOUBLED BASE FONT SIZE (was 1.8rem) */
+      font-size: 3.6rem; /* BASE FONT SIZE (Twice the old 1.8rem size) */
       text-align: center;
       line-height: 1.4;
       resize: both;
@@ -377,10 +377,11 @@ function startSubtitleSync() {
                 const baseText = newSubtitle.text;
                 const translatedText = newSubtitle.translatedText || `(Translation Error)`;
 
-                // FONT SIZE UPDATED HERE (was 1.1em and 0.9em relative to 1.8rem base)
+                // Base language (original text) is smaller (0.8em of 3.6rem)
+                // Translated line (learning language) is larger (1em of 3.6rem)
                 floatingWindow.innerHTML = `
-                    <span class="base-sub" style="font-weight: bold; font-size: 1em;">${baseText}</span><br>
-                    <span class="translated-sub" style="opacity: 1.0; font-size: 0.8em;">
+                    <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
+                    <span class="translated-sub" style="opacity: 1.0; font-size: 1em;">
                         ${translatedText}
                     </span>
                 `;
