@@ -4,11 +4,11 @@
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null; 
-// FIXED: Initialize to empty strings, values will be set from the popup message
+// Initialize to empty strings, values will be set from the popup message
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' }; 
 var translationCache = translationCache || {}; // Cache for translations
 
-// REMOVED: GEMINI API CONSTANTS (TICK_RATE, API_URL, API_KEY, CONCURRENCY_LIMIT)
+// REMOVED: GEMINI API CONSTANTS
 var currentTranslator = currentTranslator || null; 
 var TICK_RATE = TICK_RATE || 10000000; 
 
@@ -108,7 +108,7 @@ function parseTtmlXml(xmlString, url) {
 
             // 2. Normalize all whitespace (including newlines and multiple spaces) to a single space.
             // This ensures words separated by a <br/> or extra whitespace are joined by exactly one space.
-            text = text.replace(/\s+/g, ' ').trim();
+            text = text.replace(/\s+/g, ' ').trim(); 
 
             if (beginTick && endTick && text) {
                 parsedSubtitles.push({
@@ -156,10 +156,10 @@ function createFloatingWindow() {
       border-radius: 12px;
       box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
       z-index: 9999;
-      padding: 20px 30px; /* Increased padding slightly */
+      padding: 20px 30px; 
       color: white;
       font-family: 'Inter', sans-serif;
-      font-size: 3.6rem; /* BASE FONT SIZE (Twice the old 1.8rem size) */
+      font-size: 3.6rem; /* BASE FONT SIZE (Doubled) */
       text-align: center;
       line-height: 1.4;
       resize: both;
