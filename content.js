@@ -1,3 +1,4 @@
+// --- File start: content.js ---
 // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
 // This pattern prevents '...has already been declared' errors when the content script 
 // is injected multiple times (e.g., when the extension popup is repeatedly opened).
@@ -21,8 +22,9 @@ var CONCURRENCY_LIMIT = CONCURRENCY_LIMIT || 5; // Max number of parallel transl
  */
 function sendStatusUpdate(message, progress, url = null) {
     // 1. Save state to local storage (for persistent popup display)
+    // FIXED: Using 'ls_status' key for consistency with popup.js
     chrome.storage.local.set({
-        'ls_status': {
+        'ls_status': { 
             message: message,
             progress: progress,
             // Only store state info if progress is less than 100
@@ -441,7 +443,7 @@ function disableNetflixSubObserver() {
 // --- Message Listener for Popup Communication ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.command === "fetch_and_process_xml" && request.url) {
+    if (request.command === "fetch_and_process_url" && request.url) {
         
         // 1. Store language preferences
         subtitleLanguages.base = request.baseLang;
@@ -481,6 +483,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         
         return false; 
+    }
+    
+    // NEW HANDLER: Stops the background sync loop when the user cancels
+    if (request.command === "cancel_processing") {
+        if (syncInterval) {
+            clearInterval(syncInterval);
+            syncInterval = null;
+            console.log("Subtitle sync loop stopped by user cancel.");
+        }
+        // Also hide the floating window
+        if (floatingWindow) {
+            floatingWindow.style.display = 'none';
+            floatingWindow.innerHTML = '';
+        }
+        return true;
     }
     
     if (request.command === "ping") {
