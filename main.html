@@ -22,7 +22,7 @@
         font-size: 0.9em;
         color: #333;
       }
-      select, button, input[type="file"] {
+      select, button, input[type="text"] {
         width: 100%;
         padding: 8px;
         margin-top: 5px;
@@ -70,10 +70,11 @@
   </head>
   <body>
     <h1>Language Stream</h1>
-    <p>Upload your TTML subtitle XML file to begin.</p>
+    <p>Paste the TTML subtitle URL to begin.</p>
 
-    <h2>1. Upload Subtitles</h2>
-    <input type="file" id="subtitleFileInput" accept=".xml, .ttml">
+    <h2>1. Subtitle URL</h2>
+    <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
+           value="https://ipv4-c017-lhr009-sky-isp.1.oca.nflxvideo.net/?o=1&v=159&e=1759032493&t=5Q8k_0hKpJuG7vquYAvfjh-spUk-I5rdAarHUjCWrUPu6xAyrPRqAUBbSfWQUH1OHYEcnrUD1TdYYxWUJ7h9scAIOfdi0wjyPMi6L2oUjhmlzu5nUKHW4LMBmwqI_By96PguqKVsFM1p0VG5H4g_Lum0on0XEcywsx4fMBcJqOJsrzi4OJ-2HoNXCUTV9ia4WswmLDZjzror3h_nkaVg4WH_quEUObhZti8L-hEOMz_G1FVRh6w">
     
     <h2>2. Select Languages</h2>
     <label for="baseLanguage">Base Language:</label>
@@ -99,7 +100,7 @@
     <button id="confirmButton">Load Subtitles & Start Dual-Sub Mode</button>
 
     <div id="statusBox">
-      <p id="statusText">Waiting for file...</p>
+      <p id="statusText">Waiting for URL...</p>
       <div id="progressBarContainer">
         <div id="progressBar"></div>
       </div>

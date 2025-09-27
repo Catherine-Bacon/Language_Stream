@@ -1,62 +1,52 @@
 const confirmButton = document.getElementById('confirmButton');
-const fileInput = document.getElementById('subtitleFileInput');
+const urlInput = document.getElementById('subtitleUrlInput'); 
+const baseLanguageSelect = document.getElementById('baseLanguage');
+const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
 const progressBar = document.getElementById('progressBar');
 
 confirmButton.addEventListener('click', () => {
-    const file = fileInput.files[0];
+    const subtitleUrl = urlInput.value.trim();
+    const baseLang = baseLanguageSelect.value;
+    const targetLang = targetLanguageSelect.value;
 
-    if (!file) {
-        statusText.textContent = "Error: Please select a TTML XML file first.";
+    if (!subtitleUrl) {
+        statusText.textContent = "Error: Please enter a subtitle URL.";
         progressBar.style.width = '0%';
         return;
     }
 
-    statusText.textContent = "Reading file...";
+    statusText.textContent = "Requesting subtitle data...";
     progressBar.style.width = '10%';
 
-    const reader = new FileReader();
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const currentTabId = tabs[0].id;
 
-    reader.onload = (e) => {
-        const xmlContent = e.target.result;
-        statusText.textContent = "File read. Sending to Netflix tab for processing...";
-        progressBar.style.width = '30%';
+        // Message contains the URL and language preferences
+        const message = { 
+            command: "fetch_and_process_xml", 
+            url: subtitleUrl,
+            baseLang: baseLang,
+            targetLang: targetLang
+        };
 
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            const currentTabId = tabs[0].id;
-
-            // Try to send a message to the content script to process the XML.
-            chrome.tabs.sendMessage(currentTabId, { 
-                command: "process_xml", 
-                xml: xmlContent 
-            }, (response) => {
-                // Check for error/response to determine if content script is loaded
-                if (chrome.runtime.lastError) {
-                    // No response, inject the content script first
-                    chrome.scripting.executeScript({
-                        target: { tabId: currentTabId },
-                        files: ['content.js']
-                    }, () => {
-                        // Send the command after a slight delay to ensure the script is ready.
-                        setTimeout(() => {
-                            chrome.tabs.sendMessage(currentTabId, { 
-                                command: "process_xml", 
-                                xml: xmlContent 
-                            });
-                        }, 200);
-                    });
-                } 
-                // Status updates will now be handled by the content script sending messages back.
-            });
+        // Try to send a message to the content script.
+        chrome.tabs.sendMessage(currentTabId, message, (response) => {
+            // Check for error/response to determine if content script is loaded
+            if (chrome.runtime.lastError) {
+                // No response, inject the content script first
+                chrome.scripting.executeScript({
+                    target: { tabId: currentTabId },
+                    files: ['content.js']
+                }, () => {
+                    // Send the command after a slight delay to ensure the script is ready.
+                    setTimeout(() => {
+                        chrome.tabs.sendMessage(currentTabId, message);
+                    }, 200);
+                });
+            } 
         });
-    };
-
-    reader.onerror = () => {
-        statusText.textContent = "Error reading file.";
-        progressBar.style.width = '0%';
-    };
-
-    reader.readAsText(file);
+    });
 });
 
 
@@ -64,11 +54,17 @@ confirmButton.addEventListener('click', () => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "update_status") {
         statusText.textContent = request.message;
-        progressBar.style.width = request.progress + '%';
+        // Ensure progress is clamped between 0 and 100
+        const progress = Math.max(0, Math.min(100, request.progress || 0));
+        progressBar.style.width = progress + '%';
 
-        if (request.progress >= 100) {
+        if (progress >= 100) {
             confirmButton.disabled = true;
-            fileInput.disabled = true;
+            urlInput.disabled = true;
+        } else {
+             // Re-enable if processing fails and progress is reset
+             confirmButton.disabled = false;
+             urlInput.disabled = false;
         }
     }
 });

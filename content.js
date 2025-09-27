@@ -2,6 +2,7 @@ let floatingWindow = null;
 let parsedSubtitles = [];
 let syncInterval = null; // Used to hold the interval ID for time synchronization
 const TICK_RATE = 10000000; // Hardcoded based on user's XML example
+let subtitleLanguages = { base: 'en', target: 'es' }; // Store language settings
 
 // --- Utility Functions ---
 
@@ -24,15 +25,32 @@ function ticksToSeconds(tickString) {
 
 // Function to find the Netflix video element
 function getNetflixVideoElement() {
-    // Netflix uses multiple video elements; often the one with the smallest dimensions is the dummy,
-    // but the main player is usually within the element structure. We look for the main one.
-    // The player-view element contains the video.
+    // Look for the main player video element.
     const playerView = document.querySelector('.watch-video--player-view');
     if (playerView) {
         return playerView.querySelector('video');
     }
     // Fallback search
     return document.querySelector('video[src*="blob"]');
+}
+
+// --- XML Fetching Logic ---
+
+async function fetchXmlContent(url) {
+    try {
+        sendStatusUpdate("Fetching XML from external URL...", 20);
+        // The content script can make cross-domain requests, which is why we do it here.
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
+        }
+        sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 30);
+        return await response.text();
+    } catch (e) {
+        console.error("Error fetching XML from URL:", e);
+        sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0);
+        return null;
+    }
 }
 
 // --- XML Processing Logic ---
@@ -43,7 +61,7 @@ function parseTtmlXml(xmlString) {
 
     try {
         const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
+        const xmlDoc = parser.parseFromString(xmlString, 'application/xml'); 
 
         // Check for XML parsing errors
         const errorNode = xmlDoc.querySelector('parsererror');
@@ -60,9 +78,8 @@ function parseTtmlXml(xmlString) {
             const beginTick = p.getAttribute('begin');
             const endTick = p.getAttribute('end');
             
-            // Extract the text content, removing any internal tags like <span> or <br>
+            // Extract the text content, removing any internal tags
             let text = '';
-            // Use innerText/textContent on a temporary element to strip all tags safely
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = p.innerHTML;
             text = tempDiv.textContent.trim();
@@ -95,7 +112,6 @@ function parseTtmlXml(xmlString) {
 
 // --- Floating Window & Sync Logic ---
 
-// Function to create and inject the floating window (same as before, but with initial content)
 function createFloatingWindow() {
   const existingWindow = document.getElementById('language-stream-window');
   if (existingWindow) {
@@ -106,10 +122,10 @@ function createFloatingWindow() {
     windowDiv.id = 'language-stream-window';
     windowDiv.style.cssText = `
       position: absolute;
-      bottom: 10%; /* Move slightly up from the bottom */
+      bottom: 10%; 
       left: 50%;
-      transform: translateX(-50%); /* Center horizontally */
-      width: 70%; /* Make it wider for dual subs */
+      transform: translateX(-50%); 
+      width: 70%; 
       max-width: 800px;
       min-height: 50px;
       background-color: rgba(0, 0, 0, 0.85);
@@ -126,7 +142,7 @@ function createFloatingWindow() {
       resize: both;
       overflow: hidden;
       cursor: grab;
-      display: none; /* Hide until subs are loaded */
+      display: none; 
     `;
     document.body.appendChild(windowDiv);
     floatingWindow = windowDiv;
@@ -134,7 +150,6 @@ function createFloatingWindow() {
   }
 }
 
-// Function to make the window draggable
 function makeDraggable(element) {
   let isDragging = false;
   let offsetX, offsetY;
@@ -143,18 +158,14 @@ function makeDraggable(element) {
     e.preventDefault();
     isDragging = true;
     const rect = element.getBoundingClientRect();
-    // Use clientX/Y for mouse, touch.clientX/Y for touch events
     const clientX = e.clientX || e.touches[0].clientX;
     const clientY = e.clientY || e.touches[0].clientY;
     
     offsetX = clientX - rect.left;
     offsetY = clientY - rect.top;
     element.style.cursor = 'grabbing';
-    
-    // Switch to fixed position temporarily to prevent movement issues
     element.style.position = 'fixed'; 
 
-    // Add event listeners to the document/window for moving/stopping
     document.addEventListener('mousemove', drag);
     document.addEventListener('mouseup', stopDrag);
     document.addEventListener('touchmove', drag);
@@ -168,14 +179,12 @@ function makeDraggable(element) {
     
     element.style.left = (clientX - offsetX) + 'px';
     element.style.top = (clientY - offsetY) + 'px';
-    element.style.transform = 'none'; // Remove translateX(-50%) when dragging starts
+    element.style.transform = 'none'; 
   };
 
   const stopDrag = () => {
     isDragging = false;
     element.style.cursor = 'grab';
-    
-    // Clean up event listeners
     document.removeEventListener('mousemove', drag);
     document.removeEventListener('mouseup', stopDrag);
     document.removeEventListener('touchmove', drag);
@@ -186,18 +195,15 @@ function makeDraggable(element) {
   element.addEventListener('touchstart', startDrag);
 }
 
-// The core synchronization function
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
 
     if (!videoElement) {
-        // Retry search for the video element
         console.warn("Video element not found. Retrying sync setup in 1 second...");
         setTimeout(startSubtitleSync, 1000);
         return;
     }
 
-    // Stop any existing sync loop
     if (syncInterval) {
         clearInterval(syncInterval);
     }
@@ -205,7 +211,6 @@ function startSubtitleSync() {
     let currentSubtitleIndex = -1;
     let lastTime = 0;
     
-    // Ensure the floating window is visible
     if (floatingWindow) {
         floatingWindow.style.display = 'block';
     }
@@ -214,8 +219,6 @@ function startSubtitleSync() {
         const currentTime = videoElement.currentTime;
         const isPaused = videoElement.paused;
 
-        // Skip if time hasn't changed much while playing to save CPU,
-        // but always run if paused to ensure correct sub on seek/pause.
         if (isPaused && currentTime === lastTime) {
             return;
         }
@@ -224,22 +227,18 @@ function startSubtitleSync() {
         let newIndex = -1;
         let subtitleFound = false;
 
-        // 1. Check current/next subtitle first for efficiency
-        // Look ahead 2 subtitles
-        for (let i = currentSubtitleIndex; i < Math.min(currentSubtitleIndex + 3, parsedSubtitles.length); i++) {
-            if (i >= 0) {
-                 const sub = parsedSubtitles[i];
-                 if (currentTime >= sub.begin && currentTime < sub.end) {
-                     newSubtitle = sub;
-                     newIndex = i;
-                     subtitleFound = true;
-                     break;
-                 }
-            }
+        // Efficient search: Check near current index
+        for (let i = Math.max(0, currentSubtitleIndex - 1); i < Math.min(currentSubtitleIndex + 3, parsedSubtitles.length); i++) {
+             const sub = parsedSubtitles[i];
+             if (currentTime >= sub.begin && currentTime < sub.end) {
+                 newSubtitle = sub;
+                 newIndex = i;
+                 subtitleFound = true;
+                 break;
+             }
         }
 
-        // 2. If not found near the current index (e.g., after a seek), do a binary search (or simple loop)
-        // Since the array is small/medium, a simple forward search is often faster than setting up binary search.
+        // Fallback search (if jump occurred)
         if (!subtitleFound) {
             for (let i = 0; i < parsedSubtitles.length; i++) {
                 const sub = parsedSubtitles[i];
@@ -258,10 +257,13 @@ function startSubtitleSync() {
         if (subtitleFound) {
             if (newIndex !== currentSubtitleIndex) {
                 // New subtitle detected, update the floating window
-                floatingWindow.innerHTML = `<span class="base-sub">${newSubtitle.text}</span><br><span class="translated-sub">...translating...</span>`;
+                floatingWindow.innerHTML = `
+                    <span class="base-sub">${newSubtitle.text}</span><br>
+                    <span class="translated-sub" style="opacity: 0.7; font-size: 0.85em;">...translating to ${subtitleLanguages.target.toUpperCase()}...</span>
+                `;
                 currentSubtitleIndex = newIndex;
                 console.log(`Showing sub at ${currentTime.toFixed(3)}s: ${newSubtitle.text}`);
-                // TODO: In the next step, we will call the translation function here.
+                // TODO: In the next step, we will implement translation here.
             }
         } else {
             // No subtitle active (gap in time)
@@ -272,17 +274,13 @@ function startSubtitleSync() {
         }
     };
     
-    // Start the sync loop, running 20 times per second for smooth updates
     syncInterval = setInterval(syncLoop, 50); 
     console.log("Subtitle sync loop started.");
     sendStatusUpdate("Dual-Sub Mode Active! Subtitles are now synced.", 100);
 }
 
-// Disconnect the old Netflix subtitle observer as we are using custom subs now
-// The original content.js had a startSubtitleObserver, we need to disable it.
 function disableNetflixSubObserver() {
-    // This is the function from the original content.js, now repurposed to disable it
-    // The previous version of content.js defined 'subtitleObserver' globally
+    // Placeholder to disable the native subtitle observer, if it was defined elsewhere
     if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
         subtitleObserver.disconnect();
         console.log("Netflix native subtitle observer disconnected.");
@@ -293,36 +291,39 @@ function disableNetflixSubObserver() {
 // --- Message Listener for Popup Communication ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // We only respond to XML processing requests now
-    if (request.command === "process_xml" && request.xml) {
-        console.log("Received XML content for processing.");
-        // 1. Create the floating window if it doesn't exist
-        createFloatingWindow();
-        // 2. Disable the native subtitle watcher
-        disableNetflixSubObserver();
+    if (request.command === "fetch_and_process_xml" && request.url) {
         
-        // 3. Parse the XML
-        const success = parseTtmlXml(request.xml);
+        // 1. Store language preferences
+        subtitleLanguages.base = request.baseLang;
+        subtitleLanguages.target = request.targetLang;
+        sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10);
+
+        // 2. Async wrapper to handle the fetch/parse sequence
+        (async () => {
+            const xmlContent = await fetchXmlContent(request.url);
+
+            if (xmlContent) {
+                // 3. Create the floating window and disable native subs
+                createFloatingWindow();
+                disableNetflixSubObserver();
+                
+                // 4. Parse the XML
+                const success = parseTtmlXml(xmlContent);
+                
+                // 5. Start synchronization
+                if (success && parsedSubtitles.length > 0) {
+                    startSubtitleSync();
+                } else {
+                    sendStatusUpdate("Failed to process XML or no subtitles found.", 0);
+                }
+            }
+        })();
         
-        // 4. Start synchronization if parsing succeeded
-        if (success && parsedSubtitles.length > 0) {
-            startSubtitleSync();
-        } else {
-             sendStatusUpdate("Failed to process XML or no subtitles found.", 0);
-        }
-        return false; // Not using sendResponse here
+        return false; 
     }
     
-    // Retaining ping command from previous version for initial injection check, though 'process_xml' handles it now
     if (request.command === "ping") {
         sendResponse({ status: "ready" });
         return true;
     }
 });
-
-// Initial function calls
-// createFloatingWindow() is now called upon receiving the 'process_xml' command.
-// We remove the old createFloatingWindow/startSubtitleObserver call from the message listener
-// as we only want to proceed once the user provides the XML file.
-// The code from the original content.js is now fully contained in this file.
-// The old logic for create_window is also removed as it is now part of process_xml flow.

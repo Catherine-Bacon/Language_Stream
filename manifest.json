@@ -15,5 +15,5 @@
     }
   ],
   "permissions": ["scripting", "storage", "activeTab", "tabs"],
-  "host_permissions": ["*://*.netflix.com/*"]
+  "host_permissions": ["*://*.netflix.com/*", "*://*/*"]
 }
