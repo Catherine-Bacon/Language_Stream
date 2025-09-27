@@ -95,8 +95,11 @@ confirmButton.addEventListener('click', async () => {
     const baseLang = baseLanguageSelect.value;
     const targetLang = targetLanguageSelect.value;
 
+    // REMOVED URL VALIDATION: Process will proceed with the URL currently in the input,
+    // whether it was manually pasted or automatically detected by the background script.
+    
     if (!url) {
-        statusText.textContent = "Error: Please enter a subtitle URL first.";
+        statusText.textContent = "Error: Subtitle URL is still missing. Please ensure you are on a Netflix playback page.";
         progressBar.style.width = '0%';
         return;
     }
