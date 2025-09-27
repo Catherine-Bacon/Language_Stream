@@ -3,6 +3,11 @@ let parsedSubtitles = [];
 let syncInterval = null; // Used to hold the interval ID for time synchronization
 const TICK_RATE = 10000000; // Hardcoded based on user's XML example
 let subtitleLanguages = { base: 'en', target: 'es' }; // Store language settings
+let translationCache = {}; // Cache to store translations {originalText: translatedText}
+
+// --- Gemini API Configuration ---
+const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
+const API_KEY = ""; // Placeholder - Canvas will provide this at runtime
 
 // --- Utility Functions ---
 
@@ -34,12 +39,11 @@ function getNetflixVideoElement() {
     return document.querySelector('video[src*="blob"]');
 }
 
-// --- XML Fetching Logic ---
+// --- XML Fetching, Parsing, and Window Logic (Unchanged from last step) ---
 
 async function fetchXmlContent(url) {
     try {
         sendStatusUpdate("Fetching XML from external URL...", 20);
-        // The content script can make cross-domain requests, which is why we do it here.
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
@@ -53,8 +57,6 @@ async function fetchXmlContent(url) {
     }
 }
 
-// --- XML Processing Logic ---
-
 function parseTtmlXml(xmlString) {
     parsedSubtitles = [];
     sendStatusUpdate("Starting XML parsing...", 40);
@@ -63,7 +65,6 @@ function parseTtmlXml(xmlString) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlString, 'application/xml'); 
 
-        // Check for XML parsing errors
         const errorNode = xmlDoc.querySelector('parsererror');
         if (errorNode) {
              console.error("XML Parsing Error:", errorNode.textContent);
@@ -78,7 +79,6 @@ function parseTtmlXml(xmlString) {
             const beginTick = p.getAttribute('begin');
             const endTick = p.getAttribute('end');
             
-            // Extract the text content, removing any internal tags
             let text = '';
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = p.innerHTML;
@@ -92,9 +92,8 @@ function parseTtmlXml(xmlString) {
                 });
             }
 
-            // Update progress bar
             if (index % 100 === 0 || index === totalSubs - 1) {
-                const progress = 40 + Math.floor((index / totalSubs) * 40); // 40% to 80%
+                const progress = 40 + Math.floor((index / totalSubs) * 40); 
                 sendStatusUpdate(`Processing subtitles: ${index + 1}/${totalSubs} lines...`, progress);
             }
         });
@@ -110,12 +109,9 @@ function parseTtmlXml(xmlString) {
     }
 }
 
-// --- Floating Window & Sync Logic ---
-
 function createFloatingWindow() {
   const existingWindow = document.getElementById('language-stream-window');
   if (existingWindow) {
-    console.log("Floating window already exists. Reusing it.");
     floatingWindow = existingWindow;
   } else {
     const windowDiv = document.createElement('div');
@@ -195,6 +191,72 @@ function makeDraggable(element) {
   element.addEventListener('touchstart', startDrag);
 }
 
+// --- Translation Logic (NEW) ---
+
+/**
+ * Translates the given text using the Gemini API with exponential backoff.
+ * @param {string} textToTranslate The subtitle text to translate.
+ * @param {string} sourceLang The source language code (e.g., 'en').
+ * @param {string} targetLang The target language code (e.g., 'es').
+ * @returns {Promise<string>} The translated text.
+ */
+async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
+    const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
+    if (translationCache[cacheKey]) {
+        return translationCache[cacheKey];
+    }
+
+    const systemPrompt = `You are an expert, fluent language translator. Translate the following text from ${sourceLang} to ${targetLang}. Provide only the translation, with no extra commentary, formatting, or punctuation unless it is part of the translation.`;
+    const userQuery = textToTranslate;
+    
+    const payload = {
+        contents: [{ parts: [{ text: userQuery }] }],
+        systemInstruction: {
+            parts: [{ text: systemPrompt }]
+        },
+    };
+
+    let translatedText = `Translation Error: Check console`;
+    const maxRetries = 3;
+    let delay = 1000;
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    translatedText = text.trim();
+                    translationCache[cacheKey] = translatedText;
+                    return translatedText;
+                }
+            }
+             // If response not OK or content missing, throw to trigger retry/catch
+             throw new Error(`API response failed or content was empty. Status: ${response.status}`);
+
+        } catch (error) {
+            console.warn(`Translation attempt ${i + 1} failed. Retrying in ${delay / 1000}s.`, error);
+            if (i < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            } else {
+                console.error("Gemini API translation failed after all retries.", error);
+            }
+        }
+    }
+
+    return translatedText; 
+}
+
+
+// --- Floating Window & Sync Logic (Modified to include translation) ---
+
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
 
@@ -256,14 +318,43 @@ function startSubtitleSync() {
         // Update the display
         if (subtitleFound) {
             if (newIndex !== currentSubtitleIndex) {
-                // New subtitle detected, update the floating window
+                // NEW SUBTITLE LINE DETECTED:
+                const baseText = newSubtitle.text;
+                const targetLang = subtitleLanguages.target;
+
+                // 1. Immediately update the floating window with the base text and a loading indicator
                 floatingWindow.innerHTML = `
-                    <span class="base-sub">${newSubtitle.text}</span><br>
-                    <span class="translated-sub" style="opacity: 0.7; font-size: 0.85em;">...translating to ${subtitleLanguages.target.toUpperCase()}...</span>
+                    <span class="base-sub" style="font-weight: bold;">${baseText}</span><br>
+                    <span id="translated-line-${newIndex}" class="translated-sub" style="opacity: 0.7; font-size: 0.85em;">
+                        ...translating to ${targetLang.toUpperCase()}...
+                    </span>
                 `;
                 currentSubtitleIndex = newIndex;
-                console.log(`Showing sub at ${currentTime.toFixed(3)}s: ${newSubtitle.text}`);
-                // TODO: In the next step, we will implement translation here.
+                console.log(`Showing sub at ${currentTime.toFixed(3)}s: ${baseText}`);
+                
+                // 2. Start translation in the background
+                translateSubtitle(baseText, subtitleLanguages.base, targetLang)
+                    .then(translatedText => {
+                        // Check if the current line index is still the same (i.e., we haven't jumped to a new line)
+                        if (currentSubtitleIndex === newIndex) {
+                            const translatedElement = document.getElementById(`translated-line-${newIndex}`);
+                            if (translatedElement) {
+                                translatedElement.textContent = translatedText;
+                                translatedElement.style.opacity = '1.0';
+                            }
+                        }
+                    })
+                    .catch(e => {
+                         console.error("Translation promise failed:", e);
+                         // Optional: Display error message on the screen
+                         if (currentSubtitleIndex === newIndex) {
+                             const translatedElement = document.getElementById(`translated-line-${newIndex}`);
+                             if (translatedElement) {
+                                translatedElement.textContent = "Translation failed.";
+                            }
+                         }
+                    });
+
             }
         } else {
             // No subtitle active (gap in time)
@@ -296,6 +387,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // 1. Store language preferences
         subtitleLanguages.base = request.baseLang;
         subtitleLanguages.target = request.targetLang;
+        // Clear cache when starting new language combination
+        translationCache = {}; 
         sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10);
 
         // 2. Async wrapper to handle the fetch/parse sequence
