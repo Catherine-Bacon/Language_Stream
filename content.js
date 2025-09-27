@@ -4,13 +4,12 @@
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null; 
-var subtitleLanguages = subtitleLanguages || { base: 'en', target: 'es' };
+// FIXED: Initialize to empty strings, values will be set from the popup message
+var subtitleLanguages = subtitleLanguages || { base: '', target: '' }; 
 var translationCache = translationCache || {}; // Cache for translations
 
-// NEW GLOBAL: Holds the native Translator API instance
-var currentTranslator = currentTranslator || null; 
-
 // REMOVED: GEMINI API CONSTANTS (TICK_RATE, API_URL, API_KEY, CONCURRENCY_LIMIT)
+var currentTranslator = currentTranslator || null; 
 var TICK_RATE = TICK_RATE || 10000000; 
 
 // --- Utility Functions ---
@@ -58,8 +57,6 @@ function getNetflixVideoElement() {
 }
 
 // --- XML Fetching, Parsing, and Window Logic ---
-// (fetchXmlContent, parseTtmlXml, createFloatingWindow, makeDraggable functions remain the same as previous step, omitted for brevity)
-// NOTE: Assuming standard implementations of fetchXmlContent, parseTtmlXml, createFloatingWindow, makeDraggable
 
 async function fetchXmlContent(url) {
     try {
@@ -150,10 +147,10 @@ function createFloatingWindow() {
       border-radius: 12px;
       box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
       z-index: 9999;
-      padding: 15px 25px;
+      padding: 20px 30px; /* Increased padding slightly */
       color: white;
       font-family: 'Inter', sans-serif;
-      font-size: 1.5rem;
+      font-size: 1.8rem; /* INCREASED BASE FONT SIZE for readability */
       text-align: center;
       line-height: 1.4;
       resize: both;
@@ -278,7 +275,6 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
 /**
  * Runs sequential translation for all parsed subtitles.
- * NO BATCHING/CONCURRENCY NEEDED with the native API.
  */
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
@@ -312,8 +308,7 @@ async function translateAllSubtitles(url) {
     console.log("Native translation process finished. All subtitles are ready.");
 }
 
-// --- Floating Window & Sync Logic (Remains the same as previous step, omitted for brevity) ---
-// NOTE: Assuming standard implementations of startSubtitleSync and disableNetflixSubObserver
+// --- Floating Window & Sync Logic ---
 
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
@@ -383,8 +378,8 @@ function startSubtitleSync() {
                 const translatedText = newSubtitle.translatedText || `(Translation Error)`;
 
                 floatingWindow.innerHTML = `
-                    <span class="base-sub" style="font-weight: bold;">${baseText}</span><br>
-                    <span class="translated-sub" style="opacity: 1.0; font-size: 0.85em;">
+                    <span class="base-sub" style="font-weight: bold; font-size: 1.1em;">${baseText}</span><br>
+                    <span class="translated-sub" style="opacity: 1.0; font-size: 0.9em;">
                         ${translatedText}
                     </span>
                 `;
@@ -428,7 +423,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 2. Clear status locally and start UI update
         const url = request.url;
-        // ADDED API CHECK STATUS UPDATE
+        // API CHECK
         if (!('Translator' in self)) {
             sendStatusUpdate("ERROR: Chrome Translator API not detected. Translations are unavailable.", 0, url);
             return false;
