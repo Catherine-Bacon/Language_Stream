@@ -108,9 +108,6 @@ function parseTtmlXml(xmlString, url) {
             tempDiv.innerHTML = innerHTML;
             text = tempDiv.textContent; // Extract all text content.
 
-            // 2. Normalize all whitespace (including newlines and multiple spaces) to a single space.
-            text = text.replace(/\s+/g, ' ').trim(); 
-
             if (beginTick && endTick && text) {
                 parsedSubtitles.push({
                     begin: ticksToSeconds(beginTick),
