@@ -98,13 +98,17 @@ function parseTtmlXml(xmlString, url) {
             
             let text = '';
             
-            // FIX: Replace <br/> tags with a space before getting textContent
+            // 1. Replace <br/> tags with a single space.
             let innerHTML = p.innerHTML;
             innerHTML = innerHTML.replace(/<br\s*\/?>/gi, ' '); 
 
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = innerHTML;
-            text = tempDiv.textContent.trim();
+            text = tempDiv.textContent; // Don't trim yet
+
+            // 2. Normalize all whitespace (including newlines and multiple spaces) to a single space.
+            // This ensures words separated by a <br/> or extra whitespace are joined by exactly one space.
+            text = text.replace(/\s+/g, ' ').trim();
 
             if (beginTick && endTick && text) {
                 parsedSubtitles.push({
