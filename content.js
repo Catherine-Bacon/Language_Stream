@@ -97,8 +97,13 @@ function parseTtmlXml(xmlString, url) {
             const endTick = p.getAttribute('end');
             
             let text = '';
+            
+            // FIX: Replace <br/> tags with a space before getting textContent
+            let innerHTML = p.innerHTML;
+            innerHTML = innerHTML.replace(/<br\s*\/?>/gi, ' '); 
+
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = p.innerHTML;
+            tempDiv.innerHTML = innerHTML;
             text = tempDiv.textContent.trim();
 
             if (beginTick && endTick && text) {
