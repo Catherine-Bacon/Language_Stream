@@ -8,7 +8,7 @@ var syncInterval = syncInterval || null;
 var subtitleLanguages = subtitleLanguages || { base: 'en', target: 'es' };
 var translationCache = translationCache || {};
 
-// Constants must also be declared this way to prevent 'Identifier has already been declared'
+// Constants must also be declared this way using 'var'
 var TICK_RATE = TICK_RATE || 10000000; 
 var API_URL = API_URL || "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
 var API_KEY = API_KEY || ""; // Placeholder - Canvas will provide this at runtime
