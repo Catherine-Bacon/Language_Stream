@@ -6,28 +6,29 @@ var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null; 
 var subtitleLanguages = subtitleLanguages || { base: 'en', target: 'es' };
-var translationCache = translationCache || {};
+var translationCache = translationCache || {}; // Cache for API responses
 
 // Constants must also be declared this way using 'var'
 var TICK_RATE = TICK_RATE || 10000000; 
 var API_URL = API_URL || "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
 var API_KEY = API_KEY || ""; // Placeholder - Canvas will provide this at runtime
+var CONCURRENCY_LIMIT = CONCURRENCY_LIMIT || 5; // Max number of parallel translation requests
 
 // --- Utility Functions ---
 
 /**
  * Helper to send status updates back to the popup and save state to local storage.
  */
-function sendStatusUpdate(message, progress) {
+function sendStatusUpdate(message, progress, url = null) {
     // 1. Save state to local storage (for persistent popup display)
     chrome.storage.local.set({
         'ls_status': {
             message: message,
             progress: progress,
-            // Only store current languages if progress is < 100 (still processing)
+            // Only store state info if progress is less than 100
             baseLang: progress < 100 ? subtitleLanguages.base : null,
             targetLang: progress < 100 ? subtitleLanguages.target : null,
-            url: progress < 100 && typeof request !== 'undefined' ? request.url : null // If possible, save the URL being processed
+            url: progress < 100 ? url : null 
         }
     }).catch(e => console.error("Could not save status to storage:", e));
 
@@ -37,7 +38,7 @@ function sendStatusUpdate(message, progress) {
         message: message,
         progress: progress
     }).catch(e => {
-        // console.error("Could not send status:", e); // Ignore if popup closed
+        // Ignore if popup closed
     }); 
 }
 
@@ -51,12 +52,10 @@ function ticksToSeconds(tickString) {
 
 // Function to find the Netflix video element
 function getNetflixVideoElement() {
-    // Look for the main player video element.
     const playerView = document.querySelector('.watch-video--player-view');
     if (playerView) {
         return playerView.querySelector('video');
     }
-    // Fallback search
     return document.querySelector('video[src*="blob"]');
 }
 
@@ -64,24 +63,23 @@ function getNetflixVideoElement() {
 
 async function fetchXmlContent(url) {
     try {
-        sendStatusUpdate("Fetching XML from external URL...", 20);
+        sendStatusUpdate("Fetching XML from external URL...", 20, url);
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
         }
-        sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 30);
+        sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 30, url);
         return await response.text();
     } catch (e) {
         console.error("Error fetching XML from URL:", e);
-        sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0);
+        sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url);
         return null;
     }
 }
 
-function parseTtmlXml(xmlString) {
-    // Clear old subtitles array
+function parseTtmlXml(xmlString, url) {
     parsedSubtitles = []; 
-    sendStatusUpdate("Starting XML parsing...", 40);
+    sendStatusUpdate("Starting XML parsing...", 40, url);
 
     try {
         const parser = new DOMParser();
@@ -90,7 +88,7 @@ function parseTtmlXml(xmlString) {
         const errorNode = xmlDoc.querySelector('parsererror');
         if (errorNode) {
              console.error("XML Parsing Error:", errorNode.textContent);
-             sendStatusUpdate(`Error: Could not parse XML. ${errorNode.textContent}`, 0);
+             sendStatusUpdate(`Error: Could not parse XML. ${errorNode.textContent}`, 0, url);
              return false;
         }
 
@@ -111,29 +109,28 @@ function parseTtmlXml(xmlString) {
                     begin: ticksToSeconds(beginTick),
                     end: ticksToSeconds(endTick),
                     text: text,
-                    translatedText: null // Initialize placeholder for translated text
+                    translatedText: null
                 });
             }
 
             if (index % 100 === 0 || index === totalSubs - 1) {
                 const progress = 40 + Math.floor((index / totalSubs) * 40); 
-                sendStatusUpdate(`Processing subtitles: ${index + 1}/${totalSubs} lines...`, progress);
+                sendStatusUpdate(`Processing subtitles: ${index + 1}/${totalSubs} lines...`, progress, url);
             }
         });
 
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting batch translation...`, 80);
+        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting batch translation...`, 80, url);
         return true;
 
     } catch (e) {
         console.error("Fatal error during XML parsing:", e);
-        sendStatusUpdate("Fatal error during XML parsing. Check console.", 0);
+        sendStatusUpdate("Fatal error during XML parsing. Check console.", 0, url);
         return false;
     }
 }
 
 function createFloatingWindow() {
-  // Use assignment since it's checked for existence at the top level
   let existingWindow = document.getElementById('language-stream-window');
   if (existingWindow) {
     floatingWindow = existingWindow;
@@ -165,7 +162,7 @@ function createFloatingWindow() {
       display: none; 
     `;
     document.body.appendChild(windowDiv);
-    floatingWindow = windowDiv; // Assign to the global variable
+    floatingWindow = windowDiv; 
     makeDraggable(floatingWindow);
   }
 }
@@ -219,14 +216,8 @@ function makeDraggable(element) {
 
 /**
  * Translates the given text using the Gemini API with exponential backoff.
- * NOTE: This function is now optimized for batch use.
- * @param {string} textToTranslate The subtitle text to translate.
- * @param {string} sourceLang The source language code (e.g., 'en').
- * @param {string} targetLang The target language code (e.g., 'es').
- * @returns {Promise<string>} The translated text.
  */
 async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
-    // Only cache API response (not the entire translated text object)
     const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
     if (translationCache[cacheKey]) {
         return translationCache[cacheKey];
@@ -263,14 +254,13 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                     return translatedText;
                 }
             }
-             // If response not OK or content missing, throw to trigger retry/catch
              throw new Error(`API response failed or content was empty. Status: ${response.status}`);
 
         } catch (error) {
             console.warn(`Translation attempt ${i + 1} failed for: "${textToTranslate}". Retrying in ${delay / 1000}s.`);
             if (i < maxRetries - 1) {
                 await new Promise(resolve => setTimeout(resolve, delay));
-                delay *= 2; // Exponential backoff
+                delay *= 2; 
             } else {
                 console.error("Gemini API translation failed after all retries.", error);
             }
@@ -282,36 +272,69 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
 
 /**
- * Runs batch translation for all parsed subtitles and updates the progress bar.
+ * Runs batch translation for all parsed subtitles using concurrency.
  */
-async function translateAllSubtitles() {
+async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseProgress = 80;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
 
-    for (let i = 0; i < totalSubs; i++) {
-        const sub = parsedSubtitles[i];
-        
-        // Skip if already translated (shouldn't happen on first run, but good for safety)
-        if (sub.translatedText) continue;
+    // Filter out subtitles that are just sound effects and need to be skipped
+    const subtitlesToTranslate = parsedSubtitles.filter(sub => !sub.text.match(/^\[.*\]$/));
+    const totalToTranslate = subtitlesToTranslate.length;
+    
+    // Mark skipped subtitles as ready
+    parsedSubtitles.filter(sub => sub.text.match(/^\[.*\]$/)).forEach(sub => {
+        sub.translatedText = sub.text; // Use original text for display, maybe add a gray style later
+    });
 
+    let translatedCount = 0;
+    
+    // Create an array of promises for the translation tasks
+    const translationTasks = subtitlesToTranslate.map((sub) => async () => {
         try {
             const translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
             sub.translatedText = translatedText;
         } catch (e) {
             sub.translatedText = "(Translation failed permanently)";
-            console.error(`Permanent translation failure for line ${i}:`, e);
+            console.error(`Permanent translation failure for subtitle: "${sub.text}"`, e);
         }
+        
+        translatedCount++;
+        // Update progress bar
+        const progress = baseProgress + Math.floor((translatedCount / totalToTranslate) * 20);
+        sendStatusUpdate(`Translating: ${translatedCount}/${totalToTranslate} lines...`, progress, url);
+    });
 
-        // Update progress bar (80% to 100%)
-        if (i % 10 === 0 || i === totalSubs - 1) {
-            const progress = baseProgress + Math.floor(((i + 1) / totalSubs) * 20);
-            sendStatusUpdate(`Translating: ${i + 1}/${totalSubs} lines...`, progress);
+    // Function to run tasks with a concurrency limit
+    const runInBatches = async (tasks, limit) => {
+        const results = [];
+        const activePromises = new Set();
+        let taskIndex = 0;
+
+        while (taskIndex < tasks.length || activePromises.size > 0) {
+            // Start new tasks up to the concurrency limit
+            while (taskIndex < tasks.length && activePromises.size < limit) {
+                const task = tasks[taskIndex](); // Start the async task
+                const promise = task.then(() => {
+                    activePromises.delete(promise); // Remove when resolved
+                });
+                activePromises.add(promise);
+                taskIndex++;
+            }
+            
+            // Wait for at least one active promise to finish
+            if (activePromises.size > 0) {
+                await Promise.race(activePromises);
+            }
         }
-    }
+        return results;
+    };
+    
+    await runInBatches(translationTasks, CONCURRENCY_LIMIT);
 
-    sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100);
+    sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
     console.log("Batch translation finished. All subtitles are ready.");
 }
 
@@ -351,13 +374,15 @@ function startSubtitleSync() {
         let subtitleFound = false;
 
         // Efficient search: Check near current index
-        for (let i = Math.max(0, currentSubtitleIndex - 1); i < Math.min(currentSubtitleIndex + 3, parsedSubtitles.length); i++) {
+        for (let i = Math.max(0, currentSubtitleIndex - 2); i < Math.min(currentSubtitleIndex + 4, parsedSubtitles.length); i++) {
              const sub = parsedSubtitles[i];
-             if (currentTime >= sub.begin && currentTime < sub.end) {
-                 newSubtitle = sub;
-                 newIndex = i;
-                 subtitleFound = true;
-                 break;
+             if (i >= 0 && sub) {
+                 if (currentTime >= sub.begin && currentTime < sub.end) {
+                     newSubtitle = sub;
+                     newIndex = i;
+                     subtitleFound = true;
+                     break;
+                 }
              }
         }
 
@@ -381,7 +406,7 @@ function startSubtitleSync() {
             if (newIndex !== currentSubtitleIndex) {
                 // NEW SUBTITLE LINE DETECTED: Use the pre-translated text
                 const baseText = newSubtitle.text;
-                const translatedText = newSubtitle.translatedText || `(Error: Translation missing)`;
+                const translatedText = newSubtitle.translatedText || `(Translation Error)`;
 
                 floatingWindow.innerHTML = `
                     <span class="base-sub" style="font-weight: bold;">${baseText}</span><br>
@@ -390,7 +415,6 @@ function startSubtitleSync() {
                     </span>
                 `;
                 currentSubtitleIndex = newIndex;
-                // console.log(`Showing sub at ${currentTime.toFixed(3)}s: ${baseText}`);
             }
         } else {
             // No subtitle active (gap in time)
@@ -422,36 +446,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // 1. Store language preferences
         subtitleLanguages.base = request.baseLang;
         subtitleLanguages.target = request.targetLang;
-        // Clear cache when starting new language combination
         translationCache = {}; 
         
-        // Clear old sync loop if it was running
         if (syncInterval) {
             clearInterval(syncInterval);
         }
 
-        sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10);
+        // 2. Clear status locally and start UI update
+        const url = request.url;
+        sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10, url);
 
-        // 2. Async wrapper to handle the fetch/parse/translate sequence
+        // 3. Async wrapper to handle the fetch/parse/translate sequence
         (async () => {
-            const xmlContent = await fetchXmlContent(request.url);
+            const xmlContent = await fetchXmlContent(url);
 
             if (xmlContent) {
-                // 3. Create the floating window and disable native subs
+                // 4. Create the floating window and disable native subs
                 createFloatingWindow();
                 disableNetflixSubObserver();
                 
-                // 4. Parse the XML
-                const parseSuccess = parseTtmlXml(xmlContent);
+                // 5. Parse the XML
+                const parseSuccess = parseTtmlXml(xmlContent, url);
                 
                 if (parseSuccess && parsedSubtitles.length > 0) {
-                    // 5. Run batch translation (80% -> 100%)
-                    await translateAllSubtitles();
+                    // 6. Run batch translation (80% -> 100%)
+                    await translateAllSubtitles(url);
 
-                    // 6. Start synchronization after translation is 100% complete
+                    // 7. Start synchronization after translation is 100% complete
                     startSubtitleSync();
                 } else {
-                    sendStatusUpdate("Failed to process XML or no subtitles found.", 0);
+                    sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
                 }
             }
         })();
