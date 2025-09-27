@@ -60,12 +60,13 @@ function getNetflixVideoElement() {
 
 async function fetchXmlContent(url) {
     try {
-        sendStatusUpdate("Fetching XML from external URL...", 20, url);
+        // Fetch starts at 10%
+        sendStatusUpdate("Fetching XML from external URL...", 10, url); 
         const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
         }
-        sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 30, url);
+        sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 15, url);
         return await response.text();
     } catch (e) {
         console.error("Error fetching XML from URL:", e);
@@ -76,7 +77,8 @@ async function fetchXmlContent(url) {
 
 function parseTtmlXml(xmlString, url) {
     parsedSubtitles = []; 
-    sendStatusUpdate("Starting XML parsing...", 40, url);
+    // Parsing starts at 20%
+    sendStatusUpdate("Starting XML parsing...", 20, url); 
 
     try {
         const parser = new DOMParser();
@@ -107,7 +109,6 @@ function parseTtmlXml(xmlString, url) {
             text = tempDiv.textContent; // Extract all text content.
 
             // 2. Normalize all whitespace (including newlines and multiple spaces) to a single space.
-            // This is the CRITICAL FIX to ensure words separated by the old <br/> are correctly spaced.
             text = text.replace(/\s+/g, ' ').trim(); 
 
             if (beginTick && endTick && text) {
@@ -119,14 +120,16 @@ function parseTtmlXml(xmlString, url) {
                 });
             }
 
+            // Progress for parsing: 20% to 25%
             if (index % 100 === 0 || index === totalSubs - 1) {
-                const progress = 40 + Math.floor((index / totalSubs) * 40); 
+                const progress = 20 + Math.floor((index / totalSubs) * 5); 
                 sendStatusUpdate(`Processing subtitles: ${index + 1}/${totalSubs} lines...`, progress, url);
             }
         });
 
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting translation setup...`, 80, url);
+        // Start translation setup at 25%
+        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting translation setup...`, 25, url);
         return true;
 
     } catch (e) {
@@ -221,6 +224,8 @@ function makeDraggable(element) {
 
 // --- Translation Logic (REWRITTEN FOR NATIVE API) ---
 
+var currentTranslator = currentTranslator || null; 
+
 /**
  * Translates the given text using the native Chrome Translator API.
  * Handles Translator instance creation and model download monitoring.
@@ -250,13 +255,14 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                 monitor(m) {
                     m.addEventListener('downloadprogress', (e) => {
                         const loaded = Math.floor(e.loaded * 100);
-                        // Progress from 80% (parsing complete) to 99% (just before starting sync)
-                        const overallProgress = 80 + Math.floor(loaded * 0.19); // Use 19% for download phase
+                        // PROGRESS UPDATE: Model download is 25% to 59% (34% of total bar)
+                        const overallProgress = 25 + Math.floor(loaded * 0.34); 
                         sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
                     });
                 }
             });
-            sendStatusUpdate("Translator model ready. Starting translation...", 99);
+            // PROGRESS UPDATE: Model ready just before translation loop starts
+            sendStatusUpdate("Translator model ready. Starting translation...", 60); 
 
         } catch (e) {
             console.error("Native Translator API failed to create:", e);
@@ -305,9 +311,8 @@ async function translateAllSubtitles(url) {
         
         translatedCount++;
         
-        // Update progress bar
-        // We only update translation progress between 99% and 100% since 80-99 is model download/setup
-        const progress = 99 + Math.floor((translatedCount / totalSubs) * 1); 
+        // PROGRESS UPDATE: Translation execution is 60% to 100% (40% of total bar)
+        const progress = 60 + Math.floor((translatedCount / totalSubs) * 40); 
         if (progress < 100) { 
              sendStatusUpdate(`Translating: ${translatedCount}/${totalSubs} lines...`, progress, url);
         }
@@ -440,6 +445,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return false;
         }
 
+        // Initial progress starts low
         sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10, url);
 
         // 3. Async wrapper to handle the fetch/parse/translate sequence
@@ -455,7 +461,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 const parseSuccess = parseTtmlXml(xmlContent, url);
                 
                 if (parseSuccess && parsedSubtitles.length > 0) {
-                    // 6. Run sequential translation (80% -> 100%)
+                    // 6. Run sequential translation (25% -> 100%)
                     await translateAllSubtitles(url);
 
                     // 7. Start synchronization after translation is 100% complete
