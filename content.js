@@ -1,10 +1,15 @@
-let floatingWindow = null;
-let parsedSubtitles = [];
-let syncInterval = null; // Used to hold the interval ID for time synchronization
-const TICK_RATE = 10000000; // Hardcoded based on user's XML example
-let subtitleLanguages = { base: 'en', target: 'es' }; // Store language settings
-let translationCache = {}; // Cache to store translations {originalText: translatedText}
+// Use 'var' or check for existence to prevent re-declaration errors upon re-injection.
+// We are ensuring these are global only within this content script's scope.
+if (typeof floatingWindow === 'undefined') {
+    var floatingWindow = null;
+    var parsedSubtitles = [];
+    var syncInterval = null; 
+    var subtitleLanguages = { base: 'en', target: 'es' };
+    var translationCache = {};
+    console.log("Initializing global variables for content script.");
+}
 
+const TICK_RATE = 10000000; 
 // --- Gemini API Configuration ---
 const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent";
 const API_KEY = ""; // Placeholder - Canvas will provide this at runtime
@@ -39,7 +44,7 @@ function getNetflixVideoElement() {
     return document.querySelector('video[src*="blob"]');
 }
 
-// --- XML Fetching, Parsing, and Window Logic (Unchanged from last step) ---
+// --- XML Fetching, Parsing, and Window Logic ---
 
 async function fetchXmlContent(url) {
     try {
@@ -58,7 +63,8 @@ async function fetchXmlContent(url) {
 }
 
 function parseTtmlXml(xmlString) {
-    parsedSubtitles = [];
+    // Clear old subtitles array
+    parsedSubtitles = []; 
     sendStatusUpdate("Starting XML parsing...", 40);
 
     try {
@@ -110,7 +116,8 @@ function parseTtmlXml(xmlString) {
 }
 
 function createFloatingWindow() {
-  const existingWindow = document.getElementById('language-stream-window');
+  // Use assignment since it's checked for existence at the top level
+  let existingWindow = document.getElementById('language-stream-window');
   if (existingWindow) {
     floatingWindow = existingWindow;
   } else {
@@ -141,7 +148,7 @@ function createFloatingWindow() {
       display: none; 
     `;
     document.body.appendChild(windowDiv);
-    floatingWindow = windowDiv;
+    floatingWindow = windowDiv; // Assign to the global variable
     makeDraggable(floatingWindow);
   }
 }
@@ -191,7 +198,7 @@ function makeDraggable(element) {
   element.addEventListener('touchstart', startDrag);
 }
 
-// --- Translation Logic (NEW) ---
+// --- Translation Logic ---
 
 /**
  * Translates the given text using the Gemini API with exponential backoff.
@@ -241,7 +248,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
              throw new Error(`API response failed or content was empty. Status: ${response.status}`);
 
         } catch (error) {
-            console.warn(`Translation attempt ${i + 1} failed. Retrying in ${delay / 1000}s.`, error);
+            console.warn(`Translation attempt ${i + 1} failed. Retrying in ${delay / 1000}s.`);
             if (i < maxRetries - 1) {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; // Exponential backoff
@@ -255,7 +262,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 }
 
 
-// --- Floating Window & Sync Logic (Modified to include translation) ---
+// --- Floating Window & Sync Logic ---
 
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
@@ -346,7 +353,7 @@ function startSubtitleSync() {
                     })
                     .catch(e => {
                          console.error("Translation promise failed:", e);
-                         // Optional: Display error message on the screen
+                         // Display error message on the screen
                          if (currentSubtitleIndex === newIndex) {
                              const translatedElement = document.getElementById(`translated-line-${newIndex}`);
                              if (translatedElement) {
@@ -389,6 +396,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleLanguages.target = request.targetLang;
         // Clear cache when starting new language combination
         translationCache = {}; 
+        
+        // Clear old sync loop if it was running
+        if (syncInterval) {
+            clearInterval(syncInterval);
+        }
+
         sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10);
 
         // 2. Async wrapper to handle the fetch/parse sequence
