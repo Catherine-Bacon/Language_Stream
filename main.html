@@ -42,11 +42,18 @@
         background-color: #f40a16;
       }
       /* Added a secondary style for the reset button for visual distinction */
-      button#resetButton { 
-        background-color: #777; 
-        margin-top: 0px; /* Adjust spacing */
+      button#resetStatusButton { 
+        background-color: #e50914; /* Keep the main colour for primary reset */
+        margin-top: 0px; 
       }
-      button#resetButton:hover {
+      button#resetStatusButton:hover {
+        background-color: #f40a16;
+      }
+      button#clearInputButton { 
+        background-color: #777; 
+        margin-top: 0px; 
+      }
+      button#clearInputButton:hover {
         background-color: #999;
       }
       #statusBox {
@@ -106,7 +113,11 @@
     
     <br>
     <button id="confirmButton">Load Subtitles & Start Dual-Sub Mode</button>
-    <button id="resetButton">Reset Status & Clear URL</button>
+    
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <button id="resetStatusButton" style="background-color: #e50914; flex-grow: 1;">Reset Status (Clear Bar)</button>
+        <button id="clearInputButton" style="background-color: #777; flex-grow: 1;">Clear URL & Languages</button>
+    </div>
 
     <div id="statusBox">
       <p id="statusText">Waiting for URL...</p>
