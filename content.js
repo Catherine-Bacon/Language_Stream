@@ -159,7 +159,7 @@ function createFloatingWindow() {
       padding: 20px 30px; 
       color: white;
       font-family: 'Inter', sans-serif;
-      font-size: 3.6rem; /* BASE FONT SIZE (Doubled) */
+      font-size: 3.6rem; /* BASE FONT SIZE (Doubled from 1.8rem) */
       text-align: center;
       line-height: 1.4;
       resize: both;
