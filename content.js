@@ -93,7 +93,8 @@ function parseTtmlXml(xmlString) {
                 parsedSubtitles.push({
                     begin: ticksToSeconds(beginTick),
                     end: ticksToSeconds(endTick),
-                    text: text
+                    text: text,
+                    translatedText: null // Initialize placeholder for translated text
                 });
             }
 
@@ -104,7 +105,7 @@ function parseTtmlXml(xmlString) {
         });
 
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Ready to start sync.`, 80);
+        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting batch translation...`, 80);
         return true;
 
     } catch (e) {
@@ -201,12 +202,14 @@ function makeDraggable(element) {
 
 /**
  * Translates the given text using the Gemini API with exponential backoff.
+ * NOTE: This function is now optimized for batch use.
  * @param {string} textToTranslate The subtitle text to translate.
  * @param {string} sourceLang The source language code (e.g., 'en').
  * @param {string} targetLang The target language code (e.g., 'es').
  * @returns {Promise<string>} The translated text.
  */
 async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
+    // Only cache API response (not the entire translated text object)
     const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
     if (translationCache[cacheKey]) {
         return translationCache[cacheKey];
@@ -222,7 +225,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
         },
     };
 
-    let translatedText = `Translation Error: Check console`;
+    let translatedText = `(Translation Failed)`;
     const maxRetries = 3;
     let delay = 1000;
 
@@ -247,7 +250,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
              throw new Error(`API response failed or content was empty. Status: ${response.status}`);
 
         } catch (error) {
-            console.warn(`Translation attempt ${i + 1} failed. Retrying in ${delay / 1000}s.`);
+            console.warn(`Translation attempt ${i + 1} failed for: "${textToTranslate}". Retrying in ${delay / 1000}s.`);
             if (i < maxRetries - 1) {
                 await new Promise(resolve => setTimeout(resolve, delay));
                 delay *= 2; // Exponential backoff
@@ -258,6 +261,41 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     }
 
     return translatedText; 
+}
+
+
+/**
+ * Runs batch translation for all parsed subtitles and updates the progress bar.
+ */
+async function translateAllSubtitles() {
+    const totalSubs = parsedSubtitles.length;
+    const baseProgress = 80;
+    const baseLang = subtitleLanguages.base;
+    const targetLang = subtitleLanguages.target;
+
+    for (let i = 0; i < totalSubs; i++) {
+        const sub = parsedSubtitles[i];
+        
+        // Skip if already translated (shouldn't happen on first run, but good for safety)
+        if (sub.translatedText) continue;
+
+        try {
+            const translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+            sub.translatedText = translatedText;
+        } catch (e) {
+            sub.translatedText = "(Translation failed permanently)";
+            console.error(`Permanent translation failure for line ${i}:`, e);
+        }
+
+        // Update progress bar (80% to 100%)
+        if (i % 10 === 0 || i === totalSubs - 1) {
+            const progress = baseProgress + Math.floor(((i + 1) / totalSubs) * 20);
+            sendStatusUpdate(`Translating: ${i + 1}/${totalSubs} lines...`, progress);
+        }
+    }
+
+    sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100);
+    console.log("Batch translation finished. All subtitles are ready.");
 }
 
 
@@ -324,43 +362,18 @@ function startSubtitleSync() {
         // Update the display
         if (subtitleFound) {
             if (newIndex !== currentSubtitleIndex) {
-                // NEW SUBTITLE LINE DETECTED:
+                // NEW SUBTITLE LINE DETECTED: Use the pre-translated text
                 const baseText = newSubtitle.text;
-                const targetLang = subtitleLanguages.target;
+                const translatedText = newSubtitle.translatedText || `(Error: Translation missing)`;
 
-                // 1. Immediately update the floating window with the base text and a loading indicator
                 floatingWindow.innerHTML = `
                     <span class="base-sub" style="font-weight: bold;">${baseText}</span><br>
-                    <span id="translated-line-${newIndex}" class="translated-sub" style="opacity: 0.7; font-size: 0.85em;">
-                        ...translating to ${targetLang.toUpperCase()}...
+                    <span class="translated-sub" style="opacity: 1.0; font-size: 0.85em;">
+                        ${translatedText}
                     </span>
                 `;
                 currentSubtitleIndex = newIndex;
-                console.log(`Showing sub at ${currentTime.toFixed(3)}s: ${baseText}`);
-                
-                // 2. Start translation in the background
-                translateSubtitle(baseText, subtitleLanguages.base, targetLang)
-                    .then(translatedText => {
-                        // Check if the current line index is still the same (i.e., we haven't jumped to a new line)
-                        if (currentSubtitleIndex === newIndex) {
-                            const translatedElement = document.getElementById(`translated-line-${newIndex}`);
-                            if (translatedElement) {
-                                translatedElement.textContent = translatedText;
-                                translatedElement.style.opacity = '1.0';
-                            }
-                        }
-                    })
-                    .catch(e => {
-                         console.error("Translation promise failed:", e);
-                         // Display error message on the screen
-                         if (currentSubtitleIndex === newIndex) {
-                             const translatedElement = document.getElementById(`translated-line-${newIndex}`);
-                             if (translatedElement) {
-                                translatedElement.textContent = "Translation failed.";
-                            }
-                         }
-                    });
-
+                // console.log(`Showing sub at ${currentTime.toFixed(3)}s: ${baseText}`);
             }
         } else {
             // No subtitle active (gap in time)
@@ -373,7 +386,6 @@ function startSubtitleSync() {
     
     syncInterval = setInterval(syncLoop, 50); 
     console.log("Subtitle sync loop started.");
-    sendStatusUpdate("Dual-Sub Mode Active! Subtitles are now synced.", 100);
 }
 
 function disableNetflixSubObserver() {
@@ -403,7 +415,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10);
 
-        // 2. Async wrapper to handle the fetch/parse sequence
+        // 2. Async wrapper to handle the fetch/parse/translate sequence
         (async () => {
             const xmlContent = await fetchXmlContent(request.url);
 
@@ -413,10 +425,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 disableNetflixSubObserver();
                 
                 // 4. Parse the XML
-                const success = parseTtmlXml(xmlContent);
+                const parseSuccess = parseTtmlXml(xmlContent);
                 
-                // 5. Start synchronization
-                if (success && parsedSubtitles.length > 0) {
+                if (parseSuccess && parsedSubtitles.length > 0) {
+                    // 5. Run batch translation (80% -> 100%)
+                    await translateAllSubtitles();
+
+                    // 6. Start synchronization after translation is 100% complete
                     startSubtitleSync();
                 } else {
                     sendStatusUpdate("Failed to process XML or no subtitles found.", 0);
