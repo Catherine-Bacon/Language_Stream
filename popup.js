@@ -7,16 +7,16 @@ const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
 const progressBar = document.getElementById('progressBar');
 
-// Renamed and split the reset buttons
-const resetStatusButton = document.getElementById('resetStatusButton');
-const clearInputButton = document.getElementById('clearInputButton');
+// Renamed the reset button constant
+const cancelButton = document.getElementById('cancelButton');
 
 
 // --- Status Management Functions ---
 
 // 1. Function to reset the UI and clear *only the processing state*
 async function resetStatus() {
-    await chrome.storage.local.remove(['processing_status']);
+    // UNIFY STORAGE KEY: 'ls_status' is used in content.js, so use it here too.
+    await chrome.storage.local.remove(['ls_status']);
     
     // Always re-enable controls
     confirmButton.disabled = false;
@@ -24,29 +24,23 @@ async function resetStatus() {
     baseLanguageSelect.disabled = false;
     targetLanguageSelect.disabled = false;
     
+    // Hide the cancel button when not needed
+    cancelButton.style.display = 'none';
+
     // Reset UI to default state
     statusText.textContent = "Ready to load new subtitles.";
     progressBar.style.width = '0%';
     console.log("Processing status reset completed.");
 }
 
-// 2. New function to clear URL and Language inputs
-async function clearInput() {
-    await chrome.storage.local.remove(['last_input']);
-    subtitleUrlInput.value = '';
-    // Reset languages to default options (en/es)
-    baseLanguageSelect.value = 'en';
-    targetLanguageSelect.value = 'es';
-    statusText.textContent = "URL and language inputs cleared.";
-    console.log("Input fields cleared.");
-}
+// 2. New function to clear URL and Language inputs (REMOVED)
 
 
 // 3. Function to load status from storage on popup open
 function loadSavedStatus() {
-    // Only retrieve the processing status
-    chrome.storage.local.get(['processing_status'], (data) => {
-        const status = data.processing_status;
+    // UNIFY STORAGE KEY: Read 'ls_status'
+    chrome.storage.local.get(['ls_status'], (data) => {
+        const status = data.ls_status;
 
         if (status && status.progress < 100) {
             // Case 1: Ongoing process
@@ -58,21 +52,24 @@ function loadSavedStatus() {
             subtitleUrlInput.disabled = true;
             baseLanguageSelect.disabled = true;
             targetLanguageSelect.disabled = true;
+            cancelButton.style.display = 'block'; // Show cancel button
         } else if (status && status.progress === 100) {
             // Case 2: Process completed successfully
             statusText.textContent = status.message;
             progressBar.style.width = '100%';
             confirmButton.disabled = true;
             // Inputs remain enabled so user can easily adjust languages/URL for a new run
+            cancelButton.style.display = 'block'; // Show cancel button to clear success state
         } else {
              // Case 3: Default/cleared state
-             statusText.textContent = "Enter subtitle URL and click Load.";
+             statusText.textContent = "Enter subtitle URL and click Generate.";
              progressBar.style.width = '0%';
              // Ensure controls are enabled
              confirmButton.disabled = false;
              subtitleUrlInput.disabled = false;
              baseLanguageSelect.disabled = false;
              targetLanguageSelect.disabled = false;
+             cancelButton.style.display = 'none'; // Hide cancel button
         }
     });
     
@@ -105,7 +102,7 @@ confirmButton.addEventListener('click', async () => {
     }
 
     // 1. Proactively clear old status and save new input
-    await chrome.storage.local.remove(['processing_status']); // Clear old status only
+    await chrome.storage.local.remove(['ls_status']); // Clear old status only
     await chrome.storage.local.set({ 
         last_input: { url, baseLang, targetLang } 
     });
@@ -117,6 +114,7 @@ confirmButton.addEventListener('click', async () => {
     subtitleUrlInput.disabled = true;
     baseLanguageSelect.disabled = true;
     targetLanguageSelect.disabled = true;
+    cancelButton.style.display = 'block'; // Ensure cancel button is shown on start
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const currentTabId = tabs[0].id;
@@ -147,9 +145,19 @@ confirmButton.addEventListener('click', async () => {
     });
 });
 
-// 3. Reset Button Listeners
-resetStatusButton.addEventListener('click', resetStatus);
-clearInputButton.addEventListener('click', clearInput);
+// 3. Cancel Button Listener
+cancelButton.addEventListener('click', async () => {
+    // 1. Send command to content script to stop interval/cleanup
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0] && tabs[0].id) {
+             chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {
+                 // Ignore error if content script is gone
+             });
+        }
+    });
+    // 2. Clear status in popup UI and storage
+    await resetStatus();
+});
 
 
 // 4. Listener to update status from content script
@@ -162,22 +170,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         progressBar.style.width = progress + '%';
         
         if (progress >= 100) {
+            // Success state - allow user to change URL/languages
             confirmButton.disabled = true;
             subtitleUrlInput.disabled = false;
             baseLanguageSelect.disabled = false;
             targetLanguageSelect.disabled = false;
+            cancelButton.style.display = 'block';
         } else if (progress > 0) {
-             // Disable controls while processing
+             // Processing state - disable controls
             confirmButton.disabled = true;
             subtitleUrlInput.disabled = true;
             baseLanguageSelect.disabled = true;
             targetLanguageSelect.disabled = true;
+            cancelButton.style.display = 'block';
         } else {
-            // Error case (progress 0), re-enable controls
+            // Error case (progress 0) - re-enable controls
             confirmButton.disabled = false;
             subtitleUrlInput.disabled = false;
             baseLanguageSelect.disabled = false;
             targetLanguageSelect.disabled = false;
+            cancelButton.style.display = 'none';
         }
     }
 });
