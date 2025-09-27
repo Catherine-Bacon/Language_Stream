@@ -28,7 +28,7 @@ async function resetStatus() {
     cancelButton.style.display = 'none';
 
     // Reset UI to default state
-    statusText.textContent = "Ready to load new subtitles.";
+    statusText.textContent = "Ready to load new subtitles. (Using local Chrome Translator API)";
     progressBar.style.width = '0%';
     console.log("Processing status reset completed.");
 }
@@ -43,7 +43,7 @@ function loadSavedStatus() {
         const status = data.ls_status;
 
         if (status && status.progress < 100) {
-            // Case 1: Ongoing process
+            // Case 1: Ongoing process (can be fetching, parsing, or downloading model)
             statusText.textContent = status.message;
             progressBar.style.width = status.progress + '%';
             
@@ -62,7 +62,7 @@ function loadSavedStatus() {
             cancelButton.style.display = 'block'; // Show cancel button to clear success state
         } else {
              // Case 3: Default/cleared state
-             statusText.textContent = "Enter subtitle URL and click Generate.";
+             statusText.textContent = "Enter subtitle URL and click Generate. (Using local Chrome Translator API)"; // UPDATED TEXT
              progressBar.style.width = '0%';
              // Ensure controls are enabled
              confirmButton.disabled = false;
@@ -193,5 +193,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     }
 });
-
-// --- File end: popup.js ---
