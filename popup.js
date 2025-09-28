@@ -55,7 +55,8 @@ function loadSavedStatus(elements) {
                  elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
                  elements.confirmButton.disabled = false;
              } else {
-                 elements.statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
+                 // Updated message to reflect the new capture method (watching a video)
+                 elements.statusText.textContent = "Waiting for Netflix subtitle data. Play an episode/movie to capture URL.";
                  elements.confirmButton.disabled = true;
              }
              
@@ -91,7 +92,7 @@ async function handleConfirmClick(elements) {
     console.log("4a. Retrieved URL from storage. URL found:", !!url);
 
     if (!url) {
-        elements.statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
+        elements.statusText.textContent = "Error: Subtitle URL was not found. Play a Netflix video and ensure subtitles are ON.";
         elements.progressBar.style.width = '0%';
         elements.confirmButton.disabled = true; 
         return;
@@ -222,7 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
                          elements.statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
                          elements.confirmButton.disabled = false;
                      } else {
-                         elements.statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
+                         // Updated error message
+                         elements.statusText.textContent = "Error. Play an episode/movie to capture subtitle data.";
                          elements.confirmButton.disabled = true;
                      }
                      elements.baseLanguageSelect.disabled = false;
@@ -234,7 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (request.command === "subtitle_url_found" && request.url) {
             chrome.storage.local.get(['ls_status'], (data) => {
-                 if (!data.ls_status || data.ls_status.progress <= 0) {
+                 // Only update status if the app isn't currently running a process (progress > 0)
+                 if (!data.ls_status || data.ls_status.progress <= 0) { 
                      elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
                      elements.confirmButton.disabled = false;
                  }
