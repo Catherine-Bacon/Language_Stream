@@ -1,13 +1,11 @@
 // --- File start: popup.js ---
 
 const confirmButton = document.getElementById('confirmButton');
-// REMOVED: All references to subtitleUrlInput are gone.
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
 const progressBar = document.getElementById('progressBar');
 
-// Renamed the reset button constant
 const cancelButton = document.getElementById('cancelButton');
 
 
@@ -36,9 +34,6 @@ async function resetStatus() {
     loadSavedStatus(); 
 }
 
-// 2. New function to clear URL and Language inputs (REMOVED)
-
-
 // 3. Function to load status from storage on popup open
 function loadSavedStatus() {
     // Keys include the processing status, last input (for language persistence), and the captured URL
@@ -47,7 +42,7 @@ function loadSavedStatus() {
         const capturedUrl = data.captured_subtitle_url;
 
         // --- 3A. Handle Status/Progress Bar Display ---
-        if (status && status.progress < 100) {
+        if (status && status.progress < 100 && status.progress > 0) {
             // Case 1: Ongoing process
             statusText.textContent = status.message;
             progressBar.style.width = status.progress + '%';
@@ -62,9 +57,11 @@ function loadSavedStatus() {
             statusText.textContent = status.message;
             progressBar.style.width = '100%';
             confirmButton.disabled = true;
+            baseLanguageSelect.disabled = false;
+            targetLanguageSelect.disabled = false;
             cancelButton.style.display = 'block'; 
         } else {
-             // Case 3: Default/cleared state
+             // Case 3: Default/cleared or Error state
              
              progressBar.style.width = '0%';
              baseLanguageSelect.disabled = false;
@@ -77,6 +74,11 @@ function loadSavedStatus() {
              } else {
                  statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
                  confirmButton.disabled = true; // DISABLED: No URL, cannot start.
+             }
+             
+             // Check for saved error message
+             if (status && status.progress === 0 && status.message) {
+                 statusText.textContent = status.message;
              }
         }
 
@@ -105,8 +107,6 @@ confirmButton.addEventListener('click', async () => {
     const url = storedData.captured_subtitle_url; 
 
     if (!url) {
-        // This is the error message the user was seeing. It is now correct, 
-        // as the only way to proceed is if the URL is in storage.
         statusText.textContent = "Error: Subtitle URL was not found. Please ensure you are on a Netflix playback page and the background script captured the URL.";
         progressBar.style.width = '0%';
         confirmButton.disabled = true; 
@@ -139,17 +139,17 @@ confirmButton.addEventListener('click', async () => {
             targetLang: targetLang
         };
 
-        chrome.tabs.sendMessage(currentTabId, message, (response) => {
-            if (chrome.runtime.lastError) {
-                chrome.scripting.executeScript({
-                    target: { tabId: currentTabId },
-                    files: ['content.js']
-                }, () => {
-                    setTimeout(() => {
-                        chrome.tabs.sendMessage(currentTabId, message);
-                    }, 200);
-                });
-            } 
+        // Inject/ensure content.js is loaded, THEN send the message. (The fix)
+        chrome.scripting.executeScript({
+            target: { tabId: currentTabId },
+            files: ['content.js']
+        }, () => {
+            // Send the message to the now-active content script.
+            chrome.tabs.sendMessage(currentTabId, message).catch(e => {
+                console.error("Failed to send message after script injection:", e);
+                // Fallback UI update for major failure
+                statusText.textContent = "Error: Could not communicate with content script. Please try a full page reload on Netflix.";
+            });
         });
     });
 });
@@ -213,11 +213,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     }
     
-    // NEW HANDLER: Handle message from background script when a URL is found
+    // NEW HANDLER: Handle message from content script when a URL is found
     if (request.command === "subtitle_url_found" && request.url) {
         // Only update the status if the app is currently in a neutral or error state
         chrome.storage.local.get(['ls_status'], (data) => {
-             if (!data.ls_status || data.ls_status.progress === 0) {
+             if (!data.ls_status || data.ls_status.progress <= 0) {
                  statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
                  // If status was cleared, re-enable buttons
                  confirmButton.disabled = false;
