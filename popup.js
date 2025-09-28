@@ -148,14 +148,15 @@ async function handleConfirmClick(elements) {
             elements.statusText.textContent = "Content script injected. Sending start command...";
             console.log("[POPUP] Content script injected successfully. Sending message...");
             
-            // Now attempt to send the message, wrapping it in a structure that handles the "No SW context" issue
-            chrome.tabs.sendMessage(currentTabId, message, (response) => {
-                if (chrome.runtime.lastError) {
-                    // This handles if the content script *immediately* crashed or disappeared after injection
-                    console.error("[POPUP] Failed to send message after script injection:", chrome.runtime.lastError.message);
-                    // Do not show a fatal error here, as the content script may have started processing.
-                }
-            });
+            // CHANGED: We are now sending the message without a callback function.
+            // This tells Chrome not to wait for a response, preventing the "No SW" error 
+            // when the popup closes immediately.
+            chrome.tabs.sendMessage(currentTabId, message);
+
+            // Optional: You can add a try/catch or use .catch() with the promise version
+            // if you wanted to handle immediate failure, but for a popup, 
+            // the missing SW context is the most common and harmless error.
+            
         });
         // --- END IMPROVED SCRIPT INJECTION AND MESSAGING ---
     });
@@ -166,7 +167,8 @@ async function handleCancelClick(elements) {
     // because the content script is running in the tab's context.
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].id) {
-             // Send message to content script (it handles the cancellation logic)
+             // Send message to content script (it handles the cancellation logic).
+             // Using .catch() here ensures we suppress the 'No content script listening' error.
              chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
         }
     });
