@@ -1,7 +1,7 @@
 // --- File start: popup.js ---
 
 const confirmButton = document.getElementById('confirmButton');
-const subtitleUrlInput = document.getElementById('subtitleUrlInput');
+// REMOVED: const subtitleUrlInput = document.getElementById('subtitleUrlInput');
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
@@ -20,7 +20,6 @@ async function resetStatus() {
     
     // Always re-enable controls
     confirmButton.disabled = false;
-    subtitleUrlInput.disabled = false;
     baseLanguageSelect.disabled = false;
     targetLanguageSelect.disabled = false;
     
@@ -28,7 +27,7 @@ async function resetStatus() {
     cancelButton.style.display = 'none';
 
     // Reset UI to default state
-    statusText.textContent = "Ready to load new subtitles. (Using local Chrome Translator API)";
+    statusText.textContent = "Ready to detect Netflix subtitles."; 
     progressBar.style.width = '0%';
     console.log("Processing status reset completed.");
 }
@@ -38,46 +37,49 @@ async function resetStatus() {
 
 // 3. Function to load status from storage on popup open
 function loadSavedStatus() {
-    // UNIFY STORAGE KEY: Read 'ls_status'
-    chrome.storage.local.get(['ls_status'], (data) => {
+    // Keys include the processing status, last input (for language persistence), and the captured URL
+    chrome.storage.local.get(['ls_status', 'last_input', 'captured_subtitle_url'], (data) => {
         const status = data.ls_status;
 
+        // --- 3A. Handle Status/Progress Bar Display ---
         if (status && status.progress < 100) {
-            // Case 1: Ongoing process (can be fetching, parsing, or downloading model)
+            // Case 1: Ongoing process
             statusText.textContent = status.message;
             progressBar.style.width = status.progress + '%';
             
             // Disable inputs while a background process is running
             confirmButton.disabled = true;
-            subtitleUrlInput.disabled = true;
             baseLanguageSelect.disabled = true;
             targetLanguageSelect.disabled = true;
-            cancelButton.style.display = 'block'; // Show cancel button
+            cancelButton.style.display = 'block'; 
         } else if (status && status.progress === 100) {
             // Case 2: Process completed successfully
             statusText.textContent = status.message;
             progressBar.style.width = '100%';
             confirmButton.disabled = true;
-            // Inputs remain enabled so user can easily adjust languages/URL for a new run
-            cancelButton.style.display = 'block'; // Show cancel button to clear success state
+            cancelButton.style.display = 'block'; 
         } else {
              // Case 3: Default/cleared state
-             statusText.textContent = "Enter subtitle URL and click Generate. (Using local Chrome Translator API)"; // UPDATED TEXT
+             const capturedUrl = data.captured_subtitle_url;
+             
+             if (capturedUrl) {
+                 statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+                 confirmButton.disabled = false;
+             } else {
+                 statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
+                 confirmButton.disabled = true; // Cannot generate without URL
+             }
+             
              progressBar.style.width = '0%';
-             // Ensure controls are enabled
-             confirmButton.disabled = false;
-             subtitleUrlInput.disabled = false;
              baseLanguageSelect.disabled = false;
              targetLanguageSelect.disabled = false;
-             cancelButton.style.display = 'none'; // Hide cancel button
+             cancelButton.style.display = 'none'; 
         }
-    });
-    
-    // Separately load the last used input values (URL/Languages) to persist them across popup closes
-    chrome.storage.local.get(['last_input'], (data) => {
+
+        // --- 3B. Load Language Inputs ---
         const input = data.last_input;
         if (input) {
-             subtitleUrlInput.value = input.url || '';
+             // Load language selections to persist user choice
              baseLanguageSelect.value = input.baseLang || 'en';
              targetLanguageSelect.value = input.targetLang || 'es';
         }
@@ -89,32 +91,34 @@ function loadSavedStatus() {
 // 1. Load saved status immediately when the DOM is ready
 document.addEventListener('DOMContentLoaded', loadSavedStatus);
 
-// 2. Load Subtitles & Start Dual-Sub Mode
+// 2. Generate Subtitles
 confirmButton.addEventListener('click', async () => {
-    const url = subtitleUrlInput.value.trim();
     const baseLang = baseLanguageSelect.value;
     const targetLang = targetLanguageSelect.value;
 
-    // CRITICAL FIX: Re-adding the necessary validation check here to prevent starting 
-    // the process if the URL is STILL blank, even after auto-capture attempts.
+    // CRITICAL CHANGE: Get URL ONLY from storage
+    const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
+    const url = storedData.captured_subtitle_url; 
+
     if (!url) {
-        statusText.textContent = "Error: Subtitle URL is missing. Please ensure you are on a Netflix playback page and the background script captured the URL.";
+        statusText.textContent = "Error: Subtitle URL was not found. Please ensure you are on a Netflix playback page and the background script captured the URL.";
         progressBar.style.width = '0%';
+        // Re-disable button if capture failed
+        confirmButton.disabled = true; 
         return;
     }
 
 
-    // 1. Proactively clear old status and save new input
+    // 1. Save language choices and clear old status
     await chrome.storage.local.remove(['ls_status']); // Clear old status only
     await chrome.storage.local.set({ 
-        last_input: { url, baseLang, targetLang } 
+        last_input: { url, baseLang, targetLang } // Save the URL we are using along with languages
     });
 
     // 2. Update UI for start of process
     statusText.textContent = "URL accepted. Initializing...";
     progressBar.style.width = '10%';
     confirmButton.disabled = true;
-    subtitleUrlInput.disabled = true;
     baseLanguageSelect.disabled = true;
     targetLanguageSelect.disabled = true;
     cancelButton.style.display = 'block'; // Ensure cancel button is shown on start
@@ -125,15 +129,13 @@ confirmButton.addEventListener('click', async () => {
         // Command to tell the content script to fetch, parse, and translate.
         const message = { 
             command: "fetch_and_process_url", 
-            url: url,
+            url: url, // Pass the captured URL to content.js
             baseLang: baseLang,
             targetLang: targetLang
         };
 
-        // Try to send a message. If the content script isn't loaded, inject it first.
         chrome.tabs.sendMessage(currentTabId, message, (response) => {
             if (chrome.runtime.lastError) {
-                // Content script not ready: inject and then send message
                 chrome.scripting.executeScript({
                     target: { tabId: currentTabId },
                     files: ['content.js']
@@ -143,7 +145,6 @@ confirmButton.addEventListener('click', async () => {
                     }, 200);
                 });
             } 
-            // Status updates will now come back via chrome.runtime.onMessage listener below.
         });
     });
 });
@@ -163,7 +164,7 @@ cancelButton.addEventListener('click', async () => {
 });
 
 
-// 4. Listener to update status from content script
+// 4. Listener to update status from content script or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "update_status") {
         const progress = request.progress;
@@ -175,24 +176,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (progress >= 100) {
             // Success state - allow user to change URL/languages
             confirmButton.disabled = true;
-            subtitleUrlInput.disabled = false;
             baseLanguageSelect.disabled = false;
             targetLanguageSelect.disabled = false;
             cancelButton.style.display = 'block';
         } else if (progress > 0) {
              // Processing state - disable controls
             confirmButton.disabled = true;
-            subtitleUrlInput.disabled = true;
             baseLanguageSelect.disabled = true;
             targetLanguageSelect.disabled = true;
             cancelButton.style.display = 'block';
         } else {
             // Error case (progress 0) - re-enable controls
             confirmButton.disabled = false;
-            subtitleUrlInput.disabled = false;
             baseLanguageSelect.disabled = false;
             targetLanguageSelect.disabled = false;
             cancelButton.style.display = 'none';
+            
+            // If the error is persistent, re-check URL to see if we should re-enable the button
+            if (statusText.textContent.includes("Error")) {
+                chrome.storage.local.get(['captured_subtitle_url'], (data) => {
+                    if (data.captured_subtitle_url) {
+                        statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
+                        confirmButton.disabled = false;
+                    } else {
+                         // If we are in an error state AND the URL is NOT found, prompt user to play video
+                        statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
+                        confirmButton.disabled = true;
+                    }
+                });
+            }
         }
+    }
+    
+    // NEW HANDLER: Handle message from background script when a URL is found
+    if (request.command === "subtitle_url_found" && request.url) {
+        // Only update the status if the app is currently in a neutral or error state
+        chrome.storage.local.get(['ls_status'], (data) => {
+             if (!data.ls_status || data.ls_status.progress === 0) {
+                 statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+                 // If status was cleared, re-enable buttons
+                 confirmButton.disabled = false;
+             }
+        });
+        
     }
 });
