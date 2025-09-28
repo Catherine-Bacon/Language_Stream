@@ -19,7 +19,8 @@ async function resetStatus() {
     await chrome.storage.local.remove(['ls_status']);
     
     // Always re-enable controls
-    confirmButton.disabled = false;
+    // Button state (enabled/disabled) will be correctly set by loadSavedStatus
+    confirmButton.disabled = true; 
     baseLanguageSelect.disabled = false;
     targetLanguageSelect.disabled = false;
     
@@ -30,6 +31,9 @@ async function resetStatus() {
     statusText.textContent = "Ready to detect Netflix subtitles."; 
     progressBar.style.width = '0%';
     console.log("Processing status reset completed.");
+    
+    // Rerun loadSavedStatus to check if a URL was captured immediately after reset
+    loadSavedStatus(); 
 }
 
 // 2. New function to clear URL and Language inputs (REMOVED)
@@ -40,6 +44,7 @@ function loadSavedStatus() {
     // Keys include the processing status, last input (for language persistence), and the captured URL
     chrome.storage.local.get(['ls_status', 'last_input', 'captured_subtitle_url'], (data) => {
         const status = data.ls_status;
+        const capturedUrl = data.captured_subtitle_url;
 
         // --- 3A. Handle Status/Progress Bar Display ---
         if (status && status.progress < 100) {
@@ -60,20 +65,19 @@ function loadSavedStatus() {
             cancelButton.style.display = 'block'; 
         } else {
              // Case 3: Default/cleared state
-             const capturedUrl = data.captured_subtitle_url;
-             
-             if (capturedUrl) {
-                 statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
-                 confirmButton.disabled = false;
-             } else {
-                 statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
-                 confirmButton.disabled = true; // Cannot generate without URL
-             }
              
              progressBar.style.width = '0%';
              baseLanguageSelect.disabled = false;
              targetLanguageSelect.disabled = false;
              cancelButton.style.display = 'none'; 
+             
+             if (capturedUrl) {
+                 statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+                 confirmButton.disabled = false; // ENABLED: We have the URL
+             } else {
+                 statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
+                 confirmButton.disabled = true; // DISABLED: No URL, cannot start.
+             }
         }
 
         // --- 3B. Load Language Inputs ---
@@ -175,7 +179,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         progressBar.style.width = progress + '%';
         
         if (progress >= 100) {
-            // Success state - allow user to change URL/languages
+            // Success state - UI remains disabled until user hits CANCEL
             confirmButton.disabled = true;
             baseLanguageSelect.disabled = false;
             targetLanguageSelect.disabled = false;
@@ -187,20 +191,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             targetLanguageSelect.disabled = true;
             cancelButton.style.display = 'block';
         } else {
-            // Error case (progress 0) - re-enable controls
+            // Error case (progress 0) - re-enable controls if URL is captured
             confirmButton.disabled = false;
             baseLanguageSelect.disabled = false;
             targetLanguageSelect.disabled = false;
             cancelButton.style.display = 'none';
             
-            // If the error is persistent, re-check URL to see if we should re-enable the button
+            // If the message contains an error, check storage again to decide button state
             if (statusText.textContent.includes("Error")) {
                 chrome.storage.local.get(['captured_subtitle_url'], (data) => {
                     if (data.captured_subtitle_url) {
                         statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
                         confirmButton.disabled = false;
                     } else {
-                         // If we are in an error state AND the URL is NOT found, prompt user to play video
+                        // If we are in an error state AND the URL is NOT found, prompt user to play video
                         statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
                         confirmButton.disabled = true;
                     }
