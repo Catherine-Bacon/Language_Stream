@@ -6,14 +6,34 @@ const SUBTITLE_URL_PATTERN = /^https:\/\/.*\.nflxvideo\.net\/subtitles\/.*o=\d+.
 const SUBTITLE_TYPE_PATTERN = /timedtext\/dfxp/i;
 
 /**
+ * Sends a message robustly to a specific tab ID.
+ * Handles the potential for the tab's content script not being ready.
+ */
+function sendTabMessage(tabId, message) {
+    return new Promise((resolve, reject) => {
+        // Use a slight delay to ensure the service worker context is fully initialized
+        setTimeout(() => {
+             chrome.tabs.sendMessage(tabId, message, (response) => {
+                if (chrome.runtime.lastError) {
+                    // Ignore "Receiving end does not exist" and similar errors
+                    // which are common if the content script hasn't loaded yet.
+                    console.warn(`[BG] Message failed to tab ${tabId}. Last Error: ${chrome.runtime.lastError.message}`);
+                    reject(chrome.runtime.lastError.message);
+                } else {
+                    resolve(response);
+                }
+            });
+        }, 50); // Small delay
+    });
+}
+
+
+/**
  * Listener function to capture the subtitle URL using the webRequest API.
- * This effectively replaces the manual DevTools process:
- * 1. It monitors all network requests on Netflix (*://*.nflxvideo.net).
- * 2. It checks the URL pattern (like the '?o=' query parameter you mentioned).
- * 3. It checks the content type (application/x-dfxp+xml) which confirms it's a TTML subtitle file.
  */
 chrome.webRequest.onHeadersReceived.addListener(
     (details) => {
+        // Ensure we are processing a valid tab and an XMLHttpRequest
         if (details.tabId === -1 || details.type !== 'xmlhttprequest') {
             return;
         }
@@ -33,21 +53,21 @@ chrome.webRequest.onHeadersReceived.addListener(
             }
 
             if (isSubtitle) {
-                console.log("Web Request API captured Netflix Subtitle URL:", url);
+                console.log("[BG] Web Request API captured Netflix Subtitle URL:", url);
 
                 // Save the captured URL to storage
                 chrome.storage.local.set({
                     'captured_subtitle_url': url
                 }).then(() => {
                     // Notify the active tab's popup
-                    chrome.tabs.sendMessage(details.tabId, {
+                    sendTabMessage(details.tabId, {
                         command: "subtitle_url_found",
                         url: url
                     }).catch(e => {
-                        // Ignore error if content script isn't loaded or tab is gone
+                        // Error handled inside sendTabMessage
                     });
                 }).catch(e => {
-                    console.error("Error saving subtitle URL to storage:", e);
+                    console.error("[BG] Error saving subtitle URL to storage:", e);
                 });
             }
         }
