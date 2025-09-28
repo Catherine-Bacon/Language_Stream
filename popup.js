@@ -77,7 +77,7 @@ function loadSavedStatus(elements) {
 // --- Handler Functions ---
 
 async function handleConfirmClick(elements) {
-    console.log("4. 'Generate Subtitles' button clicked. Starting process.");
+    console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
@@ -89,7 +89,7 @@ async function handleConfirmClick(elements) {
     const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
     const url = storedData.captured_subtitle_url; 
     
-    console.log("4a. Retrieved URL from storage. URL found:", !!url);
+    console.log("[POPUP] Retrieved URL from storage. URL found:", !!url);
 
     if (!url) {
         elements.statusText.textContent = "Error: Subtitle URL was not found. Play a Netflix video and ensure subtitles are ON.";
@@ -116,13 +116,13 @@ async function handleConfirmClick(elements) {
         
         if (!tabs[0] || !tabs[0].id) {
             elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
-            console.error("4b. Failed to retrieve active tab information.");
+            console.error("[POPUP] Failed to retrieve active tab information.");
             elements.progressBar.style.width = '0%';
             return;
         }
         
         const currentTabId = tabs[0].id;
-        console.log(`4c. Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
 
         const message = { 
@@ -132,33 +132,41 @@ async function handleConfirmClick(elements) {
             targetLang: targetLang
         };
 
-        // Inject/ensure content.js is loaded, THEN send the message.
+        // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
         chrome.scripting.executeScript({
             target: { tabId: currentTabId },
             files: ['content.js']
         }, () => {
             if (chrome.runtime.lastError) {
+                // This error handler is for injection failures only
                 elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
-                console.error("4d. Scripting FAILED. Error:", chrome.runtime.lastError.message);
+                console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
                 elements.progressBar.style.width = '0%';
                 return;
             }
             
             elements.statusText.textContent = "Content script injected. Sending start command...";
-            console.log("4e. Content script injected successfully. Sending message...");
-
-
-            chrome.tabs.sendMessage(currentTabId, message).catch(e => {
-                console.error("4f. Failed to send message after script injection:", e);
-                elements.statusText.textContent = "Error: Could not communicate with content script. Try a full page reload.";
+            console.log("[POPUP] Content script injected successfully. Sending message...");
+            
+            // Now attempt to send the message, wrapping it in a structure that handles the "No SW context" issue
+            chrome.tabs.sendMessage(currentTabId, message, (response) => {
+                if (chrome.runtime.lastError) {
+                    // This handles if the content script *immediately* crashed or disappeared after injection
+                    console.error("[POPUP] Failed to send message after script injection:", chrome.runtime.lastError.message);
+                    // Do not show a fatal error here, as the content script may have started processing.
+                }
             });
         });
+        // --- END IMPROVED SCRIPT INJECTION AND MESSAGING ---
     });
 }
 
 async function handleCancelClick(elements) {
+    // Note: Sending messages from popup to content script is generally okay 
+    // because the content script is running in the tab's context.
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].id) {
+             // Send message to content script (it handles the cancellation logic)
              chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
         }
     });
