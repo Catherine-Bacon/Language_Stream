@@ -237,6 +237,5 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
             });
         }
-    }); // <--- CLOSES chrome.runtime.onMessage.addListener
-
-}); // End DOMContentLoaded
+    });
+});
