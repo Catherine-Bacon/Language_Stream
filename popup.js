@@ -1,4 +1,6 @@
-// --- File start: popup.js ---
+// --- File start: popup.js (Updated with Critical Debugging) ---
+
+console.log("1. popup.js script started execution.");
 
 const confirmButton = document.getElementById('confirmButton');
 const baseLanguageSelect = document.getElementById('baseLanguage');
@@ -8,6 +10,12 @@ const progressBar = document.getElementById('progressBar');
 
 const cancelButton = document.getElementById('cancelButton');
 
+// CRITICAL DEBUG CHECK:
+if (!confirmButton) {
+    console.error("2. FATAL ERROR: confirmButton element not found. Check main.html IDs.");
+} else {
+    console.log("2. confirmButton element found. Attaching listener.");
+}
 
 // --- Status Management Functions ---
 
@@ -36,6 +44,7 @@ async function resetStatus() {
 
 // 3. Function to load status from storage on popup open
 function loadSavedStatus() {
+    console.log("3. Loading saved status from storage.");
     // Keys include the processing status, last input (for language persistence), and the captured URL
     chrome.storage.local.get(['ls_status', 'last_input', 'captured_subtitle_url'], (data) => {
         const status = data.ls_status;
@@ -99,6 +108,8 @@ document.addEventListener('DOMContentLoaded', loadSavedStatus);
 
 // 2. Generate Subtitles
 confirmButton.addEventListener('click', async () => {
+    console.log("4. 'Generate Subtitles' button clicked. Starting process.");
+
     // IMMEDIATE VISUAL FEEDBACK
     statusText.textContent = "Generating subtitles...";
     progressBar.style.width = '5%';
