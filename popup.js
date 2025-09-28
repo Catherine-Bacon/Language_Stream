@@ -95,14 +95,14 @@ confirmButton.addEventListener('click', async () => {
     const baseLang = baseLanguageSelect.value;
     const targetLang = targetLanguageSelect.value;
 
-    // REMOVED URL VALIDATION: Process will proceed with the URL currently in the input,
-    // whether it was manually pasted or automatically detected by the background script.
-    
+    // CRITICAL FIX: Re-adding the necessary validation check here to prevent starting 
+    // the process if the URL is STILL blank, even after auto-capture attempts.
     if (!url) {
-        statusText.textContent = "Error: Subtitle URL is still missing. Please ensure you are on a Netflix playback page.";
+        statusText.textContent = "Error: Subtitle URL is missing. Please ensure you are on a Netflix playback page and the background script captured the URL.";
         progressBar.style.width = '0%';
         return;
     }
+
 
     // 1. Proactively clear old status and save new input
     await chrome.storage.local.remove(['ls_status']); // Clear old status only
