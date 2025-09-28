@@ -6,7 +6,7 @@ console.log("1. popup.js script file loaded.");
 async function resetStatus(elements) {
     await chrome.storage.local.remove(['ls_status']);
     
-    // Safety check included from previous steps
+    // Safety check
     if (!elements.confirmButton) return; 
 
     elements.confirmButton.disabled = true; 
@@ -73,6 +73,97 @@ function loadSavedStatus(elements) {
     });
 }
 
+// --- Handler Functions ---
+
+async function handleConfirmClick(elements) {
+    console.log("4. 'Generate Subtitles' button clicked. Starting process.");
+
+    // IMMEDIATE VISUAL FEEDBACK
+    elements.statusText.textContent = "Generating subtitles...";
+    elements.progressBar.style.width = '5%';
+    
+    const baseLang = elements.baseLanguageSelect.value;
+    const targetLang = elements.targetLanguageSelect.value;
+
+    const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
+    const url = storedData.captured_subtitle_url; 
+    
+    console.log("4a. Retrieved URL from storage. URL found:", !!url);
+
+    if (!url) {
+        elements.statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
+        elements.progressBar.style.width = '0%';
+        elements.confirmButton.disabled = true; 
+        return;
+    }
+
+    // 1. Save language choices and clear old status
+    await chrome.storage.local.remove(['ls_status']);
+    await chrome.storage.local.set({ 
+        last_input: { url, baseLang, targetLang }
+    });
+
+    // 2. Update UI for start of process
+    elements.statusText.textContent = "URL accepted. Initializing content script...";
+    elements.progressBar.style.width = '10%';
+    elements.confirmButton.disabled = true;
+    elements.baseLanguageSelect.disabled = true;
+    elements.targetLanguageSelect.disabled = true;
+    elements.cancelButton.style.display = 'block';
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        
+        if (!tabs[0] || !tabs[0].id) {
+            elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
+            console.error("4b. Failed to retrieve active tab information.");
+            elements.progressBar.style.width = '0%';
+            return;
+        }
+        
+        const currentTabId = tabs[0].id;
+        console.log(`4c. Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+
+
+        const message = { 
+            command: "fetch_and_process_url", 
+            url: url,
+            baseLang: baseLang,
+            targetLang: targetLang
+        };
+
+        // Inject/ensure content.js is loaded, THEN send the message.
+        chrome.scripting.executeScript({
+            target: { tabId: currentTabId },
+            files: ['content.js']
+        }, () => {
+            if (chrome.runtime.lastError) {
+                elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
+                console.error("4d. Scripting FAILED. Error:", chrome.runtime.lastError.message);
+                elements.progressBar.style.width = '0%';
+                return;
+            }
+            
+            elements.statusText.textContent = "Content script injected. Sending start command...";
+            console.log("4e. Content script injected successfully. Sending message...");
+
+
+            chrome.tabs.sendMessage(currentTabId, message).catch(e => {
+                console.error("4f. Failed to send message after script injection:", e);
+                elements.statusText.textContent = "Error: Could not communicate with content script. Try a full page reload.";
+            });
+        });
+    });
+}
+
+async function handleCancelClick(elements) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0] && tabs[0].id) {
+             chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
+        }
+    });
+    await resetStatus(elements);
+}
+
 // -------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -98,95 +189,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Load previous status and set initial UI state
     loadSavedStatus(elements);
 
-    // 4. Attach Generate Subtitles Listener (The target event handler)
-    elements.confirmButton.addEventListener('click', async () => {
-        console.log("4. 'Generate Subtitles' button clicked. Starting process.");
-
-        // IMMEDIATE VISUAL FEEDBACK
-        elements.statusText.textContent = "Generating subtitles...";
-        elements.progressBar.style.width = '5%';
-        
-        const baseLang = elements.baseLanguageSelect.value;
-        const targetLang = elements.targetLanguageSelect.value;
-
-        const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
-        const url = storedData.captured_subtitle_url; 
-        
-        console.log("4a. Retrieved URL from storage. URL found:", !!url);
-
-        if (!url) {
-            elements.statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
-            elements.progressBar.style.width = '0%';
-            elements.confirmButton.disabled = true; 
-            return;
-        }
-
-        // 1. Save language choices and clear old status
-        await chrome.storage.local.remove(['ls_status']);
-        await chrome.storage.local.set({ 
-            last_input: { url, baseLang, targetLang }
-        });
-
-        // 2. Update UI for start of process
-        elements.statusText.textContent = "URL accepted. Initializing content script...";
-        elements.progressBar.style.width = '10%';
-        elements.confirmButton.disabled = true;
-        elements.baseLanguageSelect.disabled = true;
-        elements.targetLanguageSelect.disabled = true;
-        elements.cancelButton.style.display = 'block';
-
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            
-            if (!tabs[0] || !tabs[0].id) {
-                elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
-                console.error("4b. Failed to retrieve active tab information.");
-                elements.progressBar.style.width = '0%';
-                return;
-            }
-            
-            const currentTabId = tabs[0].id;
-            console.log(`4c. Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
-
-            const message = { 
-                command: "fetch_and_process_url", 
-                url: url,
-                baseLang: baseLang,
-                targetLang: targetLang
-            };
-
-            // Inject/ensure content.js is loaded, THEN send the message.
-            chrome.scripting.executeScript({
-                target: { tabId: currentTabId },
-                files: ['content.js']
-            }, () => {
-                if (chrome.runtime.lastError) {
-                    elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
-                    console.error("4d. Scripting FAILED. Error:", chrome.runtime.lastError.message);
-                    elements.progressBar.style.width = '0%';
-                    return;
-                }
-                
-                elements.statusText.textContent = "Content script injected. Sending start command...";
-                console.log("4e. Content script injected successfully. Sending message...");
-
-
-                chrome.tabs.sendMessage(currentTabId, message).catch(e => {
-                    console.error("4f. Failed to send message after script injection:", e);
-                    elements.statusText.textContent = "Error: Could not communicate with content script. Try a full page reload.";
-                });
-            });
-        });
-    });
-
-    // 5. Attach Cancel Button Listener
-    elements.cancelButton.addEventListener('click', async () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0] && tabs[0].id) {
-                 chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
-            }
-        });
-        await resetStatus(elements);
-    });
+    // --- Final, Robust Listener Attachment ---
+    
+    // Use an anonymous function to wrap the call, passing 'elements' for safety
+    elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
+    elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
 
     // 6. Listener to update status from content script or background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
