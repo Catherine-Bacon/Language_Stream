@@ -1,122 +1,130 @@
-// --- File start: popup.js (Structurally Corrected) ---
-
-// Define variables globally but initialize them inside DOMContentLoaded
-let confirmButton, baseLanguageSelect, targetLanguageSelect, statusText, progressBar, cancelButton;
+// --- File start: popup.js (Final Structural Fix) ---
 
 console.log("1. popup.js script file loaded.");
 
-// --- Status Management Functions (remain outside for scope) ---
+// --- Status Management Functions (remain outside DOMContentLoaded for scope) ---
 
-// 1. Function to reset the UI and clear *only the processing state*
-async function resetStatus() {
+// NOTE: These functions must ONLY be called *after* DOMContentLoaded has fired
+// to ensure all elements (like confirmButton, statusText) are initialized.
+
+async function resetStatus(elements) {
     await chrome.storage.local.remove(['ls_status']);
     
-    confirmButton.disabled = true; 
-    baseLanguageSelect.disabled = false;
-    targetLanguageSelect.disabled = false;
+    // Use the elements object passed from the main execution block
+    elements.confirmButton.disabled = true; 
+    elements.baseLanguageSelect.disabled = false;
+    elements.targetLanguageSelect.disabled = false;
     
-    cancelButton.style.display = 'none';
+    elements.cancelButton.style.display = 'none';
 
-    statusText.textContent = "Ready to detect Netflix subtitles."; 
-    progressBar.style.width = '0%';
+    elements.statusText.textContent = "Ready to detect Netflix subtitles."; 
+    elements.progressBar.style.width = '0%';
     console.log("Processing status reset completed.");
     
-    loadSavedStatus(); 
+    loadSavedStatus(elements); 
 }
 
-// 3. Function to load status from storage on popup open
-function loadSavedStatus() {
+function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     chrome.storage.local.get(['ls_status', 'last_input', 'captured_subtitle_url'], (data) => {
         const status = data.ls_status;
         const capturedUrl = data.captured_subtitle_url;
 
-        // --- 3A. Handle Status/Progress Bar Display ---
-        if (status && status.progress < 100 && status.progress > 0) {
-            statusText.textContent = status.message;
-            progressBar.style.width = status.progress + '%';
+        // --- Handle UI State ---
+        
+        // Always set the defaults first
+        elements.progressBar.style.width = '0%';
+        elements.baseLanguageSelect.disabled = false;
+        elements.targetLanguageSelect.disabled = false;
+        elements.cancelButton.style.display = 'none';
+        
+        if (status && status.progress > 0) {
+            // Case 1: Ongoing or just finished process
+            elements.statusText.textContent = status.message;
+            elements.progressBar.style.width = status.progress + '%';
             
-            confirmButton.disabled = true;
-            baseLanguageSelect.disabled = true;
-            targetLanguageSelect.disabled = true;
-            cancelButton.style.display = 'block'; 
-        } else if (status && status.progress === 100) {
-            statusText.textContent = status.message;
-            progressBar.style.width = '100%';
-            confirmButton.disabled = true;
-            baseLanguageSelect.disabled = false;
-            targetLanguageSelect.disabled = false;
-            cancelButton.style.display = 'block'; 
+            // Disable inputs while processing (progress > 0 and < 100)
+            if (status.progress < 100) {
+                elements.confirmButton.disabled = true;
+                elements.baseLanguageSelect.disabled = true;
+                elements.targetLanguageSelect.disabled = true;
+                elements.cancelButton.style.display = 'block';
+            } else {
+                // Process finished (progress == 100) - button stays disabled, cancel button visible
+                elements.confirmButton.disabled = true;
+                elements.cancelButton.style.display = 'block';
+            }
         } else {
-             progressBar.style.width = '0%';
-             baseLanguageSelect.disabled = false;
-             targetLanguageSelect.disabled = false;
-             cancelButton.style.display = 'none'; 
-             
+             // Case 2: Neutral or Error State
              if (capturedUrl) {
-                 statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
-                 confirmButton.disabled = false; 
+                 elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+                 elements.confirmButton.disabled = false; // ENABLED: We have the URL
              } else {
-                 statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
-                 confirmButton.disabled = true; 
+                 elements.statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
+                 elements.confirmButton.disabled = true; // DISABLED: No URL, cannot start.
              }
              
+             // Check for saved error message
              if (status && status.progress === 0 && status.message) {
-                 statusText.textContent = status.message;
+                 elements.statusText.textContent = status.message;
              }
         }
 
-        // --- 3B. Load Language Inputs ---
+        // --- Load Language Inputs ---
         const input = data.last_input;
         if (input) {
-             baseLanguageSelect.value = input.baseLang || 'en';
-             targetLanguageSelect.value = input.targetLang || 'es';
+             elements.baseLanguageSelect.value = input.baseLang || 'en';
+             elements.targetLanguageSelect.value = input.targetLang || 'es';
         }
     });
 }
 
-// --- Event Listeners (Main Execution Block) ---
+// -------------------------------------------------------------
 
 // 1. Wait for the entire HTML document to be loaded before running any DOM code
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 2. Initialize DOM variables inside the safety of DOMContentLoaded
-    confirmButton = document.getElementById('confirmButton');
-    baseLanguageSelect = document.getElementById('baseLanguage');
-    targetLanguageSelect = document.getElementById('targetLanguage');
-    statusText = document.getElementById('statusText');
-    progressBar = document.getElementById('progressBar');
-    cancelButton = document.getElementById('cancelButton');
+    // 2. Initialize DOM variables LOCALLY. If they are successfully assigned,
+    // they are stored in the 'elements' object for safe use by external functions.
+    const elements = {
+        confirmButton: document.getElementById('confirmButton'),
+        baseLanguageSelect: document.getElementById('baseLanguage'),
+        targetLanguageSelect: document.getElementById('targetLanguage'),
+        statusText: document.getElementById('statusText'),
+        progressBar: document.getElementById('progressBar'),
+        cancelButton: document.getElementById('cancelButton')
+    };
     
-    // CRITICAL DEBUG CHECK (Should pass now)
-    if (!confirmButton) {
-        console.error("2. FATAL ERROR: confirmButton element not found. Check main.html IDs.");
-        return; // Stop execution if we can't find the main button
+    // CRITICAL DEBUG CHECK
+    if (!elements.confirmButton || !elements.statusText) {
+        // If console is still empty, this error won't show, but it confirms the logic:
+        console.error("2. FATAL ERROR: Core DOM elements (button/status) not found. Check main.html IDs.");
+        return; 
     } else {
         console.log("2. All DOM elements found. Attaching listeners.");
     }
     
     // 3. Load previous status and set initial UI state
-    loadSavedStatus();
+    loadSavedStatus(elements);
 
     // 4. Attach Generate Subtitles Listener
-    confirmButton.addEventListener('click', async () => {
+    elements.confirmButton.addEventListener('click', async () => {
         console.log("4. 'Generate Subtitles' button clicked. Starting process.");
 
         // IMMEDIATE VISUAL FEEDBACK
-        statusText.textContent = "Generating subtitles...";
-        progressBar.style.width = '5%';
+        elements.statusText.textContent = "Generating subtitles...";
+        elements.progressBar.style.width = '5%';
         
-        const baseLang = baseLanguageSelect.value;
-        const targetLang = targetLanguageSelect.value;
+        const baseLang = elements.baseLanguageSelect.value;
+        const targetLang = elements.targetLanguageSelect.value;
 
         const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
         const url = storedData.captured_subtitle_url; 
 
         if (!url) {
-            statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
-            progressBar.style.width = '0%';
-            confirmButton.disabled = true; 
+            elements.statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
+            elements.progressBar.style.width = '0%';
+            elements.confirmButton.disabled = true; 
             return;
         }
 
@@ -127,19 +135,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 2. Update UI for start of process
-        statusText.textContent = "URL accepted. Initializing content script...";
-        progressBar.style.width = '10%';
-        confirmButton.disabled = true;
-        baseLanguageSelect.disabled = true;
-        targetLanguageSelect.disabled = true;
-        cancelButton.style.display = 'block';
+        elements.statusText.textContent = "URL accepted. Initializing content script...";
+        elements.progressBar.style.width = '10%';
+        elements.confirmButton.disabled = true;
+        elements.baseLanguageSelect.disabled = true;
+        elements.targetLanguageSelect.disabled = true;
+        elements.cancelButton.style.display = 'block';
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             
             if (!tabs[0] || !tabs[0].id) {
-                statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
+                elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
                 console.error("Popup Error: Failed to retrieve active tab information.");
-                progressBar.style.width = '0%';
+                elements.progressBar.style.width = '0%';
                 return;
             }
             
@@ -158,78 +166,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 files: ['content.js']
             }, () => {
                 if (chrome.runtime.lastError) {
-                    statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
+                    elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
                     console.error("Scripting Error:", chrome.runtime.lastError.message);
-                    progressBar.style.width = '0%';
+                    elements.progressBar.style.width = '0%';
                     return;
                 }
                 
-                statusText.textContent = "Content script injected. Sending start command...";
+                elements.statusText.textContent = "Content script injected. Sending start command...";
 
                 chrome.tabs.sendMessage(currentTabId, message).catch(e => {
                     console.error("Failed to send message after script injection:", e);
-                    statusText.textContent = "Error: Could not communicate with content script. Try a full page reload.";
+                    elements.statusText.textContent = "Error: Could not communicate with content script. Try a full page reload.";
                 });
             });
         });
     });
 
     // 5. Attach Cancel Button Listener
-    cancelButton.addEventListener('click', async () => {
+    elements.cancelButton.addEventListener('click', async () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                  chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
             }
         });
-        await resetStatus();
+        await resetStatus(elements);
     });
-}); // End DOMContentLoaded
 
-// 6. Listener to update status from content script or background script
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // Only proceed if the elements have been initialized by DOMContentLoaded
-    if (!statusText) return; 
-
-    if (request.command === "update_status") {
-        const progress = request.progress;
-        const message = request.message;
-
-        statusText.textContent = message;
-        progressBar.style.width = progress + '%';
+    // 6. Listener to update status from content script or background script
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
-        if (progress >= 100) {
-            confirmButton.disabled = true;
-            baseLanguageSelect.disabled = false;
-            targetLanguageSelect.disabled = false;
-            cancelButton.style.display = 'block';
-        } else if (progress > 0) {
-            confirmButton.disabled = true;
-            baseLanguageSelect.disabled = true;
-            targetLanguageSelect.disabled = true;
-            cancelButton.style.display = 'block';
-        } else {
-            // Error case (progress 0)
-            chrome.storage.local.get(['captured_subtitle_url'], (data) => {
-                 if (data.captured_subtitle_url) {
-                    statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
-                    confirmButton.disabled = false;
-                 } else {
-                    statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
-                    confirmButton.disabled = true;
+        if (request.command === "update_status") {
+            const progress = request.progress;
+            const message = request.message;
+
+            elements.statusText.textContent = message;
+            elements.progressBar.style.width = progress + '%';
+            
+            if (progress >= 100) {
+                elements.confirmButton.disabled = true;
+                elements.baseLanguageSelect.disabled = false;
+                elements.targetLanguageSelect.disabled = false;
+                elements.cancelButton.style.display = 'block';
+            } else if (progress > 0) {
+                elements.confirmButton.disabled = true;
+                elements.baseLanguageSelect.disabled = true;
+                elements.targetLanguageSelect.disabled = true;
+                elements.cancelButton.style.display = 'block';
+            } else {
+                // Error case (progress 0)
+                chrome.storage.local.get(['captured_subtitle_url'], (data) => {
+                     if (data.captured_subtitle_url) {
+                        elements.statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
+                        elements.confirmButton.disabled = false;
+                     } else {
+                        elements.statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
+                        elements.confirmButton.disabled = true;
+                     }
+                     elements.baseLanguageSelect.disabled = false;
+                     elements.targetLanguageSelect.disabled = false;
+                     elements.cancelButton.style.display = 'none';
+                });
+            }
+        }
+        
+        if (request.command === "subtitle_url_found" && request.url) {
+            chrome.storage.local.get(['ls_status'], (data) => {
+                 if (!data.ls_status || data.ls_status.progress <= 0) {
+                     elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+                     elements.confirmButton.disabled = false;
                  }
-                 baseLanguageSelect.disabled = false;
-                 targetLanguageSelect.disabled = false;
-                 cancelButton.style.display = 'none';
             });
         }
-    }
-    
-    if (request.command === "subtitle_url_found" && request.url) {
-        chrome.storage.local.get(['ls_status'], (data) => {
-             if (!data.ls_status || data.ls_status.progress <= 0) {
-                 statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
-                 confirmButton.disabled = false;
-             }
-        });
-    }
-});
+    });
+}); // End DOMContentLoaded
