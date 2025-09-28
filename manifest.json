@@ -17,7 +17,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["scripting", "storage", "activeTab", "tabs"],
+  "permissions": ["scripting", "storage", "activeTab", "tabs", "webRequest"],
   "host_permissions": ["*://*.netflix.com/*"],
   "web_accessible_resources": [
     {
