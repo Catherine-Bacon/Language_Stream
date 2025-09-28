@@ -425,7 +425,8 @@ function disableNetflixSubObserver() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "fetch_and_process_url" && request.url) {
-        
+        console.log("C1. Received 'fetch_and_process_url' command from popup.");
+
         // 1. Store language preferences
         subtitleLanguages.base = request.baseLang;
         subtitleLanguages.target = request.targetLang;
@@ -445,11 +446,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Initial progress starts low
         sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10, url);
+        console.log("C2. Starting core fetch/parse/translate sequence...");
+
 
         // 3. Async wrapper to handle the fetch/parse/translate sequence
         (async () => {
-            // *** CORE LOGIC: Fetch, parse, and translate all subtitles sequentially ***
             const xmlContent = await fetchXmlContent(url);
+            
+            console.log("C3. XML Content fetch complete. Content size:", xmlContent ? xmlContent.length : '0');
+
 
             if (xmlContent) {
                 // 4. Create the floating window and disable native subs
@@ -459,13 +464,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // 5. Parse the XML
                 const parseSuccess = parseTtmlXml(xmlContent, url);
                 
+                console.log("C4. XML Parsing attempt finished. Success:", parseSuccess);
+
                 if (parseSuccess && parsedSubtitles.length > 0) {
                     // 6. Run sequential translation (25% -> 100%)
+                    console.log("C5. Starting sequential translation of all lines...");
                     await translateAllSubtitles(url);
 
                     // 7. Start synchronization after translation is 100% complete
+                    console.log("C6. Translation complete. Starting subtitle sync loop.");
                     startSubtitleSync();
                 } else {
+                    console.error("C7. Failed to parse XML or no subtitles found after parsing.");
                     sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
                 }
             }
