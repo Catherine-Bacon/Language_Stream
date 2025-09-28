@@ -1,7 +1,7 @@
 // --- File start: popup.js ---
 
 const confirmButton = document.getElementById('confirmButton');
-// REMOVED: const subtitleUrlInput = document.getElementById('subtitleUrlInput');
+// REMOVED: All references to subtitleUrlInput are gone.
 const baseLanguageSelect = document.getElementById('baseLanguage');
 const targetLanguageSelect = document.getElementById('targetLanguage');
 const statusText = document.getElementById('statusText');
@@ -101,9 +101,10 @@ confirmButton.addEventListener('click', async () => {
     const url = storedData.captured_subtitle_url; 
 
     if (!url) {
+        // This is the error message the user was seeing. It is now correct, 
+        // as the only way to proceed is if the URL is in storage.
         statusText.textContent = "Error: Subtitle URL was not found. Please ensure you are on a Netflix playback page and the background script captured the URL.";
         progressBar.style.width = '0%';
-        // Re-disable button if capture failed
         confirmButton.disabled = true; 
         return;
     }
