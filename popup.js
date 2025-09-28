@@ -1,16 +1,14 @@
-// --- File start: popup.js (Final Structural Fix) ---
+// --- File start: popup.js ---
 
 console.log("1. popup.js script file loaded.");
 
-// --- Status Management Functions (remain outside DOMContentLoaded for scope) ---
-
-// NOTE: These functions must ONLY be called *after* DOMContentLoaded has fired
-// to ensure all elements (like confirmButton, statusText) are initialized.
-
+// Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     await chrome.storage.local.remove(['ls_status']);
     
-    // Use the elements object passed from the main execution block
+    // Safety check included from previous steps
+    if (!elements.confirmButton) return; 
+
     elements.confirmButton.disabled = true; 
     elements.baseLanguageSelect.disabled = false;
     elements.targetLanguageSelect.disabled = false;
@@ -30,8 +28,6 @@ function loadSavedStatus(elements) {
         const status = data.ls_status;
         const capturedUrl = data.captured_subtitle_url;
 
-        // --- Handle UI State ---
-        
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
         elements.baseLanguageSelect.disabled = false;
@@ -39,7 +35,6 @@ function loadSavedStatus(elements) {
         elements.cancelButton.style.display = 'none';
         
         if (status && status.progress > 0) {
-            // Case 1: Ongoing or just finished process
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
@@ -50,27 +45,26 @@ function loadSavedStatus(elements) {
                 elements.targetLanguageSelect.disabled = true;
                 elements.cancelButton.style.display = 'block';
             } else {
-                // Process finished (progress == 100) - button stays disabled, cancel button visible
+                // Process finished (progress == 100)
                 elements.confirmButton.disabled = true;
                 elements.cancelButton.style.display = 'block';
             }
         } else {
-             // Case 2: Neutral or Error State
+             // Neutral or Error State
              if (capturedUrl) {
                  elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
-                 elements.confirmButton.disabled = false; // ENABLED: We have the URL
+                 elements.confirmButton.disabled = false;
              } else {
                  elements.statusText.textContent = "Waiting for Netflix subtitle data. Play a video to begin capture.";
-                 elements.confirmButton.disabled = true; // DISABLED: No URL, cannot start.
+                 elements.confirmButton.disabled = true;
              }
              
-             // Check for saved error message
              if (status && status.progress === 0 && status.message) {
                  elements.statusText.textContent = status.message;
              }
         }
 
-        // --- Load Language Inputs ---
+        // Load Language Inputs
         const input = data.last_input;
         if (input) {
              elements.baseLanguageSelect.value = input.baseLang || 'en';
@@ -81,11 +75,9 @@ function loadSavedStatus(elements) {
 
 // -------------------------------------------------------------
 
-// 1. Wait for the entire HTML document to be loaded before running any DOM code
 document.addEventListener('DOMContentLoaded', () => {
     
-    // 2. Initialize DOM variables LOCALLY. If they are successfully assigned,
-    // they are stored in the 'elements' object for safe use by external functions.
+    // 2. Initialize DOM variables locally
     const elements = {
         confirmButton: document.getElementById('confirmButton'),
         baseLanguageSelect: document.getElementById('baseLanguage'),
@@ -97,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // CRITICAL DEBUG CHECK
     if (!elements.confirmButton || !elements.statusText) {
-        // If console is still empty, this error won't show, but it confirms the logic:
         console.error("2. FATAL ERROR: Core DOM elements (button/status) not found. Check main.html IDs.");
         return; 
     } else {
@@ -107,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. Load previous status and set initial UI state
     loadSavedStatus(elements);
 
-    // 4. Attach Generate Subtitles Listener
+    // 4. Attach Generate Subtitles Listener (The target event handler)
     elements.confirmButton.addEventListener('click', async () => {
         console.log("4. 'Generate Subtitles' button clicked. Starting process.");
 
@@ -120,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
         const url = storedData.captured_subtitle_url; 
+        
+        console.log("4a. Retrieved URL from storage. URL found:", !!url);
 
         if (!url) {
             elements.statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
@@ -146,13 +139,14 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (!tabs[0] || !tabs[0].id) {
                 elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
-                console.error("Popup Error: Failed to retrieve active tab information.");
+                console.error("4b. Failed to retrieve active tab information.");
                 elements.progressBar.style.width = '0%';
                 return;
             }
             
             const currentTabId = tabs[0].id;
-            
+            console.log(`4c. Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+
             const message = { 
                 command: "fetch_and_process_url", 
                 url: url,
@@ -167,15 +161,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }, () => {
                 if (chrome.runtime.lastError) {
                     elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
-                    console.error("Scripting Error:", chrome.runtime.lastError.message);
+                    console.error("4d. Scripting FAILED. Error:", chrome.runtime.lastError.message);
                     elements.progressBar.style.width = '0%';
                     return;
                 }
                 
                 elements.statusText.textContent = "Content script injected. Sending start command...";
+                console.log("4e. Content script injected successfully. Sending message...");
+
 
                 chrome.tabs.sendMessage(currentTabId, message).catch(e => {
-                    console.error("Failed to send message after script injection:", e);
+                    console.error("4f. Failed to send message after script injection:", e);
                     elements.statusText.textContent = "Error: Could not communicate with content script. Try a full page reload.";
                 });
             });
@@ -237,5 +233,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
             });
         }
-    });
-});
+    }); 
+
+}); // End DOMContentLoaded
