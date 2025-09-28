@@ -216,11 +216,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Error case (progress 0)
                 chrome.storage.local.get(['captured_subtitle_url'], (data) => {
                      if (data.captured_subtitle_url) {
-                        elements.statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
-                        elements.confirmButton.disabled = false;
+                         elements.statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
+                         elements.confirmButton.disabled = false;
                      } else {
-                        elements.statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
-                        elements.confirmButton.disabled = true;
+                         elements.statusText.textContent = "Error. Play a Netflix video to capture subtitle data.";
+                         elements.confirmButton.disabled = true;
                      }
                      elements.baseLanguageSelect.disabled = false;
                      elements.targetLanguageSelect.disabled = false;
@@ -237,5 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
             });
         }
-    });
+    }); // <--- CLOSES chrome.runtime.onMessage.addListener
+
 }); // End DOMContentLoaded
