@@ -8,7 +8,6 @@ var syncInterval = syncInterval || null;
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' }; 
 var translationCache = translationCache || {}; // Cache for translations
 
-// REMOVED: GEMINI API CONSTANTS
 var currentTranslator = currentTranslator || null; 
 // CORRECTED: Netflix TTML timing typically uses 1,000,000 ticks per second (1 microsecond tick).
 var TICK_RATE = TICK_RATE || 1000000; 
@@ -199,7 +198,7 @@ function makeDraggable(element) {
   const drag = (e) => {
     if (!isDragging) return;
     const clientX = e.clientX || e.touches[0].clientX;
-    const clientY = e.clientY || e.touches[0].clientY;
+    const clientY = e.touches[0].clientY;
     
     element.style.left = (clientX - offsetX) + 'px';
     element.style.top = (clientY - offsetY) + 'px';
@@ -484,7 +483,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false; 
     }
     
-    // NEW HANDLER: Stops the background sync loop when the user cancels
+    // HANDLER: Stops the background sync loop when the user cancels
     if (request.command === "cancel_processing") {
         if (syncInterval) {
             clearInterval(syncInterval);
@@ -503,28 +502,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ status: "ready" });
         return true;
     }
+    
+    // NEW LISTENER: Handles message from background.js (Web Request API)
+    if (request.command === "subtitle_url_found" && request.url) {
+        console.log("Content script received captured URL from background.js:", request.url);
+        // We don't need to do anything here except logging or relaying, 
+        // as the popup.js is already listening for this same message 
+        // which originated from background.js.
+    }
+
 });
 
-// --- NEW LISTENER: Get URL from inpage.js (main page context) ---
-// This is essential for the new subtitle retrieval method.
-window.addEventListener('LS_Subtitle_Data_Found', (event) => {
-    const url = event.detail.url;
-    if (url) {
-        console.log("Inpage script captured Netflix Subtitle URL:", url);
-
-        // Save the captured URL to storage where popup.js can find it.
-        chrome.storage.local.set({ 
-            'captured_subtitle_url': url
-        }).then(() => {
-            // Notify the popup, similar to background.js logic
-            chrome.runtime.sendMessage({
-                command: "subtitle_url_found",
-                url: url
-            }).catch(e => {
-                // Ignore error if popup isn't listening
-            });
-        }).catch(e => {
-            console.error("Error saving subtitle URL to storage:", e);
-        });
-    }
-}, false);
+// --- REMOVED: Old LS_Subtitle_Data_Found event listener here ---
+// The old logic that used inpage.js is removed since background.js
+// now handles URL capture via the Web Request API.
