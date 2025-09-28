@@ -17,6 +17,12 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["scripting", "storage", "activeTab", "tabs", "webRequest"],
-  "host_permissions": ["*://*.netflix.com/*", "*://*/*"]
+  "permissions": ["scripting", "storage", "activeTab", "tabs"],
+  "host_permissions": ["*://*.netflix.com/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["inpage.js"],
+      "matches": ["*://*.netflix.com/*"]
+    }
+  ]
 }
