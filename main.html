@@ -79,13 +79,12 @@
   </head>
   <body>
     <h1>Language Stream</h1>
-    <p>Paste the TTML subtitle URL to begin.</p>
+    <!-- Updated description -->
+    <p>Automatically captures Netflix subtitle URL.</p>
 
-    <h2>1. Subtitle URL</h2>
-    <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
-           value="https://ipv4-c017-lhr009-sky-isp.1.oca.nflxvideo.net/?o=1&v=159&e=1759032493&t=5Q8k_0hKpJuG7vquYAvfjh-spUk-I5rdAarHUjCWrUPu6xAyrPRqAUBbSfWQUH1OHYEcnrUD1TdYYxWUJ7h9scAIOfdi0wjyPMi6L2oUjhmlzu5nUKHW4LMBmwqI_By96PguqKVsFM1p0VG5H4g_Lum0on0XEcywsx4fMBcJqOJsrzi4OJ-2HoNXCUTV9ia4WswmLDZjzror3h_nkaVg4WH_quEUObhZti8L-hEOMz_G1FVRh6w">
+    <!-- REMOVED URL INPUT SECTION (1. Subtitle URL) -->
     
-    <h2>2. Select Languages</h2>
+    <h2>1. Select Languages</h2>
     <label for="baseLanguage">Base Language:</label>
     <select id="baseLanguage">
       <option value="en">English</option>
@@ -108,7 +107,7 @@
     <br>
     <button id="confirmButton">Generate Subtitles</button>
     
-    <button id="cancelButton">Clear Generated Subtitles</button>
+    <button id="cancelButton">Cancel Subtitle Generation</button>
 
     <div id="statusBox">
       <p id="statusText">Waiting for URL...</p>
