@@ -99,6 +99,10 @@ document.addEventListener('DOMContentLoaded', loadSavedStatus);
 
 // 2. Generate Subtitles
 confirmButton.addEventListener('click', async () => {
+    // IMMEDIATE VISUAL FEEDBACK
+    statusText.textContent = "Generating subtitles...";
+    progressBar.style.width = '5%';
+    
     const baseLang = baseLanguageSelect.value;
     const targetLang = targetLanguageSelect.value;
 
@@ -107,7 +111,7 @@ confirmButton.addEventListener('click', async () => {
     const url = storedData.captured_subtitle_url; 
 
     if (!url) {
-        statusText.textContent = "Error: Subtitle URL was not found. Please ensure you are on a Netflix playback page and the background script captured the URL.";
+        statusText.textContent = "Error: Subtitle URL was not found in storage. Play a Netflix video.";
         progressBar.style.width = '0%';
         confirmButton.disabled = true; 
         return;
@@ -121,7 +125,7 @@ confirmButton.addEventListener('click', async () => {
     });
 
     // 2. Update UI for start of process
-    statusText.textContent = "URL accepted. Initializing...";
+    statusText.textContent = "URL accepted. Initializing content script...";
     progressBar.style.width = '10%';
     confirmButton.disabled = true;
     baseLanguageSelect.disabled = true;
@@ -129,6 +133,14 @@ confirmButton.addEventListener('click', async () => {
     cancelButton.style.display = 'block'; // Ensure cancel button is shown on start
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        
+        if (!tabs[0] || !tabs[0].id) {
+            statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
+            console.error("Popup Error: Failed to retrieve active tab information.");
+            progressBar.style.width = '0%';
+            return;
+        }
+        
         const currentTabId = tabs[0].id;
         
         // Command to tell the content script to fetch, parse, and translate.
@@ -144,6 +156,16 @@ confirmButton.addEventListener('click', async () => {
             target: { tabId: currentTabId },
             files: ['content.js']
         }, () => {
+            // Check for error in script injection itself
+            if (chrome.runtime.lastError) {
+                statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
+                console.error("Scripting Error:", chrome.runtime.lastError.message);
+                progressBar.style.width = '0%';
+                return;
+            }
+            
+            statusText.textContent = "Content script injected. Sending start command...";
+
             // Send the message to the now-active content script.
             chrome.tabs.sendMessage(currentTabId, message).catch(e => {
                 console.error("Failed to send message after script injection:", e);
