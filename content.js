@@ -10,7 +10,8 @@ var translationCache = translationCache || {}; // Cache for translations
 
 // REMOVED: GEMINI API CONSTANTS
 var currentTranslator = currentTranslator || null; 
-var TICK_RATE = TICK_RATE || 10000000; 
+// CORRECTED: Netflix TTML timing typically uses 1,000,000 ticks per second (1 microsecond tick).
+var TICK_RATE = TICK_RATE || 1000000; 
 
 // --- Utility Functions ---
 
@@ -447,6 +448,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 3. Async wrapper to handle the fetch/parse/translate sequence
         (async () => {
+            // *** CORE LOGIC: Fetch, parse, and translate all subtitles sequentially ***
             const xmlContent = await fetchXmlContent(url);
 
             if (xmlContent) {
@@ -492,3 +494,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 });
+
+// --- NEW LISTENER: Get URL from inpage.js (main page context) ---
+// This is essential for the new subtitle retrieval method.
+window.addEventListener('LS_Subtitle_Data_Found', (event) => {
+    const url = event.detail.url;
+    if (url) {
+        console.log("Inpage script captured Netflix Subtitle URL:", url);
+
+        // Save the captured URL to storage where popup.js can find it.
+        chrome.storage.local.set({ 
+            'captured_subtitle_url': url
+        }).then(() => {
+            // Notify the popup, similar to background.js logic
+            chrome.runtime.sendMessage({
+                command: "subtitle_url_found",
+                url: url
+            }).catch(e => {
+                // Ignore error if popup isn't listening
+            });
+        }).catch(e => {
+            console.error("Error saving subtitle URL to storage:", e);
+        });
+    }
+}, false);
