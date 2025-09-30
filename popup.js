@@ -9,7 +9,8 @@ async function resetStatus(elements) {
     // Safety check
     if (!elements.confirmButton) return; 
 
-    elements.confirmButton.disabled = true; 
+    // MODIFIED: Re-enable the button if a URL is in the box
+    elements.confirmButton.disabled = !(elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
     elements.baseLanguageSelect.disabled = false;
     elements.targetLanguageSelect.disabled = false;
     
@@ -24,6 +25,7 @@ async function resetStatus(elements) {
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
+    // We keep 'captured_subtitle_url' retrieval to automatically populate the input box if available
     chrome.storage.local.get(['ls_status', 'last_input', 'captured_subtitle_url'], (data) => {
         const status = data.ls_status;
         const capturedUrl = data.captured_subtitle_url;
@@ -34,6 +36,18 @@ function loadSavedStatus(elements) {
         elements.targetLanguageSelect.disabled = false;
         elements.cancelButton.style.display = 'none';
         
+        // Load Language Inputs and last URL first
+        const input = data.last_input;
+        if (input) {
+             elements.baseLanguageSelect.value = input.baseLang || 'en';
+             elements.targetLanguageSelect.value = input.targetLang || 'es';
+             elements.subtitleUrlInput.value = input.url || ''; 
+        } else if (capturedUrl) {
+            // Populate input if background captured it but no process has started yet
+            elements.subtitleUrlInput.value = capturedUrl;
+        }
+
+
         if (status && status.progress > 0) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
@@ -51,25 +65,19 @@ function loadSavedStatus(elements) {
             }
         } else {
              // Neutral or Error State
-             if (capturedUrl) {
-                 elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+             // MODIFIED: Check the input field's value
+             if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
+                 elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
                  elements.confirmButton.disabled = false;
              } else {
-                 // Updated message to reflect the new capture method (watching a video)
-                 elements.statusText.textContent = "Waiting for Netflix subtitle data. Play an episode/movie to capture URL.";
+                 // Updated message to prompt for manual paste
+                 elements.statusText.textContent = "Waiting for Netflix subtitle URL. Please paste it into the box below.";
                  elements.confirmButton.disabled = true;
              }
              
              if (status && status.progress === 0 && status.message) {
                  elements.statusText.textContent = status.message;
              }
-        }
-
-        // Load Language Inputs
-        const input = data.last_input;
-        if (input) {
-             elements.baseLanguageSelect.value = input.baseLang || 'en';
-             elements.targetLanguageSelect.value = input.targetLang || 'es';
         }
     });
 }
@@ -79,22 +87,25 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
+    // ADDED: Get URL directly from the input element
+    const url = elements.subtitleUrlInput.value.trim();
+
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
     
     const baseLang = elements.baseLanguageSelect.value;
     const targetLang = elements.targetLanguageSelect.value;
-
-    const storedData = await chrome.storage.local.get(['captured_subtitle_url']);
-    const url = storedData.captured_subtitle_url; 
     
-    console.log("[POPUP] Retrieved URL from storage. URL found:", !!url);
+    // The previous logic for retrieving from storage has been removed/modified.
 
-    if (!url) {
-        elements.statusText.textContent = "Error: Subtitle URL was not found. Play a Netflix video and ensure subtitles are ON.";
+    console.log("[POPUP] Retrieved URL from input box. URL found:", !!url);
+
+    if (!url || !url.startsWith('http')) {
+        // MODIFIED ERROR MESSAGE
+        elements.statusText.textContent = "Error: Please paste a valid Netflix TTML URL into the input box.";
         elements.progressBar.style.width = '0%';
-        elements.confirmButton.disabled = true; 
+        elements.confirmButton.disabled = false; 
         return;
     }
 
@@ -148,14 +159,9 @@ async function handleConfirmClick(elements) {
             elements.statusText.textContent = "Content script injected. Sending start command...";
             console.log("[POPUP] Content script injected successfully. Sending message...");
             
-            // CHANGED: We are now sending the message without a callback function.
-            // This tells Chrome not to wait for a response, preventing the "No SW" error 
-            // when the popup closes immediately.
+            // Sending the message without a callback function.
             chrome.tabs.sendMessage(currentTabId, message);
 
-            // Optional: You can add a try/catch or use .catch() with the promise version
-            // if you wanted to handle immediate failure, but for a popup, 
-            // the missing SW context is the most common and harmless error.
             
         });
         // --- END IMPROVED SCRIPT INJECTION AND MESSAGING ---
@@ -184,6 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmButton: document.getElementById('confirmButton'),
         baseLanguageSelect: document.getElementById('baseLanguage'),
         targetLanguageSelect: document.getElementById('targetLanguage'),
+        subtitleUrlInput: document.getElementById('subtitleUrlInput'), // ADDED
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton')
@@ -205,6 +212,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use an anonymous function to wrap the call, passing 'elements' for safety
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
+    
+    // NEW: Listen to changes in the URL input box to enable/disable the button
+    elements.subtitleUrlInput.addEventListener('input', () => {
+         const url = elements.subtitleUrlInput.value.trim();
+         elements.confirmButton.disabled = !(url && url.startsWith('http'));
+         if (elements.confirmButton.disabled === false) {
+             elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
+         }
+    });
+
 
     // 6. Listener to update status from content script or background script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -217,7 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.progressBar.style.width = progress + '%';
             
             if (progress >= 100) {
-                elements.confirmButton.disabled = true;
+                // MODIFIED: Re-enable the button if the URL is still valid in the box
+                elements.confirmButton.disabled = !(elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
                 elements.baseLanguageSelect.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
                 elements.cancelButton.style.display = 'block';
@@ -228,27 +246,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.cancelButton.style.display = 'block';
             } else {
                 // Error case (progress 0)
-                chrome.storage.local.get(['captured_subtitle_url'], (data) => {
-                     if (data.captured_subtitle_url) {
-                         elements.statusText.textContent = "Error, but URL is captured. Click Generate to retry.";
-                         elements.confirmButton.disabled = false;
-                     } else {
-                         // Updated error message
-                         elements.statusText.textContent = "Error. Play an episode/movie to capture subtitle data.";
-                         elements.confirmButton.disabled = true;
-                     }
-                     elements.baseLanguageSelect.disabled = false;
-                     elements.targetLanguageSelect.disabled = false;
-                     elements.cancelButton.style.display = 'none';
-                });
+                // MODIFIED: Check the input field's value
+                if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
+                    elements.statusText.textContent = "Error, but URL is in the box. Click Generate to retry.";
+                    elements.confirmButton.disabled = false;
+                } else {
+                    elements.statusText.textContent = "Error. Please paste subtitle data into the box.";
+                    elements.confirmButton.disabled = true;
+                }
+                elements.baseLanguageSelect.disabled = false;
+                elements.targetLanguageSelect.disabled = false;
+                elements.cancelButton.style.display = 'none';
             }
         }
         
+        // This block will auto-populate the input box if the background script successfully captures a URL
         if (request.command === "subtitle_url_found" && request.url) {
             chrome.storage.local.get(['ls_status'], (data) => {
                  // Only update status if the app isn't currently running a process (progress > 0)
                  if (!data.ls_status || data.ls_status.progress <= 0) { 
-                     elements.statusText.textContent = "Subtitle URL CAPTURED! Click Generate to start translation.";
+                     elements.subtitleUrlInput.value = request.url; // Populate the field
+                     elements.statusText.textContent = "Subtitle URL CAPTURED (and pasted below). Click Generate to start translation.";
                      elements.confirmButton.disabled = false;
                  }
             });
