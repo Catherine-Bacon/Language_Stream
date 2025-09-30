@@ -1,3 +1,4 @@
+// --- File start: manifest.json ---
 {
   "name": "Language Stream",
   "description": "Base Level Extension",
@@ -18,7 +19,7 @@
     "service_worker": "background.js"
   },
   "permissions": ["scripting", "storage", "activeTab", "tabs", "webRequest"],
-  "host_permissions": ["*://*.netflix.com/*"],
+  "host_permissions": ["*://*.netflix.com/*", "https://*.nflxvideo.net/*"], 
   "web_accessible_resources": [
     {
       "resources": ["inpage.js"],
