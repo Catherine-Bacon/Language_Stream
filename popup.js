@@ -18,6 +18,8 @@ async function resetStatus(elements) {
 
     elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below."; 
     elements.progressBar.style.width = '0%';
+    // NEW: Hide detected language text on reset
+    elements.detectedLanguageText.style.display = 'none';
     console.log("Processing status reset completed. Fields cleared.");
 }
 
@@ -31,6 +33,7 @@ function loadSavedStatus(elements) {
         elements.progressBar.style.width = '0%';
         elements.targetLanguageSelect.disabled = false;
         elements.cancelButton.style.display = 'none';
+        elements.detectedLanguageText.style.display = 'none'; // Default to hidden
         
         // Load Language Inputs and last URL first
         const input = data.last_input;
@@ -43,6 +46,13 @@ function loadSavedStatus(elements) {
         if (status && status.progress > 0) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
+
+            // Check if status message contains detected language (e.g., after detection but before 100%)
+            const langMatch = status.message.match(/Detected Base Language: (\w+)\./);
+            if (langMatch) {
+                elements.detectedLanguageText.textContent = `Language identified: ${langMatch[1].toUpperCase()}`;
+                elements.detectedLanguageText.style.display = 'block';
+            }
             
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
@@ -107,6 +117,7 @@ async function handleConfirmClick(elements) {
     });
 
     // 2. Update UI for start of process
+    elements.detectedLanguageText.style.display = 'none'; // Hide language text on start
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
@@ -179,12 +190,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Initialize DOM variables locally
     const elements = {
         confirmButton: document.getElementById('confirmButton'),
-        // baseLanguageSelect is no longer in main.html
         targetLanguageSelect: document.getElementById('targetLanguage'),
         subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
-        cancelButton: document.getElementById('cancelButton')
+        cancelButton: document.getElementById('cancelButton'),
+        // NEW: Element for detected language
+        detectedLanguageText: document.getElementById('detectedLanguageText') 
     };
     
     // CRITICAL DEBUG CHECK
@@ -208,6 +220,10 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.subtitleUrlInput.addEventListener('input', () => {
          const url = elements.subtitleUrlInput.value.trim();
          elements.confirmButton.disabled = !(url && url.startsWith('http'));
+         
+         // Always hide the detected language text if the user starts typing a new URL
+         elements.detectedLanguageText.style.display = 'none';
+         
          if (elements.confirmButton.disabled === false) {
              elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
          } else {
@@ -216,13 +232,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // 6. Listener to update status from content script or background script
+    // 6. Listener to update status from content script
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         if (request.command === "update_status") {
             const progress = request.progress;
             const message = request.message;
             
+            // --- NEW LOGIC: CHECK FOR DETECTED LANGUAGE IN STATUS MESSAGE ---
+            // The message sent from content.js is: "Detected Base Language: EN. Starting translation..."
+            const langMatch = message.match(/Detected Base Language: (\w+)\./);
+            
+            if (langMatch && elements.detectedLanguageText) {
+                const detectedLangCode = langMatch[1].toUpperCase();
+                elements.detectedLanguageText.textContent = `Language identified: ${detectedLangCode}`;
+                elements.detectedLanguageText.style.display = 'block';
+            } else if (progress === 0 || progress === 100) {
+                 // On error or completion, hide the indicator
+                 if (elements.detectedLanguageText) {
+                    elements.detectedLanguageText.style.display = 'none';
+                 }
+            }
+            // --- END NEW LOGIC ---
+
             elements.statusText.textContent = message;
             elements.progressBar.style.width = progress + '%';
             
@@ -249,9 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.cancelButton.style.display = 'none';
             }
         }
-        
-        // REMOVED: The subtitle_url_found listener block.
     }); 
 
 }); // End DOMContentLoaded
-// --- File end: popup.js ---
