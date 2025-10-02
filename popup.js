@@ -1,9 +1,36 @@
 console.log("1. popup.js script file loaded.");
 
+const LANGUAGE_MAP = {
+    'en': 'English',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    // Add other relevant languages if your translator supports them
+    'zh': 'Chinese (Detected)', 
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'it': 'Italian',
+    'sv': 'Swedish',
+    'pl': 'Polish',
+    'tr': 'Turkish'
+};
+
+function getFullLanguageName(code) {
+    if (!code) return "Language not available (yet!)"; // FIX: Specific failure message
+    // If the code is (FAIL), it means detection failed in content.js
+    if (code.toUpperCase() === '(FAIL)') return "Language not available (yet!)";
+    
+    // Return full name, or code if not found
+    return LANGUAGE_MAP[code.toLowerCase()] || `Code: ${code.toUpperCase()}`; 
+}
+
+
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // Clear ALL stored state and language settings if the user manually hits reset/cancel
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url']); 
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'detected_base_lang_full']); 
     
     if (!elements.confirmButton) return; 
 
@@ -18,22 +45,28 @@ async function resetStatus(elements) {
 
     elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below."; 
     elements.progressBar.style.width = '0%';
-    // NEW: Hide detected language text on reset
-    elements.detectedLanguageText.style.display = 'none';
+    // NEW FIX: Set initial persistent language message
+    elements.detectedLanguageText.textContent = "Language not yet identified";
     console.log("Processing status reset completed. Fields cleared.");
 }
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // Only retrieve 'ls_status' and 'last_input' (which now contains the URL and target lang)
-    chrome.storage.local.get(['ls_status', 'last_input'], (data) => {
+    // Retrieve status and the permanently saved detected language
+    chrome.storage.local.get(['ls_status', 'last_input', 'detected_base_lang_full'], (data) => {
         const status = data.ls_status;
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
         elements.targetLanguageSelect.disabled = false;
         elements.cancelButton.style.display = 'none';
-        elements.detectedLanguageText.style.display = 'none'; // Default to hidden
+        
+        // NEW FIX: Load persistent detected language
+        if (data.detected_base_lang_full) {
+             elements.detectedLanguageText.textContent = data.detected_base_lang_full;
+        } else {
+             elements.detectedLanguageText.textContent = "Language not yet identified";
+        }
         
         // Load Language Inputs and last URL first
         const input = data.last_input;
@@ -46,13 +79,6 @@ function loadSavedStatus(elements) {
         if (status && status.progress > 0) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
-
-            // Check if status message contains detected language (e.g., after detection but before 100%)
-            const langMatch = status.message.match(/Detected Base Language: (\w+)\./);
-            if (langMatch) {
-                elements.detectedLanguageText.textContent = `Language identified: ${langMatch[1].toUpperCase()}`;
-                elements.detectedLanguageText.style.display = 'block';
-            }
             
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
@@ -117,7 +143,6 @@ async function handleConfirmClick(elements) {
     });
 
     // 2. Update UI for start of process
-    elements.detectedLanguageText.style.display = 'none'; // Hide language text on start
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
@@ -221,8 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
          const url = elements.subtitleUrlInput.value.trim();
          elements.confirmButton.disabled = !(url && url.startsWith('http'));
          
-         // Always hide the detected language text if the user starts typing a new URL
-         elements.detectedLanguageText.style.display = 'none';
+         // Always reset persistent message if the user starts typing a new URL
+         elements.detectedLanguageText.textContent = "Language not yet identified";
          
          if (elements.confirmButton.disabled === false) {
              elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
@@ -233,25 +258,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 6. Listener to update status from content script
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         
         if (request.command === "update_status") {
             const progress = request.progress;
             const message = request.message;
             
-            // --- NEW LOGIC: CHECK FOR DETECTED LANGUAGE IN STATUS MESSAGE ---
+            // --- NEW LOGIC: DETECTED LANGUAGE PERSISTENCE AND FULL NAME ---
             // The message sent from content.js is: "Detected Base Language: EN. Starting translation..."
             const langMatch = message.match(/Detected Base Language: (\w+)\./);
             
-            if (langMatch && elements.detectedLanguageText) {
-                const detectedLangCode = langMatch[1].toUpperCase();
-                elements.detectedLanguageText.textContent = `Language identified: ${detectedLangCode}`;
-                elements.detectedLanguageText.style.display = 'block';
-            } else if (progress === 0 || progress === 100) {
-                 // On error or completion, hide the indicator
-                 if (elements.detectedLanguageText) {
-                    elements.detectedLanguageText.style.display = 'none';
-                 }
+            if (langMatch) {
+                const detectedLangCode = langMatch[1];
+                const fullName = getFullLanguageName(detectedLangCode);
+                
+                // Set the persistent message
+                elements.detectedLanguageText.textContent = `Language identified: ${fullName}`;
+                // Also save it persistently
+                await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
+                
+            } else if (progress === 0 && elements.subtitleUrlInput.value) {
+                // FIX: On error (progress 0) and URL is present, show fail message
+                elements.detectedLanguageText.textContent = "Language not available (yet!)";
+                await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
             }
             // --- END NEW LOGIC ---
 
