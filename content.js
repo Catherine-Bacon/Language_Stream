@@ -9,7 +9,7 @@ var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {}; // Cache for translations
 
 var currentTranslator = currentTranslator || null; 
-var TICK_RATE = TICK_RATE || 1000000; 
+var TICK_RATE = TICK_RATE || 10000000; 
 
 // --- Utility Functions ---
 
@@ -105,13 +105,18 @@ function parseTtmlXml(xmlString, url) {
             
             let text = '';
             
-            // 1. Replace <br/> tags with a single space.
+            // 1. Use innerHTML and replace the <br/> tags with a space.
             let innerHTML = p.innerHTML;
-            innerHTML = innerHTML.replace(/<br\s*\/?>/, ' '); 
+            innerHTML = innerHTML.replace(/<br\s*\/?>/gi, ' '); // Use /gi for global, case-insensitive replace
 
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = innerHTML;
-            text = tempDiv.textContent; // Extract all text content.
+            text = tempDiv.textContent; // Extract all text content, including text from children.
+            
+            // 2. CRITICAL FIX: Normalize whitespace to ensure:
+            //    - Leading/trailing whitespace is removed (.trim()).
+            //    - Multiple spaces (resulting from the <br/> replacement or TTML structure) are consolidated to a single space.
+            text = text.trim().replace(/\s+/g, ' '); 
 
             if (beginTick && endTick && text) {
                 parsedSubtitles.push({
