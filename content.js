@@ -107,7 +107,7 @@ function parseTtmlXml(xmlString, url) {
             
             // 1. Replace <br/> tags with a single space.
             let innerHTML = p.innerHTML;
-            innerHTML = innerHTML.replace(<br/>, ' '); 
+            innerHTML = innerHTML.replace(/<br\s*\/?>/, ' '); 
 
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = innerHTML;
