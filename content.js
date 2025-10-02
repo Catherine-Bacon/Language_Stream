@@ -328,34 +328,44 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
 
 /**
- * Runs sequential translation for all parsed subtitles.
+ * Runs CONCURRENT translation for all parsed subtitles to drastically increase speed.
  */
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
-    let translatedCount = 0;
-    
-    // Sequentially translate all lines
-    for (let i = 0; i < totalSubs; i++) {
-        const sub = parsedSubtitles[i];
 
+    // 1. Create an array of Promises for all translation jobs
+    const translationPromises = parsedSubtitles.map(async (sub, index) => {
+        let translatedText;
+        
         // Skip lines that are just sound effects (e.g., [Music], [Sigh])
         if (sub.text.match(/^\[.*\]$/)) {
-             sub.translatedText = sub.text;
+             translatedText = sub.text;
         } else {
-             // Use the single translateSubtitle function
-             sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+             // 2. Execute translation call (which returns a Promise)
+             translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         }
         
-        translatedCount++;
-        
-        // PROGRESS UPDATE: Translation execution is 60% to 100% (40% of total bar)
-        const progress = 60 + Math.floor((translatedCount / totalSubs) * 40); 
-        if (progress < 100) { 
-             sendStatusUpdate(`Translating: ${translatedCount}/${totalSubs} lines...`, progress, url);
+        // Update the progress status *periodically* since the loop isn't sequential
+        if (index % 100 === 0 || index === totalSubs - 1) {
+             const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
+             if (progress < 100) { 
+                 sendStatusUpdate(`Translating: ${index + 1}/${totalSubs} lines...`, progress, url);
+             }
         }
-    }
+
+        return translatedText;
+    });
+
+    // 3. Wait for all Promises (translations) to resolve concurrently
+    sendStatusUpdate(`Starting concurrent translation of ${totalSubs} lines...`, 60, url);
+    const results = await Promise.all(translationPromises);
+    
+    // 4. Update the original subtitle objects with the results
+    results.forEach((translatedText, index) => {
+        parsedSubtitles[index].translatedText = translatedText;
+    });
 
     sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
     console.log("Native translation process finished. All subtitles are ready.");
@@ -519,8 +529,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     sendStatusUpdate(`Detected Base Language: ${detectedLang.toUpperCase()}. Starting translation...`, 30, url);
 
 
-                    // 6. Run sequential translation (30% -> 100%)
-                    console.log(`C5. Starting sequential translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
+                    // 6. Run concurrent translation (30% -> 100%)
+                    console.log(`C5. Starting concurrent translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
                     await translateAllSubtitles(url);
 
                     // 7. Start synchronization after translation is 100% complete
