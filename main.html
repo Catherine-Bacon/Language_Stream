@@ -81,17 +81,22 @@
     <h1>Language Stream</h1>
 
     <h2>1. Retrieve Subtitle URL</h2>
-    <p>Open Netflix&#39;s player and  set subtitles to your Base Language</p>
+    <p>Open Netflix's player and  set subtitles to your Base Language</p>
     <p>Right click video player > Inspect</p>    
     <p>Press Network > Reload Page</p>
     <p>Search ?o= > Sort by name (descending)<p>
     <p>Right click the top name (starting with ?o=) > Copy > Copy URL</p>
-    <p>Paste the URL below:</p>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <p style="margin: 0; padding: 0;">Paste the URL below:</p>
+        <p id="detectedLanguageText" style="font-size: 0.8em; font-style: italic; color: #e50914; margin: 0; padding: 0;">
+            Language not yet identified
+        </p>
+    </div>
+    
     <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
-           value="https://ipv4-c017-lhr009-sky-isp.1.oca.nflxvideo.net/?o=1&v=159&e=1759032493&t=5Q8k_0hKpJuG7vquYAvfjh-spUk-I5rdAarHUjCWrUPu6xAyrPRqAUBbSfWQUH1OHYEcnrUD1TdYYxWUJ7h9scAIOfdi0wjyPMi6L2oUjhmlzu5nUKHW4LMBmwqI_By96PguqKVsFM1p0VG5H4g_Lum0on0XEcywsx4fMBcJqOJsrzi4OJ-2HoNXCUTV9ia4WswmLDZjzror3h_nkaVg4WH_quEUObhZti8L-hEOMz_G1FVRh6w">
-    <p id="detectedLanguageText" style="font-style: italic; color: #e50914; display: none;">
-        Language detected: None
-    </p>
+           value="">
+
     <h2>2. Select Languages</h2>
     <label for="targetLanguage">Target Language:</label>
     <select id="targetLanguage">
