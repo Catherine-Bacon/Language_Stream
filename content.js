@@ -9,7 +9,7 @@ var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {}; // Cache for translations
 
 var currentTranslator = currentTranslator || null; 
-var TICK_RATE = TICK_RATE || 10000000; 
+var TICK_RATE = TICK_RATE || 1000000; 
 
 // --- Utility Functions ---
 
@@ -107,7 +107,7 @@ function parseTtmlXml(xmlString, url) {
             
             // 1. Replace <br/> tags with a single space.
             let innerHTML = p.innerHTML;
-            innerHTML = innerHTML.replace(/<br\s*\/?>/gi, ' '); 
+            innerHTML = innerHTML.replace(<br/>, ' '); 
 
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = innerHTML;
