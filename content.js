@@ -1,4 +1,3 @@
-// --- File start: content.js ---
 // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
 
 var floatingWindow = floatingWindow || null;
@@ -136,7 +135,7 @@ function parseTtmlXml(xmlString, url) {
 
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
         // Start translation setup at 25%
-        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting translation setup...`, 25, url);
+        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting language detection...`, 25, url);
         return true;
 
     } catch (e) {
@@ -145,6 +144,34 @@ function parseTtmlXml(xmlString, url) {
         return false;
     }
 }
+
+// --- NEW FUNCTION: Base Language Detection ---
+/**
+ * Detects the language of the first 50 subtitle lines using the Chrome Detector API.
+ */
+function detectBaseLanguage() {
+    // Take a sample of the first 50 lines' text
+    const sampleText = parsedSubtitles.slice(0, 50)
+                                     .map(sub => sub.text)
+                                     .join(' ')
+                                     .slice(0, 1000); // Max 1000 chars
+
+    return new Promise((resolve) => {
+        // Fallback if API or feature is missing
+        if (!chrome.i18n || !chrome.i18n.detectLanguage) {
+            console.error("Chrome i18n.detectLanguage API not available. Defaulting to 'en'.");
+            resolve('en'); // Default fallback language
+            return;
+        }
+
+        chrome.i18n.detectLanguage(sampleText, (result) => {
+            const detectedCode = result.languages && result.languages.length > 0 
+                                ? result.languages[0].language : 'en'; // Default to 'en'
+            resolve(detectedCode);
+        });
+    });
+}
+
 
 function createFloatingWindow() {
   let existingWindow = document.getElementById('language-stream-window');
@@ -262,8 +289,8 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                 monitor(m) {
                     m.addEventListener('downloadprogress', (e) => {
                         const loaded = Math.floor(e.loaded * 100);
-                        // PROGRESS UPDATE: Model download is 25% to 59% (34% of total bar)
-                        const overallProgress = 25 + Math.floor(loaded * 0.34); 
+                        // PROGRESS UPDATE: Model download is 30% to 59% (29% of total bar)
+                        const overallProgress = 30 + Math.floor(loaded * 0.29); 
                         sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
                     });
                 }
@@ -433,12 +460,13 @@ function disableNetflixSubObserver() {
 // --- Message Listener for Popup Communication ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Note: request.baseLang is no longer sent from popup.js
     if (request.command === "fetch_and_process_url" && request.url) {
         console.log("C1. Received 'fetch_and_process_url' command from popup.");
 
-        // 1. Store language preferences
-        subtitleLanguages.base = request.baseLang;
+        // 1. Store only the target language initially
         subtitleLanguages.target = request.targetLang;
+        // subtitleLanguages.base will be set after detection
         translationCache = {}; 
         
         if (syncInterval) {
@@ -454,7 +482,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         // Initial progress starts low
-        sendStatusUpdate(`Ready to fetch XML for languages: ${subtitleLanguages.base} -> ${subtitleLanguages.target}`, 10, url);
+        sendStatusUpdate(`Ready to fetch XML for target language: ${subtitleLanguages.target}`, 10, url);
         console.log("C2. Starting core fetch/parse/translate sequence...");
 
 
@@ -476,8 +504,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.log("C4. XML Parsing attempt finished. Success:", parseSuccess);
 
                 if (parseSuccess && parsedSubtitles.length > 0) {
-                    // 6. Run sequential translation (25% -> 100%)
-                    console.log("C5. Starting sequential translation of all lines...");
+                    
+                    // --- NEW STEP: BASE LANGUAGE DETECTION (25% -> 30%) ---
+                    sendStatusUpdate("Detecting subtitle language...", 25, url);
+                    const detectedLang = await detectBaseLanguage();
+                    subtitleLanguages.base = detectedLang;
+                    
+                    // UPDATE UI with detected language
+                    sendStatusUpdate(`Detected Base Language: ${detectedLang.toUpperCase()}. Starting translation...`, 30, url);
+
+
+                    // 6. Run sequential translation (30% -> 100%)
+                    console.log(`C5. Starting sequential translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
                     await translateAllSubtitles(url);
 
                     // 7. Start synchronization after translation is 100% complete
@@ -493,7 +531,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false; 
     }
     
-    // NEW HANDLER: Stops the background sync loop when the user cancels
+    // HANDLER: Stops the background sync loop when the user cancels
     if (request.command === "cancel_processing") {
         if (syncInterval) {
             clearInterval(syncInterval);
@@ -513,32 +551,3 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 });
-
-// --- NEW LISTENER: Get URL from inpage.js (main page context) ---
-// This is essential for the new subtitle retrieval method.
-window.addEventListener('LS_Subtitle_Data_Found', (event) => {
-    const url = event.detail.url;
-    if (url) {
-        console.log("Inpage script captured Netflix Subtitle URL:", url);
-
-        // Save the captured URL to storage where popup.js can find it.
-        chrome.storage.local.set({ 
-            'captured_subtitle_url': url
-        }).then(() => {
-            // Notify the popup, similar to background.js logic
-            // CRITICAL FIX: Add .catch() to suppress "Unchecked runtime.lastError" 
-            // when the popup window is closed.
-            chrome.runtime.sendMessage({
-                command: "subtitle_url_found",
-                url: url
-            }).catch(e => {
-                 // Suppress the error: 'Could not establish connection. Receiving end does not exist.'
-                 if (!e.message.includes('Receiving end does not exist')) {
-                     console.warn("Content Script Messaging Error during URL found:", e);
-                 }
-            });
-        }).catch(e => {
-            console.error("Error saving subtitle URL to storage:", e);
-        });
-    }
-}, false);
