@@ -8,10 +8,8 @@ var syncInterval = syncInterval || null;
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' }; 
 var translationCache = translationCache || {}; // Cache for translations
 
-// REMOVED: GEMINI API CONSTANTS
 var currentTranslator = currentTranslator || null; 
-// CORRECTED: Netflix TTML timing typically uses 1,000,000 ticks per second (1 microsecond tick).
-var TICK_RATE = TICK_RATE || 1000000; 
+var TICK_RATE = TICK_RATE || 10000000; 
 
 // --- Utility Functions ---
 
