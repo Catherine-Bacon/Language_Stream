@@ -8,6 +8,7 @@ var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {}; // Cache for translations
 
 var currentTranslator = currentTranslator || null; 
+// CORRECTED TICK_RATE: Standard high-resolution for TTML timing (10,000,000 ticks/sec).
 var TICK_RATE = TICK_RATE || 10000000; 
 
 // --- Utility Functions ---
@@ -196,10 +197,10 @@ function createFloatingWindow() {
       padding: 20px 30px; 
       color: white;
       font-family: 'Inter', sans-serif;
-      font-size: 3.6rem; /* BASE FONT SIZE (Doubled from 1.8rem) */
+      font-size: 3.6rem; 
       text-align: center;
       line-height: 1.4;
-      resize: both;
+      /* FIX: Removed 'resize: both' to prevent size change on drag */
       overflow: hidden;
       cursor: grab;
       display: none; 
@@ -223,7 +224,9 @@ function makeDraggable(element) {
     
     offsetX = clientX - rect.left;
     offsetY = clientY - rect.top;
-    element.style.cursor = 'grabbing';
+    
+    // FIX: Ensure cursor update is immediate and persistent
+    element.style.cursor = 'grabbing !important'; 
     element.style.position = 'fixed'; 
 
     document.addEventListener('mousemove', drag);
@@ -239,11 +242,13 @@ function makeDraggable(element) {
     
     element.style.left = (clientX - offsetX) + 'px';
     element.style.top = (clientY - offsetY) + 'px';
+    // Ensure transform reset is maintained
     element.style.transform = 'none'; 
   };
 
   const stopDrag = () => {
     isDragging = false;
+    // Restore default cursor style
     element.style.cursor = 'grab';
     document.removeEventListener('mousemove', drag);
     document.removeEventListener('mouseup', stopDrag);
