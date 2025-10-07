@@ -102,11 +102,26 @@ function parseTtmlXml(xmlString, url) {
         subtitleParagraphs.forEach((p, index) => {
             const beginTick = p.getAttribute('begin');
             const endTick = p.getAttribute('end');
-                        
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = p.innerHTML; 
+            
+            // --- START CORRECTION FOR TEXT EXTRACTION & LINE BREAKS ---
+            // 1. Get the inner HTML string.
+            let rawHtml = p.innerHTML;
 
+            // FIX: Replace HTML line breaks with a space before getting text content.
+            // This ensures lines separated by <br/> are correctly separated by a space,
+            // which prevents merged words and fixes the 'htmlString is not defined' error 
+            // by using the element's actual content.
+            rawHtml = rawHtml.replace(/<br\s*\/?>/gi, ' ');
+
+            // 2. Create a temporary element and load the modified HTML.
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = rawHtml;
+            
+            // 3. Extract the clean text content from the temporary div.
             let text = tempDiv.textContent; 
+            // --- END CORRECTION ---
+
+            // 4. Normalize all whitespace (including the space we just added) to a single space.
             text = text.replace(/\s+/g, ' ');
             text = text.trim();
 
@@ -132,6 +147,7 @@ function parseTtmlXml(xmlString, url) {
         return true;
 
     } catch (e) {
+        // Line 148 is the catch block for the entire function
         console.error("Fatal error during XML parsing:", e);
         sendStatusUpdate("Fatal error during XML parsing. Check console.", 0, url);
         return false;
