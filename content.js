@@ -104,9 +104,9 @@ function parseTtmlXml(xmlString, url) {
             const endTick = p.getAttribute('end');
                         
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlString;
-            const pElement = tempDiv.firstElementChild; 
-            let text = pElement.textContent;
+            tempDiv.innerHTML = p.innerHTML; 
+
+            let text = tempDiv.textContent; 
             text = text.replace(/\s+/g, ' ');
             text = text.trim();
 
