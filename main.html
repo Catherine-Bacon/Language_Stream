@@ -9,14 +9,14 @@
       h1 {
         color: #e50914; /* Netflix Red */
         font-size: 1.5em;
-        margin-bottom: 15px;
+        margin-bottom: 5px; 
       }
       h2 {
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
         padding-bottom: 5px;
-        margin-top: 5px;
-        margin-bottom: 5px;
+        margin-top: 5px;    /* 🛠️ FIX 2: Reduced gap above h2 (was 5px, kept at 5px) */
+        margin-bottom: 5px; /* 🛠️ FIX 3: Consistent gap below h2 (was 5px, kept at 5px) */
       }
       label, p {
         font-size: 0.9em;
@@ -26,7 +26,7 @@
         width: 100%;
         padding: 8px;
         margin-top: 5px;
-        margin-bottom: 15px;
+        margin-bottom: 10px; /* 🛠️ FIX 1: Set a consistent bottom margin for all inputs */
         border-radius: 4px;
         border: 1px solid #ddd;
         box-sizing: border-box;
@@ -37,6 +37,9 @@
         font-weight: bold;
         cursor: pointer;
         transition: background-color 0.2s;
+        
+        /* 🛠️ FIX 1: Overwrite the inherited margin-top so the gap is controlled by the element above */
+        margin-top: 0; 
       }
       button:hover {
         background-color: #f40a16;
@@ -45,14 +48,16 @@
       button#cancelButton { 
         background-color: #777; 
         margin-top: 0px; 
-        margin-bottom: 15px;
+        margin-bottom: 10px; /* 🛠️ FIX 1: Standardized gap above the status box */
         display: none; /* Default to hidden, shown when processing/complete */
       }
       button#cancelButton:hover {
         background-color: #999;
       }
       #statusBox {
-        margin-top: 0px;
+        /* 🛠️ FIX 1: The margin-top must match or be slightly less than the button's margin-bottom
+                   to ensure the gap is controlled by the button for consistency. */
+        margin-top: 10px;
         padding: 5px;
         border: 1px solid #eee;
         background-color: #f9f9f9;
