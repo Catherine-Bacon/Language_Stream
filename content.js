@@ -103,27 +103,42 @@ function parseTtmlXml(xmlString, url) {
             const beginTick = p.getAttribute('begin');
             const endTick = p.getAttribute('end');
             
-            // --- START CORRECTION FOR TEXT EXTRACTION & LINE BREAKS ---
+            // ----------------------------------------------------
+            // --- START DEBUG LOGGING & TEXT EXTRACTION FIX ---
+            // ----------------------------------------------------
+            
             // 1. Get the inner HTML string.
             let rawHtml = p.innerHTML;
-
-            // FIX: Replace HTML line breaks with a space before getting text content.
-            // This ensures lines separated by <br/> are correctly separated by a space,
-            // which prevents merged words and fixes the 'htmlString is not defined' error 
-            // by using the element's actual content.
-            rawHtml = rawHtml.replace(/<br\s*\/?>/gi, ' ');
-
-            // 2. Create a temporary element and load the modified HTML.
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = rawHtml;
             
-            // 3. Extract the clean text content from the temporary div.
-            let text = tempDiv.textContent; 
-            // --- END CORRECTION ---
+            // Debug 1: Show the raw XML content (may contain multiple lines inside <span> or just text)
+            // Use index + 1 for 1-based counting
+            console.log(`[DEBUG PARSE] Sub ${index + 1}: Raw Inner HTML: "${rawHtml}"`);
 
-            // 4. Normalize all whitespace (including the space we just added) to a single space.
+            // 2. FIX 1: Replace HTML line breaks with a space.
+            // Using /<br\s*\/?>/gi for robustness against variations.
+            let htmlWithSpaces = rawHtml.replace(/<br\s*\/?>/gi, ' ');
+            
+            // Debug 2: Show HTML after <br> replacement
+            console.log(`[DEBUG PARSE] Sub ${index + 1}: HTML After BR Replace: "${htmlWithSpaces}"`);
+
+            // 3. Create a temporary element and load the modified HTML.
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlWithSpaces;
+            
+            // 4. Extract the clean text content from the temporary div.
+            let text = tempDiv.textContent; 
+
+            // 5. Normalize all whitespace to a single space, and trim.
             text = text.replace(/\s+/g, ' ');
             text = text.trim();
+
+            // Debug 3: Show the final extracted text
+            console.log(`[DEBUG PARSE] Sub ${index + 1}: Final Extracted Text: "${text}"`);
+
+            // ----------------------------------------------------
+            // --- END DEBUG LOGGING & TEXT EXTRACTION FIX ---
+            // ----------------------------------------------------
+
 
             if (beginTick && endTick && text) {
                 parsedSubtitles.push({
@@ -147,7 +162,6 @@ function parseTtmlXml(xmlString, url) {
         return true;
 
     } catch (e) {
-        // Line 148 is the catch block for the entire function
         console.error("Fatal error during XML parsing:", e);
         sendStatusUpdate("Fatal error during XML parsing. Check console.", 0, url);
         return false;
