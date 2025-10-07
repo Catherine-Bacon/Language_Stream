@@ -115,8 +115,7 @@ function parseTtmlXml(xmlString, url) {
             console.log(`[DEBUG PARSE] Sub ${index + 1}: Raw Inner HTML: "${rawHtml}"`);
 
             // 2. FIX 1: Replace HTML line breaks with a space.
-            // Using /<br\s*\/?>/gi for robustness against variations.
-            let htmlWithSpaces = rawHtml.replace(/<br\s*\/?>/gi, ' ');
+            let htmlWithSpaces = rawHtml.replace(/<br[\s\S]*?\/>|<br>/gi, ' '); 
             
             // Debug 2: Show HTML after <br> replacement
             console.log(`[DEBUG PARSE] Sub ${index + 1}: HTML After BR Replace: "${htmlWithSpaces}"`);
@@ -127,6 +126,7 @@ function parseTtmlXml(xmlString, url) {
             
             // 4. Extract the clean text content from the temporary div.
             let text = tempDiv.textContent; 
+
 
             // 5. Normalize all whitespace to a single space, and trim.
             text = text.replace(/\s+/g, ' ');
