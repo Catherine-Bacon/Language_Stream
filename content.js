@@ -65,8 +65,7 @@ function getNetflixVideoElement() {
 
 async function fetchXmlContent(url) {
     try {
-        // Fetch starts at 10%
-        sendStatusUpdate("Fetching XML from external URL...", 10, url); 
+        // Fetch starts at 10% - REMOVED PROGRESS UPDATE
         const response = await fetch(url);
         
         if (!response.ok) {
@@ -80,7 +79,7 @@ async function fetchXmlContent(url) {
             // --- MODIFICATION END ---
         }
         
-        sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 15, url);
+        // Subtitle file downloaded. Starting parsing... - REMOVED PROGRESS UPDATE
         return await response.text();
     } catch (e) {
         console.error("Error fetching XML from URL:", e);
@@ -101,8 +100,7 @@ async function fetchXmlContent(url) {
 
 function parseTtmlXml(xmlString, url) {
     parsedSubtitles = []; 
-    // Parsing starts at 20%
-    sendStatusUpdate("Starting XML parsing...", 20, url); 
+    // Parsing starts at 20% - REMOVED PROGRESS UPDATE
 
     try {
         const parser = new DOMParser();
@@ -168,16 +166,11 @@ function parseTtmlXml(xmlString, url) {
                 });
             }
 
-            // Progress for parsing: 20% to 25% (Smoother update logic)
-            if (index % 10 === 0 || index === totalSubs - 1) { 
-                const progress = 20 + Math.floor((index / totalSubs) * 5); 
-                sendStatusUpdate(`Processing subtitles: ${index + 1}/${totalSubs} lines...`, progress, url);
-            }
+            // Progress for parsing: 20% to 25% (Smoother update logic) - REMOVED PROGRESS UPDATE LOOP
         });
 
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-        // Start translation setup at 25%
-        sendStatusUpdate(`Finished parsing ${parsedSubtitles.length} subtitles. Starting language detection...`, 25, url);
+        // Start translation setup at 25% - REMOVED PROGRESS UPDATE
         return true;
 
     } catch (e) {
@@ -337,12 +330,14 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                     m.addEventListener('downloadprogress', (e) => {
                         const loaded = Math.floor(e.loaded * 100);
                         // PROGRESS UPDATE: Model download is 30% to 59% (29% of total bar)
-                        const overallProgress = 30 + Math.floor(loaded * 0.29); 
+                        // MODIFIED PROGRESS CALCULATION FOR MODEL DOWNLOAD (30% to 60%)
+                        const overallProgress = 30 + Math.floor(loaded * 0.3); 
                         sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
                     });
                 }
             });
             // PROGRESS UPDATE: Model ready just before translation loop starts
+            // MODIFIED PROGRESS START: 60%
             sendStatusUpdate("Translator model ready. Starting translation...", 60); 
 
         } catch (e) {
@@ -392,6 +387,7 @@ async function translateAllSubtitles(url) {
         // Update the progress status *periodically* since the loop isn't sequential
         // FIX: Smoother update, checking every 5 lines
         if (index % 5 === 0 || index === totalSubs - 1) { 
+             // MODIFIED PROGRESS CALCULATION: Range 60% to 100%
              const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
              if (progress < 100) { 
                  sendStatusUpdate(`Translating: ${index + 1}/${totalSubs} lines...`, progress, url);
@@ -402,6 +398,7 @@ async function translateAllSubtitles(url) {
     });
 
     // 3. Wait for all Promises (translations) to resolve concurrently
+    // MODIFIED PROGRESS START: 60%
     sendStatusUpdate(`Starting concurrent translation of ${totalSubs} lines...`, 60, url);
     const results = await Promise.all(translationPromises);
     
@@ -540,8 +537,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return false;
         }
 
-        // Initial progress starts low
-        sendStatusUpdate(`Ready to fetch XML for target language: ${subtitleLanguages.target}`, 10, url);
+        // Initial progress starts low - REMOVED PROGRESS UPDATE
         console.log("C2. Starting core fetch/parse/translate sequence...");
 
 
@@ -564,13 +560,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                 if (parseSuccess && parsedSubtitles.length > 0) {
                     
-                    // --- NEW STEP: BASE LANGUAGE DETECTION (25% -> 30%) ---
-                    sendStatusUpdate("Detecting subtitle language...", 25, url);
+                    // --- NEW STEP: BASE LANGUAGE DETECTION (Now 0% -> 30% jump) ---
+                    // This is the first progress report > 0%, which will show the cancel button!
+                    sendStatusUpdate("Detecting subtitle language...", 30, url); 
                     const detectedLang = await detectBaseLanguage();
                     subtitleLanguages.base = detectedLang;
                     
                     // FIX: Check if detectedLang is null (detection failed)
                     if (!subtitleLanguages.base) {
+                        // The language detection failure message is now the first message AFTER 
+                        // successful fetch/parse, so we jump the progress to 30% to acknowledge completion of initial steps
                         sendStatusUpdate(`Detected Base Language: (FAIL). Starting translation...`, 30, url);
                         // Use a fallback language if detection fails for translation
                         subtitleLanguages.base = 'en'; 
