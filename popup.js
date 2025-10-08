@@ -18,43 +18,35 @@ const LANGUAGE_MAP = {
 };
 
 function getFullLanguageName(code) {
-    // --- MODIFICATION: Simplified. This function is only used internally in content.js now. ---
     if (!code || code.toUpperCase() === '(FAIL)') return "Language not yet identified";
-    
-    // Return full name, or code if not found
     return LANGUAGE_MAP[code.toLowerCase()] || `Code: ${code.toUpperCase()}`; 
 }
 
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
-    // MODIFICATION: Removed 'detected_base_lang_full' from storage removal list
     await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref']); 
     
     if (!elements.confirmButton) return; 
 
-    // Reset fields to empty (new requirement for refreshed state)
     elements.subtitleUrlInput.value = '';
     elements.targetLanguageSelect.value = 'es'; // Default target language
-    // NEW: Reset checkbox to unchecked
     elements.translatedOnlyCheckbox.checked = false;
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     elements.targetLanguageSelect.disabled = false;
     elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
-    // --- MODIFICATION: Use class to ensure no layout space is kept ---
     elements.cancelButton.classList.add('hidden-no-space'); 
 
-    elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below."; 
+    // --- MODIFICATION: Set initial status text to empty string ---
+    elements.statusText.textContent = ""; 
     elements.progressBar.style.width = '0%';
-    // MODIFICATION: Removed reference to detectedLanguageText
     console.log("Processing status reset completed. Fields cleared.");
 }
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // MODIFICATION: Removed 'detected_base_lang_full' from storage get list
     chrome.storage.local.get(['ls_status', 'last_input', 'translated_only_pref'], (data) => {
         const status = data.ls_status;
         
@@ -63,18 +55,14 @@ function loadSavedStatus(elements) {
         elements.targetLanguageSelect.disabled = false;
         elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
         
-        // --- MODIFICATION: Use class to ensure no layout space is kept ---
         elements.cancelButton.classList.add('hidden-no-space'); 
         
         // NEW: Load persistent preference
         elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
         
-        // MODIFICATION: Removed logic to load persistent detected language
-
         // Load Language Inputs and last URL first
         const input = data.last_input;
         if (input) {
-             // We only care about targetLang and URL now (persistence)
              elements.targetLanguageSelect.value = input.targetLang || 'es';
              elements.subtitleUrlInput.value = input.url || '';
         }
@@ -88,12 +76,10 @@ function loadSavedStatus(elements) {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-                // --- MODIFICATION: Show the button ---
                 elements.cancelButton.classList.remove('hidden-no-space');
             } else {
                 // Process finished (progress == 100)
                 elements.confirmButton.disabled = false; // Allow re-run
-                // --- MODIFICATION: Show the button ---
                 elements.cancelButton.classList.remove('hidden-no-space');
             }
         } else {
@@ -103,8 +89,8 @@ function loadSavedStatus(elements) {
                  elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
                  elements.confirmButton.disabled = false;
              } else {
-                 // Updated message for manual paste
-                 elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below.";
+                 // --- MODIFICATION: Set initial text to empty string if URL is empty ---
+                 elements.statusText.textContent = "";
                  elements.confirmButton.disabled = true;
                  
                  // On clean state, ensure fields are empty (new requirement on refresh/clean)
@@ -115,7 +101,6 @@ function loadSavedStatus(elements) {
              if (status && status.progress === 0 && status.message) {
                  // If status is 0 and we have a message (e.g., 403 error or language fail)
                  if (status.message.includes("Detected Base Language: (FAIL)")) {
-                    // --- MODIFICATION: Handle language detection failure message ---
                     elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
                  } else {
                     elements.statusText.textContent = status.message;
@@ -143,7 +128,8 @@ async function handleConfirmClick(elements) {
     console.log("[POPUP] Retrieved URL from input box. URL found:", !!url);
 
     if (!url || !url.startsWith('http')) {
-        elements.statusText.textContent = "Error: Please paste a valid Netflix TTML URL into the input box.";
+        // --- MODIFICATION: Generic error message for invalid input ---
+        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
         elements.progressBar.style.width = '0%';
         elements.confirmButton.disabled = false; 
         return;
@@ -164,7 +150,7 @@ async function handleConfirmClick(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageSelect.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-    // --- MODIFICATION: The button remains hidden here. It's shown on first progress > 0 report. ---
+    // --- The button remains hidden here. It's shown on first progress > 0 report. ---
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         
@@ -212,17 +198,12 @@ async function handleConfirmClick(elements) {
 }
 
 async function handleCancelClick(elements) {
-    // Note: Sending messages from popup to content script is generally okay 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].id) {
-             // Send message to content script (it handles the cancellation logic).
              chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
         }
     });
-    // NEW LOGIC: When cancelling, we only clear the status, NOT the settings.
     await chrome.storage.local.remove(['ls_status']);
-    
-    // Reload state from storage (which will retain the URL/target lang)
     loadSavedStatus(elements); 
 }
 
@@ -238,9 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
-        // MODIFICATION: Removed reference to detectedLanguageText element from initialization
         // detectedLanguageText: document.getElementById('detectedLanguageText'),
-        // NEW: Preference checkbox
         translatedOnlyCheckbox: document.getElementById('translatedOnlyCheckbox')
     };
     
@@ -257,15 +236,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Final, Robust Listener Attachment ---
     
-    // Use an anonymous function to wrap the call, passing 'elements' for safety
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
     
-    // NEW: Save the preference immediately upon change (for persistence)
     elements.translatedOnlyCheckbox.addEventListener('change', (e) => {
         chrome.storage.local.set({ 'translated_only_pref': e.target.checked });
-        // If translation is complete, the user can change this and the sync loop 
-        // will update on the next interval.
     });
     
     // NEW: Listen to changes in the URL input box to enable/disable the button
@@ -273,12 +248,11 @@ document.addEventListener('DOMContentLoaded', () => {
          const url = elements.subtitleUrlInput.value.trim();
          elements.confirmButton.disabled = !(url && url.startsWith('http'));
          
-         // MODIFICATION: Removed reset of detectedLanguageText
-         
          if (elements.confirmButton.disabled === false) {
              elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
          } else {
-              elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below.";
+              // --- MODIFICATION: Set status to empty string when input is invalid/empty ---
+              elements.statusText.textContent = "";
          }
     });
 
@@ -290,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const progress = request.progress;
             const message = request.message;
             
-            // --- MODIFICATION: Simplified language matching logic ---
             const langMatch = message.match(/Detected Base Language: (\w+)\./);
             
             if (langMatch) {
@@ -299,36 +272,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (detectedLangCode.toUpperCase() === '(FAIL)') {
                     elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
                 } else {
-                    // Only update statusText if it wasn't a language fail
                     elements.statusText.textContent = message;
                 }
                 
-                // MODIFICATION: Removed storage update for detected language
-                
             } else if (progress === 0 && elements.subtitleUrlInput.value) {
-                // MODIFICATION: If it's a 403 or other XML error, the message is already in `message`.
                 elements.statusText.textContent = message;
                 
             } else {
-                 // Regular updates (progress > 0)
                  elements.statusText.textContent = message;
             }
 
             elements.progressBar.style.width = progress + '%';
             
             if (progress >= 100) {
-                // Process finished. Re-enable button and clear status.
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
-                // --- MODIFICATION: Show the button (process finished) ---
                 elements.cancelButton.classList.remove('hidden-no-space');
             } else if (progress > 0) {
-                // Processing in progress. Disable inputs.
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-                // --- MODIFICATION: Show the button (process has successfully started) ---
                 elements.cancelButton.classList.remove('hidden-no-space');
             } else {
                 // Error case (progress 0). Re-enable selection.
@@ -336,16 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // --- MODIFICATION START: REFINED ERROR HANDLING AT PROGRESS 0 ---
                     
-                    // Case 1: Language detection failed
                     if (message.includes("Detected Base Language: (FAIL)")) {
                         elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
                     } 
-                    // Case 2: Specific error message sent from content.js (e.g., 403 error)
                     else if (message.includes("Old subtitle URL used") || message.startsWith("Error fetching subtitles")) {
-                        // Rely on the specific error message already set earlier.
                         elements.statusText.textContent = message;
                     }
-                    // Case 3: All other non-specific errors (The new fallback)
                     else {
                         elements.statusText.textContent = "Non-subtitle URL inputted; please repeat URL retrieval steps.";
                     }
@@ -353,12 +313,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     elements.confirmButton.disabled = false;
                 } else {
-                    elements.statusText.textContent = "Error. Please paste subtitle data into the box.";
+                    // --- MODIFICATION: Set status to empty string when input is invalid/empty ---
+                    elements.statusText.textContent = "";
                     elements.confirmButton.disabled = true;
                 }
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
-                // --- MODIFICATION: Hide the button completely ---
                 elements.cancelButton.classList.add('hidden-no-space');
             }
         }
