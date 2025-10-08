@@ -18,10 +18,8 @@ const LANGUAGE_MAP = {
 };
 
 function getFullLanguageName(code) {
-    // --- MODIFICATION: Removed deprecated message ---
-    if (!code) return "Language not yet identified"; 
-    // If the code is (FAIL), it means detection failed in content.js
-    if (code.toUpperCase() === '(FAIL)') return "Language not yet identified";
+    // --- MODIFICATION: Simplified. This function is only used internally in content.js now. ---
+    if (!code || code.toUpperCase() === '(FAIL)') return "Language not yet identified";
     
     // Return full name, or code if not found
     return LANGUAGE_MAP[code.toLowerCase()] || `Code: ${code.toUpperCase()}`; 
@@ -30,9 +28,8 @@ function getFullLanguageName(code) {
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
-    // Clear ALL stored state and language settings if the user manually hits reset/cancel
-    // ADDED: 'translated_only_pref' to removal list
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'detected_base_lang_full', 'translated_only_pref']); 
+    // MODIFICATION: Removed 'detected_base_lang_full' from storage removal list
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref']); 
     
     if (!elements.confirmButton) return; 
 
@@ -51,16 +48,14 @@ async function resetStatus(elements) {
 
     elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below."; 
     elements.progressBar.style.width = '0%';
-    // NEW FIX: Set initial persistent language message
-    elements.detectedLanguageText.textContent = "Language not yet identified";
+    // MODIFICATION: Removed reference to detectedLanguageText
     console.log("Processing status reset completed. Fields cleared.");
 }
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // Retrieve status, permanently saved detected language, and new preference
-    // ADDED: 'translated_only_pref'
-    chrome.storage.local.get(['ls_status', 'last_input', 'detected_base_lang_full', 'translated_only_pref'], (data) => {
+    // MODIFICATION: Removed 'detected_base_lang_full' from storage get list
+    chrome.storage.local.get(['ls_status', 'last_input', 'translated_only_pref'], (data) => {
         const status = data.ls_status;
         
         // Always set the defaults first
@@ -74,14 +69,8 @@ function loadSavedStatus(elements) {
         // NEW: Load persistent preference
         elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
         
-        // NEW FIX: Load persistent detected language
-        if (data.detected_base_lang_full) {
-             elements.detectedLanguageText.textContent = data.detected_base_lang_full;
-        } else {
-             // --- MODIFICATION: Updated fallback text ---
-             elements.detectedLanguageText.textContent = "Language not yet identified";
-        }
-        
+        // MODIFICATION: Removed logic to load persistent detected language
+
         // Load Language Inputs and last URL first
         const input = data.last_input;
         if (input) {
@@ -250,8 +239,8 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
-        // NEW: Element for detected language
-        detectedLanguageText: document.getElementById('detectedLanguageText'),
+        // MODIFICATION: Removed reference to detectedLanguageText element from initialization
+        // detectedLanguageText: document.getElementById('detectedLanguageText'),
         // NEW: Preference checkbox
         translatedOnlyCheckbox: document.getElementById('translatedOnlyCheckbox')
     };
@@ -285,8 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
          const url = elements.subtitleUrlInput.value.trim();
          elements.confirmButton.disabled = !(url && url.startsWith('http'));
          
-         // Always reset persistent message if the user starts typing a new URL
-         elements.detectedLanguageText.textContent = "Language not yet identified";
+         // MODIFICATION: Removed reset of detectedLanguageText
          
          if (elements.confirmButton.disabled === false) {
              elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
@@ -303,45 +291,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const progress = request.progress;
             const message = request.message;
             
-            // --- NEW LOGIC: DETECTED LANGUAGE PERSISTENCE AND FULL NAME ---
-            // The message sent from content.js is: "Detected Base Language: EN. Starting translation..."
+            // --- MODIFICATION: Removed most of the language matching logic as it's no longer displayed ---
             const langMatch = message.match(/Detected Base Language: (\w+)\./);
             
             if (langMatch) {
                 const detectedLangCode = langMatch[1];
                 
-                // --- MODIFICATION START ---
                 if (detectedLangCode.toUpperCase() === '(FAIL)') {
-                    // User requested update: move fail message to status bar
                     elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
-                    elements.detectedLanguageText.textContent = "Language not yet identified"; // Updated fallback
                 } else {
-                    const fullName = getFullLanguageName(detectedLangCode);
-                    // Set the persistent message
-                    elements.detectedLanguageText.textContent = `Language identified: ${fullName}`;
                     // Only update statusText if it wasn't a language fail
                     elements.statusText.textContent = message;
                 }
-                // --- MODIFICATION END ---
                 
-                // Also save it persistently
-                await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
+                // MODIFICATION: Removed storage update for detected language
                 
             } else if (progress === 0 && elements.subtitleUrlInput.value) {
-                // FIX: On error (progress 0) and URL is present, show fail message
-                elements.detectedLanguageText.textContent = "Language not yet identified"; // Updated fallback
-                await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
+                // MODIFICATION: Removed fallback text update
                 
-                // --- MODIFICATION: Set the status text for non-language fail errors like 403 ---
                 // If it's a 403 or other XML error, the message is already in `message`.
                 elements.statusText.textContent = message;
-                // --- MODIFICATION END ---
                 
             } else {
                  // Regular updates (progress > 0)
                  elements.statusText.textContent = message;
             }
-            // --- END NEW LOGIC ---
 
             elements.progressBar.style.width = progress + '%';
             
