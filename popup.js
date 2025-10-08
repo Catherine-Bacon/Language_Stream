@@ -354,13 +354,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
                     
                     // --- MODIFICATION: Ensure the error message is correct upon progress 0 ---
-                    if (elements.statusText.textContent === "Language not available (yet!)") {
+                    if (elements.statusText.textContent === "Language not available (yet!)" || message.includes("Detected Base Language: (FAIL)")) {
+                        // Case 1: Language detection failed (progress 0, message includes FAIL/is the simple fail text)
                         elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
                     } else if (elements.statusText.textContent === message && message.startsWith("Error")) {
-                        // Keep the specific error message (e.g., 403)
+                        // Case 2: Keep the specific error message (e.g., 403) that was sent from content.js
+                        // Example: "Old subtitle URL used; please repeat URL retrieval steps."
                     } else {
-                        // General fallback for retry
-                        elements.statusText.textContent = "Error, but URL is in the box. Click Generate to retry.";
+                        // Case 3: All other non-specific errors (The new fallback)
+                        elements.statusText.textContent = "Non-subtitle URL inputted; please repeat URL retrieval steps.";
                     }
                     // --- MODIFICATION END ---
                     
