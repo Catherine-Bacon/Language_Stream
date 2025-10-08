@@ -117,7 +117,13 @@ function loadSavedStatus(elements) {
              }
              
              if (status && status.progress === 0 && status.message) {
-                 elements.statusText.textContent = status.message;
+                 // If status is 0 and we have a message (e.g., 403 error or language fail)
+                 if (status.message.includes("Detected Base Language: (FAIL)")) {
+                    // --- MODIFICATION: Handle language detection failure message ---
+                    elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
+                 } else {
+                    elements.statusText.textContent = status.message;
+                 }
              }
         }
     });
@@ -295,10 +301,21 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (langMatch) {
                 const detectedLangCode = langMatch[1];
-                const fullName = getFullLanguageName(detectedLangCode);
                 
-                // Set the persistent message
-                elements.detectedLanguageText.textContent = `Language identified: ${fullName}`;
+                // --- MODIFICATION START ---
+                if (detectedLangCode.toUpperCase() === '(FAIL)') {
+                    // User requested update: move fail message to status bar
+                    elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
+                    elements.detectedLanguageText.textContent = "Language not available (yet!)";
+                } else {
+                    const fullName = getFullLanguageName(detectedLangCode);
+                    // Set the persistent message
+                    elements.detectedLanguageText.textContent = `Language identified: ${fullName}`;
+                    // Only update statusText if it wasn't a language fail
+                    elements.statusText.textContent = message;
+                }
+                // --- MODIFICATION END ---
+                
                 // Also save it persistently
                 await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
                 
@@ -306,10 +323,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 // FIX: On error (progress 0) and URL is present, show fail message
                 elements.detectedLanguageText.textContent = "Language not available (yet!)";
                 await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
+                
+                // --- MODIFICATION: Set the status text for non-language fail errors like 403 ---
+                // If it's a 403 or other XML error, the message is already in `message`.
+                elements.statusText.textContent = message;
+                // --- MODIFICATION END ---
+                
+            } else {
+                 // Regular updates (progress > 0)
+                 elements.statusText.textContent = message;
             }
             // --- END NEW LOGIC ---
 
-            elements.statusText.textContent = message;
             elements.progressBar.style.width = progress + '%';
             
             if (progress >= 100) {
@@ -327,7 +352,18 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Error case (progress 0). Re-enable selection.
                 if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
-                    elements.statusText.textContent = "Error, but URL is in the box. Click Generate to retry.";
+                    
+                    // --- MODIFICATION: Ensure the error message is correct upon progress 0 ---
+                    if (elements.statusText.textContent === "Language not available (yet!)") {
+                        elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
+                    } else if (elements.statusText.textContent === message && message.startsWith("Error")) {
+                        // Keep the specific error message (e.g., 403)
+                    } else {
+                        // General fallback for retry
+                        elements.statusText.textContent = "Error, but URL is in the box. Click Generate to retry.";
+                    }
+                    // --- MODIFICATION END ---
+                    
                     elements.confirmButton.disabled = false;
                 } else {
                     elements.statusText.textContent = "Error. Please paste subtitle data into the box.";
