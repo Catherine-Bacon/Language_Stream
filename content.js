@@ -68,24 +68,29 @@ async function fetchXmlContent(url) {
         // Fetch starts at 10%
         sendStatusUpdate("Fetching XML from external URL...", 10, url); 
         const response = await fetch(url);
+        
         if (!response.ok) {
-            // --- MODIFICATION START ---
+            // --- MODIFICATION START: 403 CHECK IS THE FIRST RESPONSE ERROR HANDLING ---
             if (response.status === 403) {
-                 throw new Error("403_FORBIDDEN"); // Use a unique error type
+                 // Throw a unique, specific error tag for the catch block
+                 throw new Error("403_FORBIDDEN"); 
             }
-            // --- MODIFICATION END ---
+            // If it's not a 403, throw the general HTTP error
             throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
+            // --- MODIFICATION END ---
         }
+        
         sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 15, url);
         return await response.text();
     } catch (e) {
         console.error("Error fetching XML from URL:", e);
         
-        // --- MODIFICATION START ---
+        // --- MODIFICATION START: Handle the specific 403 message first in catch ---
         if (e.message === "403_FORBIDDEN") {
+             // This is the message you requested for 403
              sendStatusUpdate("Old subtitle URL used; please repeat URL retrieval steps.", 0, url);
         } else {
-             // Handle all other errors
+             // Handle all other errors (including generic HTTP errors and network errors)
              sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url);
         }
         // --- MODIFICATION END ---
