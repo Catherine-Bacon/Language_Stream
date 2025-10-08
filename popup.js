@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const progress = request.progress;
             const message = request.message;
             
-            // --- MODIFICATION: Removed most of the language matching logic as it's no longer displayed ---
+            // --- MODIFICATION: Simplified language matching logic ---
             const langMatch = message.match(/Detected Base Language: (\w+)\./);
             
             if (langMatch) {
@@ -306,9 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // MODIFICATION: Removed storage update for detected language
                 
             } else if (progress === 0 && elements.subtitleUrlInput.value) {
-                // MODIFICATION: Removed fallback text update
-                
-                // If it's a 403 or other XML error, the message is already in `message`.
+                // MODIFICATION: If it's a 403 or other XML error, the message is already in `message`.
                 elements.statusText.textContent = message;
                 
             } else {
