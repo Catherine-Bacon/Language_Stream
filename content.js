@@ -254,7 +254,9 @@ function makeDraggable(element) {
   let offsetX, offsetY;
 
   const startDrag = (e) => {
-    e.preventDefault();
+    // --- MODIFICATION: Prevent default behavior immediately on drag start ---
+    // This stops accidental resizing and context menu display.
+    e.preventDefault(); 
     isDragging = true;
     const rect = element.getBoundingClientRect();
     const clientX = e.clientX || e.touches[0].clientX;
@@ -275,6 +277,10 @@ function makeDraggable(element) {
 
   const drag = (e) => {
     if (!isDragging) return;
+    
+    // --- MODIFICATION: Prevent default behavior during drag ---
+    e.preventDefault(); 
+    
     const clientX = e.clientX || e.touches[0].clientX;
     const clientY = e.clientY || e.touches[0].clientY;
     
