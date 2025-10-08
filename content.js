@@ -397,7 +397,7 @@ async function translateAllSubtitles(url) {
              // PROGRESS CALCULATION: Range 60% to 100%
              const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
              if (progress < 100) { 
-                 sendStatusUpdate(`Translating: ${index + 1}/${totalSubs} lines...`, progress, url);
+                 sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
              }
         }
 
