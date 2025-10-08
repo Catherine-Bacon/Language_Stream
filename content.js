@@ -378,10 +378,6 @@ async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
-    
-    // --- NEW VARIABLES FOR BLOCK REPORTING ---
-    const REPORTING_INTERVAL = 10; // Report every 10 lines
-    let lastReportedEndIndex = 0; // Tracks the last reported line count
 
     // 1. Create an array of Promises for all translation jobs
     const translationPromises = parsedSubtitles.map(async (sub, index) => {
@@ -395,29 +391,15 @@ async function translateAllSubtitles(url) {
              translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         }
         
-        // --- MODIFICATION: Block Reporting Logic ---
-        const currentIndex = index + 1; // 1-based index
-
-        // Use a Promise trick to check if the progress needs updating after this specific
-        // translation completes. This is not entirely reliable in concurrent code but is 
-        // a simple way to approximate. We will only update status if the currentIndex 
-        // is greater than a threshold that hasn't been reported yet.
-        
-        if (currentIndex > lastReportedEndIndex && (currentIndex % REPORTING_INTERVAL === 0 || currentIndex === totalSubs)) {
-            
-             // We need to use a temporary variable to hold the index value
-             // that triggered the update, as the loop is concurrent.
-             const linesTranslated = currentIndex;
-             
+        // Update the progress status *periodically* since the loop isn't sequential
+        // FIX: Smoother update, checking every 5 lines
+        if (index % 5 === 0 || index === totalSubs - 1) { 
              // PROGRESS CALCULATION: Range 60% to 100%
-             const progress = 60 + Math.floor((linesTranslated / totalSubs) * 40); 
-             
-             // Update the status with the friendly message
-             sendStatusUpdate(`First ${linesTranslated} lines translated.`, progress, url);
-             
-             lastReportedEndIndex = linesTranslated;
+             const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
+             if (progress < 100) { 
+                 sendStatusUpdate(`Translating: ${index + 1}/${totalSubs} lines...`, progress, url);
+             }
         }
-        // --- END MODIFICATION ---
 
         return translatedText;
     });
