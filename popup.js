@@ -45,7 +45,8 @@ async function resetStatus(elements) {
     elements.targetLanguageSelect.disabled = false;
     elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
-    elements.cancelButton.style.display = 'none';
+    // --- MODIFICATION: Use class to ensure no layout space is kept ---
+    elements.cancelButton.classList.add('hidden-no-space'); 
 
     elements.statusText.textContent = "Please paste the Netflix TTML URL into the box below."; 
     elements.progressBar.style.width = '0%';
@@ -65,7 +66,9 @@ function loadSavedStatus(elements) {
         elements.progressBar.style.width = '0%';
         elements.targetLanguageSelect.disabled = false;
         elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
-        elements.cancelButton.style.display = 'none';
+        
+        // --- MODIFICATION: Use class to ensure no layout space is kept ---
+        elements.cancelButton.classList.add('hidden-no-space'); 
         
         // NEW: Load persistent preference
         elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
@@ -94,11 +97,13 @@ function loadSavedStatus(elements) {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-                elements.cancelButton.style.display = 'block';
+                // --- MODIFICATION: Show the button ---
+                elements.cancelButton.classList.remove('hidden-no-space');
             } else {
                 // Process finished (progress == 100)
                 elements.confirmButton.disabled = false; // Allow re-run
-                elements.cancelButton.style.display = 'block';
+                // --- MODIFICATION: Show the button ---
+                elements.cancelButton.classList.remove('hidden-no-space');
             }
         } else {
              // Neutral or Error State
@@ -168,7 +173,8 @@ async function handleConfirmClick(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageSelect.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-    elements.cancelButton.style.display = 'block';
+    // --- MODIFICATION: Show the button ---
+    elements.cancelButton.classList.remove('hidden-no-space');
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         
@@ -342,13 +348,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
-                elements.cancelButton.style.display = 'block';
+                // --- MODIFICATION: Show the button ---
+                elements.cancelButton.classList.remove('hidden-no-space');
             } else if (progress > 0) {
                 // Processing in progress. Disable inputs.
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-                elements.cancelButton.style.display = 'block';
+                // --- MODIFICATION: Show the button ---
+                elements.cancelButton.classList.remove('hidden-no-space');
             } else {
                 // Error case (progress 0). Re-enable selection.
                 if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
@@ -378,7 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
-                elements.cancelButton.style.display = 'none';
+                // --- MODIFICATION: Hide the button completely ---
+                elements.cancelButton.classList.add('hidden-no-space');
             }
         }
     }); 
