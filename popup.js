@@ -164,8 +164,7 @@ async function handleConfirmClick(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageSelect.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-    // --- MODIFICATION: Show the button ---
-    elements.cancelButton.classList.remove('hidden-no-space');
+    // --- MODIFICATION: The button remains hidden here. It's shown on first progress > 0 report. ---
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         
@@ -324,14 +323,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
-                // --- MODIFICATION: Show the button ---
+                // --- MODIFICATION: Show the button (process finished) ---
                 elements.cancelButton.classList.remove('hidden-no-space');
             } else if (progress > 0) {
                 // Processing in progress. Disable inputs.
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-                // --- MODIFICATION: Show the button ---
+                // --- MODIFICATION: Show the button (process has successfully started) ---
                 elements.cancelButton.classList.remove('hidden-no-space');
             } else {
                 // Error case (progress 0). Re-enable selection.
