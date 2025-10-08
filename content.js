@@ -82,7 +82,8 @@ async function fetchXmlContent(url) {
         // Subtitle file downloaded. Starting parsing... - REMOVED PROGRESS UPDATE
         return await response.text();
     } catch (e) {
-        console.error("Error fetching XML from URL:", e);
+        // --- MODIFICATION: Removed the console.error line here ---
+        // console.error("Error fetching XML from URL:", e);
         
         // --- MODIFICATION START: Handle the specific 403 message first in catch ---
         if (e.message === "403_FORBIDDEN") {
@@ -108,6 +109,7 @@ function parseTtmlXml(xmlString, url) {
 
         const errorNode = xmlDoc.querySelector('parsererror');
         if (errorNode) {
+             // Keep this error for debugging parsing issues
              console.error("XML Parsing Error:", errorNode.textContent);
              sendStatusUpdate(`Error: Could not parse XML. ${errorNode.textContent}`, 0, url);
              return false;
@@ -128,14 +130,13 @@ function parseTtmlXml(xmlString, url) {
             let rawHtml = p.innerHTML;
             
             // Debug 1: Show the raw XML content (may contain multiple lines inside <span> or just text)
-            // Use index + 1 for 1-based counting
-            console.log(`[DEBUG PARSE] Sub ${index + 1}: Raw Inner HTML: "${rawHtml}"`);
+            // console.log(`[DEBUG PARSE] Sub ${index + 1}: Raw Inner HTML: "${rawHtml}"`);
 
             // 2. FIX 1: Replace HTML line breaks with a space.
             let htmlWithSpaces = rawHtml.replace(/<br[\s\S]*?\/>|<br>/gi, ' '); 
             
             // Debug 2: Show HTML after <br> replacement
-            console.log(`[DEBUG PARSE] Sub ${index + 1}: HTML After BR Replace: "${htmlWithSpaces}"`);
+            // console.log(`[DEBUG PARSE] Sub ${index + 1}: HTML After BR Replace: "${htmlWithSpaces}"`);
 
             // 3. Create a temporary element and load the modified HTML.
             const tempDiv = document.createElement('div');
@@ -150,7 +151,7 @@ function parseTtmlXml(xmlString, url) {
             text = text.trim();
 
             // Debug 3: Show the final extracted text
-            console.log(`[DEBUG PARSE] Sub ${index + 1}: Final Extracted Text: "${text}"`);
+            // console.log(`[DEBUG PARSE] Sub ${index + 1}: Final Extracted Text: "${text}"`);
 
             // ----------------------------------------------------
             // --- END DEBUG LOGGING & TEXT EXTRACTION FIX ---
@@ -317,7 +318,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
         if (!('Translator' in self)) {
             // Feature detection check
-            sendStatusUpdate("ERROR: Chrome Translator API not detected. Translations are unavailable.", 0);
+            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
             return "(Translation Failed - API Missing)";
         }
         
@@ -584,7 +585,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     console.log("C6. Translation complete. Starting subtitle sync loop.");
                     startSubtitleSync();
                 } else {
-                    console.error("C7. Failed to parse XML or no subtitles found after parsing.");
+                    console.error("C7. Failed to process XML or no subtitles found after parsing.");
                     sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
                 }
             }
