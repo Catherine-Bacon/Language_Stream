@@ -353,15 +353,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Error case (progress 0). Re-enable selection.
                 if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
                     
-                    // --- MODIFICATION: Ensure the error message is correct upon progress 0 ---
-                    if (elements.statusText.textContent === "Language not available (yet!)" || message.includes("Detected Base Language: (FAIL)")) {
-                        // Case 1: Language detection failed (progress 0, message includes FAIL/is the simple fail text)
+                    // --- MODIFICATION START: REFINED ERROR HANDLING AT PROGRESS 0 ---
+                    // Note: 'message' here is request.message
+                    
+                    // Case 1: Language detection failed
+                    if (message.includes("Detected Base Language: (FAIL)")) {
                         elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
-                    } else if (elements.statusText.textContent === message && message.startsWith("Error")) {
-                        // Case 2: Keep the specific error message (e.g., 403) that was sent from content.js
-                        // Example: "Old subtitle URL used; please repeat URL retrieval steps."
-                    } else {
-                        // Case 3: All other non-specific errors (The new fallback)
+                    } 
+                    // Case 2: Specific error message sent from content.js (e.g., 403 error)
+                    else if (message.includes("Old subtitle URL used") || message.startsWith("Error fetching subtitles")) {
+                        // Rely on the specific error message already set earlier.
+                        elements.statusText.textContent = message;
+                    }
+                    // Case 3: All other non-specific errors (The new fallback)
+                    else {
                         elements.statusText.textContent = "Non-subtitle URL inputted; please repeat URL retrieval steps.";
                     }
                     // --- MODIFICATION END ---
