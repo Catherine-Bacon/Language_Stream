@@ -15,8 +15,8 @@
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
         padding-bottom: 5px;
-        margin-top: 0px;    /* 🛠️ FIX 2: Reduced gap above h2 (was 5px, kept at 5px) */
-        margin-bottom: 10px; /* 🛠️ FIX 3: Consistent gap below h2 (was 5px, kept at 5px) */
+        margin-top: 0px;    
+        margin-bottom: 10px; 
       }
       label, p {
         font-size: 0.9em;
@@ -26,7 +26,7 @@
         width: 100%;
         padding: 8px;
         margin-top: 5px;
-        /* --- MODIFICATION 1: REMOVE margin-bottom from standard inputs/buttons (Fixes spacing when cancel button hides) --- */
+        /* --- MODIFICATION 1: REMOVE margin-bottom from standard inputs/buttons --- */
         margin-bottom: 0px; 
         border-radius: 4px;
         border: 1px solid #ddd;
@@ -52,13 +52,26 @@
         margin-top: 5px; 
         /* --- MODIFICATION 3: Ensure no margin pushes the status box down --- */
         margin-bottom: 0px; 
-        display: none; /* Default to hidden, shown when processing/complete */
+        display: block; /* Use block to occupy space when visible */
       }
       button#cancelButton:hover {
         background-color: #999;
       }
+      
+      /* --- CRITICAL NEW FIX: Class to fully remove element from flow and size --- */
+      .hidden-no-space {
+          display: none !important;
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          height: 0 !important;
+          /* Setting visibility to hidden just in case, though display:none is primary */
+          visibility: hidden !important; 
+      }
+      
       #statusBox {
-        /* --- MODIFICATION 4: Standardize the gap ABOVE the status box to 10px --- */
+        /* --- MODIFICATION 4: Standardize the gap ABOVE the status box to 10px & Center text --- */
         margin-top: 10px; 
         padding: 5px;
         border: 1px solid #eee;
@@ -140,7 +153,7 @@
 
     <button id="confirmButton">Generate Subtitles</button>
     
-    <button id="cancelButton">Cancel Subtitle Generation</button>
+    <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
 
     <div id="statusBox">
       <p id="statusText">Waiting for URL...</p>
