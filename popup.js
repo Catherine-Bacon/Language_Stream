@@ -30,16 +30,20 @@ function getFullLanguageName(code) {
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // Clear ALL stored state and language settings if the user manually hits reset/cancel
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'detected_base_lang_full']); 
+    // ADDED: 'translated_only_pref' to removal list
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'detected_base_lang_full', 'translated_only_pref']); 
     
     if (!elements.confirmButton) return; 
 
     // Reset fields to empty (new requirement for refreshed state)
     elements.subtitleUrlInput.value = '';
     elements.targetLanguageSelect.value = 'es'; // Default target language
+    // NEW: Reset checkbox to unchecked
+    elements.translatedOnlyCheckbox.checked = false;
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     elements.targetLanguageSelect.disabled = false;
+    elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
     elements.cancelButton.style.display = 'none';
 
@@ -52,14 +56,19 @@ async function resetStatus(elements) {
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // Retrieve status and the permanently saved detected language
-    chrome.storage.local.get(['ls_status', 'last_input', 'detected_base_lang_full'], (data) => {
+    // Retrieve status, permanently saved detected language, and new preference
+    // ADDED: 'translated_only_pref'
+    chrome.storage.local.get(['ls_status', 'last_input', 'detected_base_lang_full', 'translated_only_pref'], (data) => {
         const status = data.ls_status;
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
         elements.targetLanguageSelect.disabled = false;
+        elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
         elements.cancelButton.style.display = 'none';
+        
+        // NEW: Load persistent preference
+        elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
         
         // NEW FIX: Load persistent detected language
         if (data.detected_base_lang_full) {
@@ -84,6 +93,7 @@ function loadSavedStatus(elements) {
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
+                elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 elements.cancelButton.style.display = 'block';
             } else {
                 // Process finished (progress == 100)
@@ -119,6 +129,8 @@ async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
     const url = elements.subtitleUrlInput.value.trim();
+    // NEW: Get preference value
+    const translatedOnly = elements.translatedOnlyCheckbox.checked;
 
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
@@ -135,11 +147,13 @@ async function handleConfirmClick(elements) {
         return;
     }
 
-    // 1. Save language choices and clear old status
+    // 1. Save language choices and preference and clear old status
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({ 
         // We only save the URL and Target Lang now
-        last_input: { url, targetLang } 
+        last_input: { url, targetLang },
+        // NEW: Save the preference state
+        translated_only_pref: translatedOnly
     });
 
     // 2. Update UI for start of process
@@ -147,6 +161,7 @@ async function handleConfirmClick(elements) {
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
     elements.targetLanguageSelect.disabled = true; 
+    elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
     elements.cancelButton.style.display = 'block';
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -161,11 +176,12 @@ async function handleConfirmClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
-        // The message no longer contains baseLang
+        // ADDED: translatedOnly to the message
         const message = { 
             command: "fetch_and_process_url", 
             url: url,
-            targetLang: targetLang
+            targetLang: targetLang,
+            translatedOnly: translatedOnly // NEW
         };
 
         // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
@@ -221,12 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
         // NEW: Element for detected language
-        detectedLanguageText: document.getElementById('detectedLanguageText') 
+        detectedLanguageText: document.getElementById('detectedLanguageText'),
+        // NEW: Preference checkbox
+        translatedOnlyCheckbox: document.getElementById('translatedOnlyCheckbox')
     };
     
     // CRITICAL DEBUG CHECK
-    if (!elements.confirmButton || !elements.statusText) {
-        console.error("2. FATAL ERROR: Core DOM elements (button/status) not found. Check main.html IDs.");
+    if (!elements.confirmButton || !elements.statusText || !elements.translatedOnlyCheckbox) {
+        console.error("2. FATAL ERROR: Core DOM elements (button/status/checkbox) not found. Check main.html IDs.");
         return; 
     } else {
         console.log("2. All DOM elements found. Attaching listeners.");
@@ -240,6 +258,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Use an anonymous function to wrap the call, passing 'elements' for safety
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
+    
+    // NEW: Save the preference immediately upon change (for persistence)
+    elements.translatedOnlyCheckbox.addEventListener('change', (e) => {
+        chrome.storage.local.set({ 'translated_only_pref': e.target.checked });
+        // If translation is complete, the user can change this and the sync loop 
+        // will update on the next interval.
+    });
     
     // NEW: Listen to changes in the URL input box to enable/disable the button
     elements.subtitleUrlInput.addEventListener('input', () => {
@@ -291,11 +316,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Process finished. Re-enable button and clear status.
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
+                elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 elements.cancelButton.style.display = 'block';
             } else if (progress > 0) {
                 // Processing in progress. Disable inputs.
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
+                elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 elements.cancelButton.style.display = 'block';
             } else {
                 // Error case (progress 0). Re-enable selection.
@@ -307,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.confirmButton.disabled = true;
                 }
                 elements.targetLanguageSelect.disabled = false;
+                elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 elements.cancelButton.style.display = 'none';
             }
         }
