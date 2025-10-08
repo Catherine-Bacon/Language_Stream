@@ -317,7 +317,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
         if (!('Translator' in self)) {
             // Feature detection check
-            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
+            sendStatusUpdate("ERROR: Chrome Translator API not detected. Translations are unavailable.", 0);
             return "(Translation Failed - API Missing)";
         }
         
@@ -329,15 +329,13 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                 monitor(m) {
                     m.addEventListener('downloadprogress', (e) => {
                         const loaded = Math.floor(e.loaded * 100);
-                        // PROGRESS UPDATE: Model download is 30% to 59% (29% of total bar)
-                        // MODIFIED PROGRESS CALCULATION FOR MODEL DOWNLOAD (30% to 60%)
+                        // PROGRESS UPDATE: Model download is 30% to 60%
                         const overallProgress = 30 + Math.floor(loaded * 0.3); 
                         sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
                     });
                 }
             });
             // PROGRESS UPDATE: Model ready just before translation loop starts
-            // MODIFIED PROGRESS START: 60%
             sendStatusUpdate("Translator model ready. Starting translation...", 60); 
 
         } catch (e) {
@@ -387,7 +385,7 @@ async function translateAllSubtitles(url) {
         // Update the progress status *periodically* since the loop isn't sequential
         // FIX: Smoother update, checking every 5 lines
         if (index % 5 === 0 || index === totalSubs - 1) { 
-             // MODIFIED PROGRESS CALCULATION: Range 60% to 100%
+             // PROGRESS CALCULATION: Range 60% to 100%
              const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
              if (progress < 100) { 
                  sendStatusUpdate(`Translating: ${index + 1}/${totalSubs} lines...`, progress, url);
@@ -398,7 +396,6 @@ async function translateAllSubtitles(url) {
     });
 
     // 3. Wait for all Promises (translations) to resolve concurrently
-    // MODIFIED PROGRESS START: 60%
     sendStatusUpdate(`Starting concurrent translation of ${totalSubs} lines...`, 60, url);
     const results = await Promise.all(translationPromises);
     
