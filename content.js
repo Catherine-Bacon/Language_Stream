@@ -69,13 +69,27 @@ async function fetchXmlContent(url) {
         sendStatusUpdate("Fetching XML from external URL...", 10, url); 
         const response = await fetch(url);
         if (!response.ok) {
+            // --- MODIFICATION START ---
+            if (response.status === 403) {
+                 throw new Error("403_FORBIDDEN"); // Use a unique error type
+            }
+            // --- MODIFICATION END ---
             throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
         }
         sendStatusUpdate("Subtitle file downloaded. Starting parsing...", 15, url);
         return await response.text();
     } catch (e) {
         console.error("Error fetching XML from URL:", e);
-        sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url);
+        
+        // --- MODIFICATION START ---
+        if (e.message === "403_FORBIDDEN") {
+             sendStatusUpdate("Old subtitle URL used; please repeat URL retrieval steps.", 0, url);
+        } else {
+             // Handle all other errors
+             sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url);
+        }
+        // --- MODIFICATION END ---
+        
         return null;
     }
 }
