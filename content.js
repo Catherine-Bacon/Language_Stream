@@ -7,6 +7,8 @@ var syncInterval = syncInterval || null;
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' }; 
 var translationCache = translationCache || {}; // Cache for translations
 
+var isTranslatedOnly = isTranslatedOnly || false; // <--- ADDED: Preference tracker
+
 var currentTranslator = currentTranslator || null; 
 // CORRECTED TICK_RATE: Standard high-resolution for TTML timing (10,000,000 ticks/sec).
 var TICK_RATE = TICK_RATE || 10000000; 
@@ -479,14 +481,28 @@ function startSubtitleSync() {
                 const baseText = newSubtitle.text;
                 const translatedText = newSubtitle.translatedText || `(Translation Error)`;
 
-                // Base language (original text) is smaller (0.8em of 3.6rem)
-                // Translated line (learning language) is larger (1em of 3.6rem)
-                floatingWindow.innerHTML = `
-                    <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
-                    <span class="translated-sub" style="opacity: 1.0; font-size: 1em;">
-                        ${translatedText}
-                    </span>
-                `;
+                let innerHTML = '';
+
+                // --- MODIFICATION START: Conditional Display Logic ---
+                if (isTranslatedOnly) {
+                    // Show only the translated text (larger font)
+                    innerHTML = `
+                        <span class="translated-sub" style="opacity: 1.0; font-size: 1em; font-weight: bold;">
+                            ${translatedText}
+                        </span>
+                    `;
+                } else {
+                    // Show both (original text smaller, translated larger)
+                    innerHTML = `
+                        <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
+                        <span class="translated-sub" style="opacity: 1.0; font-size: 1em;">
+                            ${translatedText}
+                        </span>
+                    `;
+                }
+                // --- MODIFICATION END ---
+                
+                floatingWindow.innerHTML = innerHTML; // Use the new variable
                 currentSubtitleIndex = newIndex;
             }
         } else {
@@ -518,9 +534,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "fetch_and_process_url" && request.url) {
         console.log("C1. Received 'fetch_and_process_url' command from popup.");
 
-        // 1. Store only the target language initially
+        // 1. Store the preferences
         subtitleLanguages.target = request.targetLang;
-        // subtitleLanguages.base will be set after detection
+        isTranslatedOnly = request.translatedOnly; // <--- ADDED: Preference tracker
         translationCache = {}; 
         
         if (syncInterval) {
