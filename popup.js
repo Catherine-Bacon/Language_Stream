@@ -18,9 +18,10 @@ const LANGUAGE_MAP = {
 };
 
 function getFullLanguageName(code) {
-    if (!code) return "Language not available (yet!)"; // FIX: Specific failure message
+    // --- MODIFICATION: Removed deprecated message ---
+    if (!code) return "Language not yet identified"; 
     // If the code is (FAIL), it means detection failed in content.js
-    if (code.toUpperCase() === '(FAIL)') return "Language not available (yet!)";
+    if (code.toUpperCase() === '(FAIL)') return "Language not yet identified";
     
     // Return full name, or code if not found
     return LANGUAGE_MAP[code.toLowerCase()] || `Code: ${code.toUpperCase()}`; 
@@ -77,6 +78,7 @@ function loadSavedStatus(elements) {
         if (data.detected_base_lang_full) {
              elements.detectedLanguageText.textContent = data.detected_base_lang_full;
         } else {
+             // --- MODIFICATION: Updated fallback text ---
              elements.detectedLanguageText.textContent = "Language not yet identified";
         }
         
@@ -312,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (detectedLangCode.toUpperCase() === '(FAIL)') {
                     // User requested update: move fail message to status bar
                     elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
-                    elements.detectedLanguageText.textContent = "Language not available (yet!)";
+                    elements.detectedLanguageText.textContent = "Language not yet identified"; // Updated fallback
                 } else {
                     const fullName = getFullLanguageName(detectedLangCode);
                     // Set the persistent message
@@ -327,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } else if (progress === 0 && elements.subtitleUrlInput.value) {
                 // FIX: On error (progress 0) and URL is present, show fail message
-                elements.detectedLanguageText.textContent = "Language not available (yet!)";
+                elements.detectedLanguageText.textContent = "Language not yet identified"; // Updated fallback
                 await chrome.storage.local.set({ 'detected_base_lang_full': elements.detectedLanguageText.textContent });
                 
                 // --- MODIFICATION: Set the status text for non-language fail errors like 403 ---
@@ -362,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
                     
                     // --- MODIFICATION START: REFINED ERROR HANDLING AT PROGRESS 0 ---
-                    // Note: 'message' here is request.message
                     
                     // Case 1: Language detection failed
                     if (message.includes("Detected Base Language: (FAIL)")) {
