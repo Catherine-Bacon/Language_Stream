@@ -380,7 +380,7 @@ async function translateAllSubtitles(url) {
     const targetLang = subtitleLanguages.target;
     
     // --- NEW VARIABLES FOR BLOCK REPORTING ---
-    const REPORTING_INTERVAL = 100; // Report every 100 lines
+    const REPORTING_INTERVAL = 10; // Report every 10 lines
     let lastReportedEndIndex = 0; // Tracks the last reported line count
 
     // 1. Create an array of Promises for all translation jobs
