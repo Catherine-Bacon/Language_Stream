@@ -26,7 +26,8 @@
         width: 100%;
         padding: 8px;
         margin-top: 5px;
-        margin-bottom: 10px; /* 🛠️ FIX 1: Set a consistent bottom margin for all inputs */
+        /* --- MODIFICATION 1: REMOVE margin-bottom from standard inputs/buttons (Fixes spacing when cancel button hides) --- */
+        margin-bottom: 0px; 
         border-radius: 4px;
         border: 1px solid #ddd;
         box-sizing: border-box;
@@ -38,6 +39,8 @@
         cursor: pointer;
         transition: background-color 0.2s;
         margin-top: 0; 
+        /* --- MODIFICATION 2: Add back a small gap BELOW the primary button --- */
+        margin-bottom: 5px;
       }
       button:hover {
         background-color: #f40a16;
@@ -45,17 +48,18 @@
       /* Style for the Cancel button */
       button#cancelButton { 
         background-color: #777; 
-        margin-top: 0px; 
-        margin-bottom: 10px; /* 🛠️ FIX 1: Standardized gap above the status box */
+        /* Add margin to separate from confirm button */
+        margin-top: 5px; 
+        /* --- MODIFICATION 3: Ensure no margin pushes the status box down --- */
+        margin-bottom: 0px; 
         display: none; /* Default to hidden, shown when processing/complete */
       }
       button#cancelButton:hover {
         background-color: #999;
       }
       #statusBox {
-        /* 🛠️ FIX 1: The margin-top must match or be slightly less than the button's margin-bottom
-                   to ensure the gap is controlled by the button for consistency. */
-        margin-top: 0px;
+        /* --- MODIFICATION 4: Standardize the gap ABOVE the status box to 10px --- */
+        margin-top: 10px; 
         padding: 5px;
         border: 1px solid #eee;
         background-color: #f9f9f9;
