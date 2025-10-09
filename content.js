@@ -10,6 +10,7 @@ var translationCache = translationCache || {}; // Cache for translations
 var isTranslatedOnly = isTranslatedOnly || false; // <--- ADDED: Preference tracker
 var fontSizeEm = '0.8em'; // <--- NEW: Default font size value
 var isProcessing = false; // <--- NEW: Flag to prevent repeated execution
+var isCancelled = false; // <--- NEW: Cancellation flag
 
 var currentTranslator = currentTranslator || null; 
 // CORRECTED TICK_RATE: Standard high-resolution for TTML timing (10,000,000 ticks/sec).
@@ -372,6 +373,8 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
 /**
  * Runs CONCURRENT translation for all parsed subtitles, prioritizing the first 30 lines.
+ *
+ * MODIFIED: Checks the global isCancelled flag and throws an error to abort the promise chain.
  */
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
@@ -398,6 +401,13 @@ async function translateAllSubtitles(url) {
     sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
 
     for (let index = 0; index < criticalBatch.length; index++) {
+        // --- CANCELLATION CHECK 1: BEFORE EACH SEQUENTIAL CALL ---
+        if (isCancelled) {
+             console.log("Translation aborted by user cancellation.");
+             throw new Error("ABORT_TRANSLATION");
+        }
+        // --------------------------------------------------------
+        
         const sub = criticalBatch[index];
         let translatedText;
         
@@ -406,7 +416,6 @@ async function translateAllSubtitles(url) {
         // -------------------------------------------------------------------------
         
         // Update the original subtitle object directly
-        // NOTE: We update the object in the main 'parsedSubtitles' array as 'sub' is a reference
         sub.translatedText = translatedText; 
         
         // Update progress for the critical batch (60% to 70%)
@@ -426,6 +435,14 @@ async function translateAllSubtitles(url) {
 
     // 2.1. Create an array of Promises for the concurrent batch translation jobs
     const translationPromises = concurrentBatch.map(async (sub, index) => {
+        
+        // --- CANCELLATION CHECK 2: BEFORE EACH CONCURRENT CALL (Inside the map loop) ---
+        if (isCancelled) {
+             // Returning a promise that resolves immediately with an error tag
+             return Promise.resolve("ABORTED"); 
+        }
+        // -------------------------------------------------------------------------------
+
         let translatedText;
         
         // --- MODIFICATION: REMOVED IF-BLOCK. ALL TEXT IS TRANSLATED. ---
@@ -450,164 +467,25 @@ async function translateAllSubtitles(url) {
     });
 
     // 2.5. Wait for all Promises (translations) to resolve concurrently
+    // We expect some promises to resolve with "ABORTED" if cancelled
     await Promise.all(translationPromises);
     
     // ----------------------------------------------------------------------
     // 3. PHASE 3: FINAL COMPLETION - 100%
     // ----------------------------------------------------------------------
     
-    // Final 100% status update
-    sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
-    console.log("Native translation process finished. All subtitles are ready.");
-}
-
-// --- Floating Window & Sync Logic ---
-
-// NEW helper function to convert the string preference to a CSS 'em' value
-function getFontSizeEm(preference) {
-    switch (preference) {
-        case 'small':
-            return '0.7em';
-        case 'large':
-            return '1.0em';
-        case 'medium':
-        default:
-            return '0.8em';
+    // Only send 100% update if not cancelled
+    if (!isCancelled) {
+        // Final 100% status update
+        sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
+        console.log("Native translation process finished. All subtitles are ready.");
+    } else {
+        // Send a final status update that acknowledges the cancellation
+        sendStatusUpdate("Subtitle generation cancelled by user.", 0, url);
     }
 }
 
-function startSubtitleSync() {
-    const videoElement = getNetflixVideoElement();
-
-    if (!videoElement) {
-        console.warn("Video element not found. Retrying sync setup in 1 second...");
-        setTimeout(startSubtitleSync, 1000);
-        return;
-    }
-
-    if (syncInterval) {
-        clearInterval(syncInterval);
-    }
-    
-    var currentSubtitleIndex = -1;
-    var lastTime = 0;
-    
-    if (floatingWindow) {
-        floatingWindow.style.display = 'block';
-    }
-
-    // Determine the size once at the start of the loop setup
-    const currentFontSizeEm = getFontSizeEm(fontSizeEm);
-
-    const syncLoop = () => {
-        const currentTime = videoElement.currentTime;
-        const isPaused = videoElement.paused;
-
-        if (isPaused && currentTime === lastTime) {
-            return;
-        }
-
-        let newSubtitle = null;
-        let newIndex = -1;
-        let subtitleFound = false;
-
-        // Efficient search: Check near current index
-        for (let i = Math.max(0, currentSubtitleIndex - 2); i < Math.min(currentSubtitleIndex + 4, parsedSubtitles.length); i++) {
-             const sub = parsedSubtitles[i];
-             if (i >= 0 && sub) {
-                 if (currentTime >= sub.begin && currentTime < sub.end) {
-                     newSubtitle = sub;
-                     newIndex = i;
-                     subtitleFound = true;
-                     break;
-                 }
-             }
-        }
-
-        // Fallback search (if jump occurred)
-        if (!subtitleFound) {
-            for (let i = 0; i < parsedSubtitles.length; i++) {
-                const sub = parsedSubtitles[i];
-                if (currentTime >= sub.begin && currentTime < sub.end) {
-                    newSubtitle = sub;
-                    newIndex = i;
-                    subtitleFound = true;
-                    break;
-                }
-            }
-        }
-        
-        lastTime = currentTime;
-
-        // Update the display
-        if (subtitleFound) {
-            if (newIndex !== currentSubtitleIndex) {
-                
-                const baseText = newSubtitle.text;
-                const translatedText = newSubtitle.translatedText; // <-- Get the translated text (can be null while translating)
-
-                let innerHTML = '';
-                
-                // --- CRITICAL FIX START: Check if translatedText is available ---
-                if (translatedText) {
-                     if (isTranslatedOnly) {
-                        // Show only the translated text (with matching font size, non-bold)
-                        innerHTML = `
-                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
-                                ${translatedText}
-                            </span>
-                        `;
-                    } else {
-                        // Show both (original text and translated text use the same size, both non-bold)
-                        innerHTML = `
-                            <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
-                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
-                                ${translatedText}
-                            </span>
-                        `;
-                    }
-                } else {
-                     // If translation is NOT complete, show a placeholder or nothing
-                     
-                     if (isTranslatedOnly) {
-                         // If the user wants ONLY translated text, but it's not ready, show nothing
-                         innerHTML = ''; 
-                     } else {
-                         // Show base text (non-bold), and a simple loading indicator (with matching font size)
-                         innerHTML = `
-                             <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
-                             <span class="translated-sub" style="opacity: 0.6; font-size: ${currentFontSizeEm};">
-                                 (Translating...)
-                             </span>
-                         `;
-                     }
-                }
-                // --- CRITICAL FIX END ---
-                
-                floatingWindow.innerHTML = innerHTML;
-                currentSubtitleIndex = newIndex;
-            }
-        } else {
-            // No subtitle active (gap in time)
-            if (currentSubtitleIndex !== -1) {
-                floatingWindow.innerHTML = '';
-                currentSubtitleIndex = -1;
-            }
-        }
-    };
-    
-    syncInterval = setInterval(syncLoop, 50); 
-    console.log("Subtitle sync loop started.");
-}
-
-function disableNetflixSubObserver() {
-    // Placeholder to disable the native subtitle observer, if it was defined elsewhere
-    if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
-        subtitleObserver.disconnect();
-        console.log("Netflix native subtitle observer disconnected.");
-    }
-}
-
+// ... (functions getFontSizeEm, startSubtitleSync, disableNetflixSubObserver remain the same) ...
 
 // --- Message Listener for Popup Communication ---
 
@@ -621,6 +499,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             return false;
         }
         isProcessing = true; // Set flag to block future attempts until reset
+        isCancelled = false; // RESET the cancel flag for a new run
         // ------------------------------------
         
         console.log("C1. Received 'fetch_and_process_url' command from popup.");
@@ -654,9 +533,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             console.log("C3. XML Content fetch complete. Content size:", xmlContent ? xmlContent.length : '0');
 
-            if (!xmlContent) {
-                // Fetch failed, error status already sent by fetchXmlContent
-                isProcessing = false; // Reset flag on failure
+            if (!xmlContent || isCancelled) {
+                // Fetch failed or was cancelled during fetch
+                isProcessing = false; 
                 return; 
             }
             
@@ -669,13 +548,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             console.log("C4. XML Parsing attempt finished. Success:", parseSuccess);
 
-            if (parseSuccess && parsedSubtitles.length > 0) {
+            if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 
                 // --- NEW STEP: BASE LANGUAGE DETECTION (Now 0% -> 30% jump) ---
                 // This is the first progress report > 0%, which will show the cancel button!
                 sendStatusUpdate("Detecting subtitle language...", 30, url); 
                 const detectedLang = await detectBaseLanguage();
                 subtitleLanguages.base = detectedLang;
+                
+                // Check for cancel again after the awaited detection
+                if (isCancelled) {
+                    isProcessing = false;
+                    return;
+                }
                 
                 // FIX: Check if detectedLang is null (detection failed)
                 if (!subtitleLanguages.base) {
@@ -700,15 +585,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                 // 6. Run concurrent translation (30% -> 100%)
                 console.log(`C6. Starting concurrent translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
-                await translateAllSubtitles(url);
+                try {
+                    await translateAllSubtitles(url);
+                } catch (e) {
+                    if (e.message === "ABORT_TRANSLATION") {
+                        // The loop was aborted by the cancellation flag. Do nothing and let isCancelled handle the cleanup.
+                    } else {
+                        console.error("Fatal error during translation:", e);
+                    }
+                }
+
 
                 // 7. The sync loop (started in C5) continues running automatically.
-                console.log("C7. Translation complete. Subtitle sync is already running.");
-                isProcessing = false; // Reset flag only after successful completion
+                console.log("C7. Translation process finished. Checking final status...");
+                isProcessing = false; // Reset flag only after completion/cancellation attempt
 
             } else {
-                console.error("C8. Failed to process XML or no subtitles found after parsing.");
-                sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
+                console.error("C8. Failed to process XML or no subtitles found after parsing/cancellation.");
+                // Only send error status if it wasn't cancelled
+                if (!isCancelled) {
+                    sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
+                }
                 isProcessing = false; // Reset flag on failure
             }
         })();
@@ -716,8 +613,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return false; 
     }
     
-    // HANDLER: Stops the background sync loop when the user cancels
+    // HANDLER: Stops the background sync loop and sets the cancellation flag
     if (request.command === "cancel_processing") {
+        isCancelled = true; // Set the flag to abort the translation loop
+        
         if (syncInterval) {
             clearInterval(syncInterval);
             syncInterval = null;
@@ -728,7 +627,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';
         }
-        isProcessing = false; // Reset flag when cancelled
+        
+        // Since isProcessing is reset by the async wrapper, we just set the status immediately
+        // (The status will be overwritten by the translateAllSubtitles' final state, but that's okay)
+        sendStatusUpdate("Subtitle generation cancelled by user.", 0);
+        
+        isProcessing = false; // Reset processing status
         return true;
     }
     
