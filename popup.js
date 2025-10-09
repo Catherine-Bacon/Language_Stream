@@ -38,6 +38,7 @@ async function resetStatus(elements) {
     elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
     elements.cancelButton.classList.add('hidden-no-space'); 
+    elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
 
     // --- MODIFICATION: Set initial status text to empty string ---
     elements.statusText.textContent = ""; 
@@ -56,6 +57,7 @@ function loadSavedStatus(elements) {
         elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
         
         elements.cancelButton.classList.add('hidden-no-space'); 
+        elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Default text
         
         // NEW: Load persistent preference
         elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
@@ -77,10 +79,14 @@ function loadSavedStatus(elements) {
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Running
             } else {
                 // Process finished (progress == 100)
                 elements.confirmButton.disabled = false; // Allow re-run
+                elements.targetLanguageSelect.disabled = false;
+                elements.translatedOnlyCheckbox.disabled = false;
                 elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
             }
         } else {
              // Neutral or Error State
@@ -105,6 +111,7 @@ function loadSavedStatus(elements) {
                  } else {
                     elements.statusText.textContent = status.message;
                  }
+                 elements.cancelButton.classList.add('hidden-no-space');
              }
         }
     });
@@ -150,7 +157,8 @@ async function handleConfirmClick(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageSelect.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-    // --- The button remains hidden here. It's shown on first progress > 0 report. ---
+    elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure running text
+    elements.cancelButton.classList.remove('hidden-no-space'); // Show while running
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         
@@ -198,11 +206,15 @@ async function handleConfirmClick(elements) {
 }
 
 async function handleCancelClick(elements) {
+    // Send cancel message to content script
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0] && tabs[0].id) {
+             // We don't wait for response, just send the stop command.
              chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
         }
     });
+    
+    // Clear local storage status and reload UI (this resets everything)
     await chrome.storage.local.remove(['ls_status']);
     loadSavedStatus(elements); 
 }
@@ -237,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Final, Robust Listener Attachment ---
     
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
+    // The handleCancelClick now handles both 'Cancel' and 'Clear Status & Reset'
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
     
     elements.translatedOnlyCheckbox.addEventListener('change', (e) => {
@@ -285,17 +298,23 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.progressBar.style.width = progress + '%';
             
             if (progress >= 100) {
+                // --- PROGRESS 100% STATE ---
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
+                
             } else if (progress > 0) {
+                // --- PROGRESS 0% < x < 100% STATE (RUNNING) ---
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
+                
             } else {
-                // Error case (progress 0). Re-enable selection.
+                // --- PROGRESS 0% STATE (ERROR/NEUTRAL) ---
                 if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
                     
                     // --- MODIFICATION START: REFINED ERROR HANDLING AT PROGRESS 0 ---
@@ -320,6 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 elements.cancelButton.classList.add('hidden-no-space');
+                elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
             }
         }
     }); 
