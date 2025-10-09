@@ -7,7 +7,7 @@ var syncInterval = syncInterval || null;
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' }; 
 var translationCache = translationCache || {}; // Cache for translations
 
-var isTranslatedOnly = isTranslatedOnly || false; // <--- ADDED: Preference tracker
+var isTranslatedOnly = isTranslatedOnly || false; // Preference tracker
 
 var currentTranslator = currentTranslator || null; 
 // CORRECTED TICK_RATE: Standard high-resolution for TTML timing (10,000,000 ticks/sec).
@@ -131,15 +131,9 @@ function parseTtmlXml(xmlString, url) {
             // 1. Get the inner HTML string.
             let rawHtml = p.innerHTML;
             
-            // Debug 1: Show the raw XML content (may contain multiple lines inside <span> or just text)
-            // console.log(`[DEBUG PARSE] Sub ${index + 1}: Raw Inner HTML: "${rawHtml}"`);
-
             // 2. FIX 1: Replace HTML line breaks with a space.
             let htmlWithSpaces = rawHtml.replace(/<br[\s\S]*?\/>|<br>/gi, ' '); 
             
-            // Debug 2: Show HTML after <br> replacement
-            // console.log(`[DEBUG PARSE] Sub ${index + 1}: HTML After BR Replace: "${htmlWithSpaces}"`);
-
             // 3. Create a temporary element and load the modified HTML.
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlWithSpaces;
@@ -151,9 +145,6 @@ function parseTtmlXml(xmlString, url) {
             // 5. Normalize all whitespace to a single space, and trim.
             text = text.replace(/\s+/g, ' ');
             text = text.trim();
-
-            // Debug 3: Show the final extracted text
-            // console.log(`[DEBUG PARSE] Sub ${index + 1}: Final Extracted Text: "${text}"`);
 
             // ----------------------------------------------------
             // --- END DEBUG LOGGING & TEXT EXTRACTION FIX ---
@@ -254,8 +245,7 @@ function makeDraggable(element) {
   let offsetX, offsetY;
 
   const startDrag = (e) => {
-    // --- MODIFICATION: Prevent default behavior immediately on drag start ---
-    // This stops accidental resizing and context menu display.
+    // Prevent default behavior immediately on drag start (stops accidental resizing)
     e.preventDefault(); 
     isDragging = true;
     const rect = element.getBoundingClientRect();
@@ -265,7 +255,7 @@ function makeDraggable(element) {
     offsetX = clientX - rect.left;
     offsetY = clientY - rect.top;
     
-    // FIX: Ensure cursor update is immediate and persistent
+    // Ensure cursor update is immediate and persistent
     element.style.cursor = 'grabbing !important'; 
     element.style.position = 'fixed'; 
 
@@ -278,7 +268,7 @@ function makeDraggable(element) {
   const drag = (e) => {
     if (!isDragging) return;
     
-    // --- MODIFICATION: Prevent default behavior during drag ---
+    // Prevent default behavior during drag
     e.preventDefault(); 
     
     const clientX = e.clientX || e.touches[0].clientX;
@@ -391,20 +381,15 @@ async function translateAllSubtitles(url) {
              translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         }
         
-        // Update the progress status *periodically* since the loop isn't sequential
-        // FIX: Smoother update, checking every 5 lines
-        if (index % 5 === 0 || index === totalSubs - 1) { 
-             // PROGRESS CALCULATION: Range 60% to 100%
-             const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
-             if (progress < 100) { 
-                 sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
-             }
-        }
-
+        // --- MODIFICATION: Removed the intermediate line-by-line reporting logic ---
+        // This logic was slow and caused the progress bar to appear stuck.
+        // It now relies purely on the 60% start and 100% end messages.
+        
         return translatedText;
     });
 
     // 3. Wait for all Promises (translations) to resolve concurrently
+    // The bar will move straight from 60% (Start) to 100% (Complete) for fast translation times.
     sendStatusUpdate(`Starting concurrent translation of ${totalSubs} lines...`, 60, url);
     const results = await Promise.all(translationPromises);
     
@@ -442,31 +427,35 @@ function startSubtitleSync() {
 
     const syncLoop = () => {
         const currentTime = videoElement.currentTime;
+        // Check if the video is actively playing or paused at a different time (i.e., seeking)
         const isPaused = videoElement.paused;
+        const timeHasChanged = currentTime !== lastTime;
 
-        if (isPaused && currentTime === lastTime) {
-            return;
+        // Only update if time has changed OR if a subtitle needs to disappear (time moves forward)
+        if (isPaused && !timeHasChanged && currentSubtitleIndex !== -1) {
+             return; 
         }
 
         let newSubtitle = null;
         let newIndex = -1;
         let subtitleFound = false;
-
-        // Efficient search: Check near current index
+        
+        // --- MODIFICATION: Robust Search Logic for Seeking ---
+        
+        // 1. Initial/Near-Index Search (Quick Check)
         for (let i = Math.max(0, currentSubtitleIndex - 2); i < Math.min(currentSubtitleIndex + 4, parsedSubtitles.length); i++) {
              const sub = parsedSubtitles[i];
-             if (i >= 0 && sub) {
-                 if (currentTime >= sub.begin && currentTime < sub.end) {
-                     newSubtitle = sub;
-                     newIndex = i;
-                     subtitleFound = true;
-                     break;
-                 }
+             if (sub && currentTime >= sub.begin && currentTime < sub.end) {
+                 newSubtitle = sub;
+                 newIndex = i;
+                 subtitleFound = true;
+                 break;
              }
         }
 
-        // Fallback search (if jump occurred)
-        if (!subtitleFound) {
+        // 2. Full Search (Fallback for Seeking)
+        if (!subtitleFound && timeHasChanged) {
+            // If time jumped significantly, perform a full search.
             for (let i = 0; i < parsedSubtitles.length; i++) {
                 const sub = parsedSubtitles[i];
                 if (currentTime >= sub.begin && currentTime < sub.end) {
@@ -489,7 +478,7 @@ function startSubtitleSync() {
 
                 let innerHTML = '';
 
-                // --- MODIFICATION START: Conditional Display Logic ---
+                // Conditional Display Logic (based on isTranslatedOnly global)
                 if (isTranslatedOnly) {
                     // Show only the translated text (larger font)
                     innerHTML = `
@@ -506,9 +495,8 @@ function startSubtitleSync() {
                         </span>
                     `;
                 }
-                // --- MODIFICATION END ---
                 
-                floatingWindow.innerHTML = innerHTML; // Use the new variable
+                floatingWindow.innerHTML = innerHTML;
                 currentSubtitleIndex = newIndex;
             }
         } else {
@@ -542,7 +530,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 1. Store the preferences
         subtitleLanguages.target = request.targetLang;
-        isTranslatedOnly = request.translatedOnly; // <--- ADDED: Preference tracker
+        isTranslatedOnly = request.translatedOnly; // Preference tracker
         translationCache = {}; 
         
         if (syncInterval) {
