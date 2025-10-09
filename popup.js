@@ -360,7 +360,7 @@ function loadSavedStatus(elements) {
              const urlValue = elements.subtitleUrlInput.value.trim();
              if (urlValue && urlValue.startsWith('http')) {
                  // URL ready
-                 elements.urlStatusText.textContent = `Subtitle URL ready. Target Language: ${currentFullLangName}`;
+                 elements.urlStatusText.textContent = `Subtitle URL ready. Target Language: ${detectedLang.toUpperCase()}`;
                  elements.confirmButton.disabled = false;
                  
                  // If there's a URL-related error message, show it
