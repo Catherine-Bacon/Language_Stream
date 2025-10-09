@@ -8,6 +8,7 @@ var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {}; // Cache for translations
 
 var isTranslatedOnly = isTranslatedOnly || false; // <--- ADDED: Preference tracker
+var isProcessing = false; // <--- NEW: Flag to prevent repeated execution
 
 var currentTranslator = currentTranslator || null; 
 // CORRECTED TICK_RATE: Standard high-resolution for TTML timing (10,000,000 ticks/sec).
@@ -84,8 +85,6 @@ async function fetchXmlContent(url) {
         // Subtitle file downloaded. Starting parsing... - REMOVED PROGRESS UPDATE
         return await response.text();
     } catch (e) {
-        // --- MODIFICATION: Removed the console.error line here ---
-        // console.error("Error fetching XML from URL:", e);
         
         // --- MODIFICATION START: Handle the specific 403 message first in catch ---
         if (e.message === "403_FORBIDDEN") {
@@ -559,6 +558,15 @@ function disableNetflixSubObserver() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Note: request.baseLang is no longer sent from popup.js
     if (request.command === "fetch_and_process_url" && request.url) {
+        
+        // --- NEW CHECK: PREVENT RE-ENTRY ---
+        if (isProcessing) {
+            console.log("C1. Process already running, ignoring repeated 'fetch_and_process_url' command.");
+            return false;
+        }
+        isProcessing = true; // Set flag to block future attempts until reset
+        // ------------------------------------
+        
         console.log("C1. Received 'fetch_and_process_url' command from popup.");
 
         // 1. Store the preferences
@@ -575,6 +583,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // API CHECK
         if (!('Translator' in self)) {
             sendStatusUpdate("ERROR: Chrome Translator API not detected. Translations are unavailable.", 0, url);
+            isProcessing = false; // Reset on failure
             return false;
         }
 
@@ -588,56 +597,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             
             console.log("C3. XML Content fetch complete. Content size:", xmlContent ? xmlContent.length : '0');
 
+            if (!xmlContent) {
+                // Fetch failed, error status already sent by fetchXmlContent
+                isProcessing = false; // Reset flag on failure
+                return; 
+            }
+            
+            // 4. Create the floating window and disable native subs
+            createFloatingWindow();
+            disableNetflixSubObserver();
+            
+            // 5. Parse the XML
+            const parseSuccess = parseTtmlXml(xmlContent, url);
+            
+            console.log("C4. XML Parsing attempt finished. Success:", parseSuccess);
 
-            if (xmlContent) {
-                // 4. Create the floating window and disable native subs
-                createFloatingWindow();
-                disableNetflixSubObserver();
+            if (parseSuccess && parsedSubtitles.length > 0) {
                 
-                // 5. Parse the XML
-                const parseSuccess = parseTtmlXml(xmlContent, url);
+                // --- NEW STEP: BASE LANGUAGE DETECTION (Now 0% -> 30% jump) ---
+                // This is the first progress report > 0%, which will show the cancel button!
+                sendStatusUpdate("Detecting subtitle language...", 30, url); 
+                const detectedLang = await detectBaseLanguage();
+                subtitleLanguages.base = detectedLang;
                 
-                console.log("C4. XML Parsing attempt finished. Success:", parseSuccess);
-
-                if (parseSuccess && parsedSubtitles.length > 0) {
-                    
-                    // --- NEW STEP: BASE LANGUAGE DETECTION (Now 0% -> 30% jump) ---
-                    // This is the first progress report > 0%, which will show the cancel button!
-                    sendStatusUpdate("Detecting subtitle language...", 30, url); 
-                    const detectedLang = await detectBaseLanguage();
-                    subtitleLanguages.base = detectedLang;
-                    
-                    // FIX: Check if detectedLang is null (detection failed)
-                    if (!subtitleLanguages.base) {
-                        // The language detection failure message is now the first message AFTER 
-                        // successful fetch/parse, so we jump the progress to 30% to acknowledge completion of initial steps
-                        sendStatusUpdate(`Detected Base Language: (FAIL). Starting translation...`, 30, url);
-                        // Use a fallback language if detection fails for translation
-                        subtitleLanguages.base = 'en'; 
-                    } else {
-                        // UPDATE UI with detected language
-                        sendStatusUpdate(`Detected Base Language: ${detectedLang.toUpperCase()}. Starting translation...`, 30, url);
-                    }
-
-                    // -------------------------------------------------------------------------------------
-                    // ⭐ CRITICAL CHANGE: Start the sync loop NOW, right after detection and before translation.
-                    // This allows subtitles to appear as soon as they are translated concurrently.
-                    // -------------------------------------------------------------------------------------
-                    console.log("C5. Starting subtitle sync loop *early* while translation runs in background.");
-                    startSubtitleSync();
-                    // -------------------------------------------------------------------------------------
-
-
-                    // 6. Run concurrent translation (30% -> 100%)
-                    console.log(`C6. Starting concurrent translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
-                    await translateAllSubtitles(url);
-
-                    // 7. The sync loop (started in C5) continues running automatically.
-                    console.log("C7. Translation complete. Subtitle sync is already running.");
+                // FIX: Check if detectedLang is null (detection failed)
+                if (!subtitleLanguages.base) {
+                    // The language detection failure message is now the first message AFTER 
+                    // successful fetch/parse, so we jump the progress to 30% to acknowledge completion of initial steps
+                    sendStatusUpdate(`Detected Base Language: (FAIL). Starting translation...`, 30, url);
+                    // Use a fallback language if detection fails for translation
+                    subtitleLanguages.base = 'en'; 
                 } else {
-                    console.error("C8. Failed to process XML or no subtitles found after parsing.");
-                    sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
+                    // UPDATE UI with detected language
+                    sendStatusUpdate(`Detected Base Language: ${detectedLang.toUpperCase()}. Starting translation...`, 30, url);
                 }
+
+                // -------------------------------------------------------------------------------------
+                // ⭐ CRITICAL CHANGE: Start the sync loop NOW, right after detection and before translation.
+                // This allows subtitles to appear as soon as they are translated concurrently.
+                // -------------------------------------------------------------------------------------
+                console.log("C5. Starting subtitle sync loop *early* while translation runs in background.");
+                startSubtitleSync();
+                // -------------------------------------------------------------------------------------
+
+
+                // 6. Run concurrent translation (30% -> 100%)
+                console.log(`C6. Starting concurrent translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
+                await translateAllSubtitles(url);
+
+                // 7. The sync loop (started in C5) continues running automatically.
+                console.log("C7. Translation complete. Subtitle sync is already running.");
+                isProcessing = false; // Reset flag only after successful completion
+
+            } else {
+                console.error("C8. Failed to process XML or no subtitles found after parsing.");
+                sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
+                isProcessing = false; // Reset flag on failure
             }
         })();
         
@@ -656,6 +671,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';
         }
+        isProcessing = false; // Reset flag when cancelled
         return true;
     }
     
