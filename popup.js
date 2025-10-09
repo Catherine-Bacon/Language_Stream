@@ -253,7 +253,8 @@ function openCustomSettingsWindow() {
 
 function getLanguageName(langCode) {
     const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
-    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode;
+    // Return capitalized version or the original code if not found
+    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
 }
 
 function loadSavedStatus(elements) {
@@ -340,7 +341,7 @@ function loadSavedStatus(elements) {
                     elements.urlStatusText.textContent = `${currentBaseLangName} subtitles ready to translate!`;
                 } else {
                     // Fallback if base language detection somehow failed entirely
-                    elements.urlStatusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
+                    elements.urlStatusText.textContent = "Subtitle URL accepted. Ready to generate.";
                 }
                 
                 elements.confirmButton.disabled = false; // Allow re-run
@@ -423,11 +424,157 @@ function loadSavedStatus(elements) {
     });
 }
 
-// ... (existing code up to handleCancelClick)
+async function handleConfirmClick(elements) {
+    console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
+
+    const url = elements.subtitleUrlInput.value.trim();
+    const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
+    
+    // 1. Get Subtitle Mode (boolean)
+    const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
+    const translatedOnly = (selectedSubtitleMode === 'translated_only'); 
+
+    // 2. Get Subtitle Style Mode
+    const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
+    
+    // 3. Determine Final Style Preferences
+    let finalStylePrefs = {};
+    if (selectedStyle === 'netflix') {
+        // Use the hardcoded preset
+        finalStylePrefs = NETFLIX_PRESET;
+    } else {
+        // Retrieve custom settings from storage
+        const customData = await chrome.storage.local.get(['font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref']);
+        finalStylePrefs.font_size_pref = customData.font_size_pref || NETFLIX_PRESET.font_size_pref;
+        finalStylePrefs.background_color_pref = customData.background_color_pref || NETFLIX_PRESET.background_color_pref;
+        finalStylePrefs.font_shadow_pref = customData.font_shadow_pref || NETFLIX_PRESET.font_shadow_pref;
+        finalStylePrefs.font_color_pref = customData.font_color_pref || NETFLIX_PRESET.font_color_pref;
+    }
+
+
+    // --- LOOKUP THE 2-LETTER CODE AND VALIDATE ---
+    const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
+    if (targetLang.length !== 2) {
+         // MODIFICATION: Route language check error to lang status and main status
+         elements.langStatusText.textContent = `Please check language spelling`;
+         elements.statusText.textContent = `Please check language spelling`;
+         elements.progressBar.style.width = '0%';
+         elements.confirmButton.disabled = false;
+         return;
+    }
+    // ---------------------------------------------
+
+    // 4. Input validation and UI update
+    
+    elements.statusText.textContent = "Generating subtitles...";
+    elements.urlStatusText.textContent = ""; // Clear URL status when starting
+    elements.langStatusText.textContent = ""; // Clear lang status when starting
+    elements.progressBar.style.width = '5%';
+    
+    if (!url || !url.startsWith('http')) {
+        // MODIFICATION: Use the new consolidated error message
+        elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
+        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL."; // Keep main error for context
+        elements.progressBar.style.width = '0%';
+        elements.confirmButton.disabled = false; 
+        return;
+    }
+
+
+    // 5. Save runtime preferences and clear old status
+    await chrome.storage.local.remove(['ls_status']);
+    await chrome.storage.local.set({ 
+        last_input: { url, targetLang: targetLang },
+        translated_only_pref: translatedOnly, 
+        subtitle_style_pref: selectedStyle, // Save the selected style mode
+    });
+
+    // 6. Update UI for start of process
+    elements.statusText.textContent = "URL accepted. Initializing content script...";
+    elements.progressBar.style.width = '10%';
+    elements.confirmButton.disabled = true;
+    elements.targetLanguageInput.disabled = true; 
+    
+    // MODIFICATION: Disable all main popup preference radio buttons
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.customSettingsButton.disabled = true;
+
+    
+    elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
+    elements.cancelButton.classList.remove('hidden-no-space'); 
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        
+        if (!tabs[0] || !tabs[0].id) {
+            elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
+            console.error("[POPUP] Failed to retrieve active tab information.");
+            elements.progressBar.style.width = '0%';
+            return;
+        }
+        
+        const currentTabId = tabs[0].id;
+        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+
+        // 7. MODIFICATION: Pass all final style preferences to content script
+        const message = { 
+            command: "fetch_and_process_url", 
+            url: url,
+            targetLang: targetLang, 
+            translatedOnly: translatedOnly, 
+            fontSize: finalStylePrefs.font_size_pref, // Use final determined value
+            backgroundColor: finalStylePrefs.background_color_pref, // Use final determined value
+            fontShadow: finalStylePrefs.font_shadow_pref, // Use final determined value
+            fontColor: finalStylePrefs.font_color_pref // Use final determined value
+        };
+
+        // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
+        chrome.scripting.executeScript({
+            target: { tabId: currentTabId },
+            files: ['content.js']
+        }, () => {
+            if (chrome.runtime.lastError) {
+                elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
+                console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
+                elements.progressBar.style.width = '0%';
+                return;
+            }
+            
+            elements.statusText.textContent = "Content script injected. Sending start command...";
+            chrome.tabs.sendMessage(currentTabId, message);
+
+            
+        });
+        // --- END IMPROVED SCRIPT INJECTION AND MESSAGING ---
+    });
+}
 
 async function handleCancelClick(elements) {
     // 1. Send the cancel message to content.js 
-    // ... (rest of the handleCancelClick function is unchanged)
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0] || !tabs[0].id) {
+            console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
+            return;
+        }
+
+        const currentTabId = tabs[0].id;
+        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing cancel command.`);
+
+        chrome.scripting.executeScript({
+            target: { tabId: currentTabId },
+            files: ['content.js']
+        }, () => {
+            if (chrome.runtime.lastError) {
+                console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
+            }
+            
+            chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
+                 if (!e.message.includes('Receiving end does not exist')) {
+                     console.error("[POPUP] Error sending cancel message:", e);
+                 }
+            });
+        });
+    });
     
     // 2. Immediately clear the saved status and reset UI elements
     await chrome.storage.local.remove(['ls_status']);
@@ -458,9 +605,40 @@ async function handleCancelClick(elements) {
 document.addEventListener('DOMContentLoaded', () => {
     
     // 2. Initialize DOM variables locally
-    // ... (rest of the DOM element initialisation is unchanged)
+    const elements = {
+        confirmButton: document.getElementById('confirmButton'),
+        targetLanguageInput: document.getElementById('targetLanguage'), 
+        subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
+        statusText: document.getElementById('statusText'),
+        progressBar: document.getElementById('progressBar'),
+        cancelButton: document.getElementById('cancelButton'),
+        
+        // NEW: Status lines
+        urlStatusText: document.getElementById('urlStatusText'), // NEW
+        langStatusText: document.getElementById('langStatusText'), // NEW
+        
+        // MODIFICATION: Subtitle mode radio button elements
+        subtitleModeGroup: document.getElementById('subtitleModeGroup'), 
+        subtitleModeDual: document.getElementById('subtitleModeDual'), 
+        subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'), 
+        
+        // NEW: Subtitle Style elements
+        subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
+        subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
+        subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
+        customSettingsButton: document.getElementById('customSettingsButton'),
+    };
+    
+    // CRITICAL DEBUG CHECK
+    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) { 
+        console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
+        return; 
+    } else {
+        console.log("2. All DOM elements found. Attaching listeners.");
+    }
     
     // 3. Load previous status and set initial UI state
+    // FIX APPLIED HERE: loadSavedStatus is now called only after 'elements' is defined.
     loadSavedStatus(elements);
 
     // --- Final, Robust Listener Attachment ---
@@ -468,7 +646,31 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
     
-    // ... (rest of the radio button listeners are unchanged)
+    // MODIFICATION: Listener for subtitle mode radio buttons (saves boolean for translated_only)
+    elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const isTranslatedOnly = (e.target.value === 'translated_only');
+                chrome.storage.local.set({ 'translated_only_pref': isTranslatedOnly });
+            }
+        });
+    });
+    
+    // NEW: Listener for subtitle style radio buttons
+    elements.subtitleStyleGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const selectedStyle = e.target.value;
+                chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
+                    // Enable/Disable the settings button based on selection
+                    elements.customSettingsButton.disabled = (selectedStyle === 'netflix');
+                });
+            }
+        });
+    });
+    
+    // NEW: Listener for the Custom Settings Button
+    elements.customSettingsButton.addEventListener('click', openCustomSettingsWindow);
 
     
     // NEW: Listen to changes in the URL input box to enable/disable the button
@@ -574,6 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      const baseLangCode = data.ls_status?.baseLang;
                      if (baseLangCode) {
                          const baseLangName = getLanguageName(baseLangCode);
+                         // NEW MESSAGE: "[Base Language Name] subtitles ready to translate!"
                          elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
                      } else {
                          elements.urlStatusText.textContent = "Subtitle URL accepted. Ready to generate.";
