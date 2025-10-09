@@ -285,6 +285,9 @@ function detectBaseLanguage() {
     });
 }
 
+// ----------------------------------------------------------------------
+// --- START WINDOW/SYNC LOGIC (MOVED UP) ---
+// ----------------------------------------------------------------------
 
 function createFloatingWindow() {
   let existingWindow = document.getElementById('language-stream-window');
@@ -392,6 +395,191 @@ function makeDraggable(element) {
   element.addEventListener('mousedown', startDrag);
   element.addEventListener('touchstart', startDrag);
 }
+
+
+function startSubtitleSync() {
+    const videoElement = getNetflixVideoElement();
+
+    if (!videoElement) {
+        console.warn("Video element not found. Retrying sync setup in 1 second...");
+        setTimeout(startSubtitleSync, 1000);
+        return;
+    }
+
+    if (syncInterval) {
+        clearInterval(syncInterval);
+    }
+    
+    var currentSubtitleIndex = -1;
+    var lastTime = 0;
+    
+    if (floatingWindow) {
+        floatingWindow.style.display = 'block';
+    }
+
+    // Determine the styles once at the start of the loop setup
+    const currentFontSizeEm = getFontSizeEm(fontSizeEm);
+    const currentFontShadow = getFontShadowCss(fontShadowPref);
+    const currentFontColor = getFontColor(fontColorPref); // This is the user-selected text color.
+    // NEW: Get span-specific background color
+    const currentSpanBgColor = getSpanBackgroundColor(backgroundColorPref);
+
+
+    // Update the floating window's text shadow (color is managed by inner spans when coding)
+    if (floatingWindow) {
+        floatingWindow.style.textShadow = currentFontShadow;
+        // NOTE: We leave floatingWindow.style.color at its default/user-selected value, 
+        // but the individual word spans will override it when colour coding is active.
+    }
+    
+    // NEW: Base CSS for the span tag (used for background, padding, font size, etc.)
+    const spanBaseCss = `
+        display: inline-block; 
+        padding: 0 0.5em; 
+        border-radius: 0.2em;
+        background-color: ${currentSpanBgColor};
+        font-size: ${currentFontSizeEm}; 
+        /* The default font color is NOT set here if coding is active, 
+           as it will be set by generateCodedHtml */
+    `;
+
+
+    const syncLoop = () => {
+        const currentTime = videoElement.currentTime;
+        const isPaused = videoElement.paused;
+
+        if (isPaused && currentTime === lastTime) {
+            return;
+        }
+
+        let newSubtitle = null;
+        let newIndex = -1;
+        let subtitleFound = false;
+
+        // Efficient search: Check near current index
+        for (let i = Math.max(0, currentSubtitleIndex - 2); i < Math.min(currentSubtitleIndex + 4, parsedSubtitles.length); i++) {
+             const sub = parsedSubtitles[i];
+             if (i >= 0 && sub) {
+                 if (currentTime >= sub.begin && currentTime < sub.end) {
+                     newSubtitle = sub;
+                     newIndex = i;
+                     subtitleFound = true;
+                     break;
+                 }
+             }
+        }
+
+        // Fallback search (if jump occurred)
+        if (!subtitleFound) {
+            for (let i = 0; i < parsedSubtitles.length; i++) {
+                const sub = parsedSubtitles[i];
+                if (currentTime >= sub.begin && currentTime < sub.end) {
+                    newSubtitle = sub;
+                    newIndex = i;
+                    subtitleFound = true;
+                    break;
+                }
+            }
+        }
+        
+        lastTime = currentTime;
+
+        // Update the display
+        if (subtitleFound) {
+            if (newIndex !== currentSubtitleIndex) {
+                
+                // --- MODIFICATION START: EXTRACTING TRANSLATION DATA ---
+                const translationResult = newSubtitle.translatedText; 
+                
+                // Get the raw strings for the fallback
+                const baseText = newSubtitle.text;
+                const translatedText = translationResult ? translationResult.raw : null;
+
+                // Get the structured data for coding
+                const structuredData = translationResult ? translationResult.structured : null;
+                
+                let innerHTML = '';
+                
+                if (translatedText) {
+                    // --- APPLY COLOUR CODING OR FALLBACK TO STANDARD STYLE ---
+                    
+                    const isVocabCoding = colourCodingPref === 'vocabulary' && structuredData;
+                    
+                    let baseHtml = '';
+                    let translatedHtml = '';
+
+                    // The logic here is simplified because generateCodedHtml now handles segmentation.
+                    // When 'vocabulary' is NOT selected, we still need to provide a structured list 
+                    // to generateCodedHtml so it can fall back to the raw text, which we do below.
+                    
+                    // Create a pseudo-structured data object for non-vocabulary modes, 
+                    // so generateCodedHtml can fall back to the whole text.
+                    const fallbackSegments = [{ text: baseText, color: currentFontColor }];
+                    const fallbackTranslatedSegments = [{ text: translatedText, color: currentFontColor }];
+                    
+                    const finalBaseSegments = structuredData?.base || fallbackSegments;
+                    const finalTranslatedSegments = structuredData?.translated || fallbackTranslatedSegments;
+                    
+                    // Generate HTML using the new segment-based function
+                    baseHtml = generateCodedHtml(finalBaseSegments, spanBaseCss, currentFontColor);
+                    // Add opacity to translated line by styling the outer span
+                    translatedHtml = generateCodedHtml(finalTranslatedSegments, `${spanBaseCss} opacity: 1.0;`, currentFontColor);
+                    
+
+                    // Construct final innerHTML
+                     if (isTranslatedOnly) {
+                        innerHTML = translatedHtml;
+                    } else {
+                        innerHTML = `${baseHtml}<br>${translatedHtml}`;
+                    }
+                    
+                } else {
+                     // If translation is NOT complete, show placeholder
+                     
+                     // Use the user's default text color for the base text and placeholder
+                     const standardSpanCss = `${spanBaseCss} color: ${currentFontColor};`;
+
+                     if (isTranslatedOnly) {
+                         innerHTML = ''; // If translated only, show nothing when not ready
+                     } else {
+                         // Show base text, and a simple loading indicator
+                         innerHTML = `
+                             <span class="base-sub" style="${standardSpanCss}">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; ${standardSpanCss}">
+                                 (Translating...)
+                             </span>
+                         `;
+                     }
+                }
+                // --- MODIFICATION END ---
+                
+                floatingWindow.innerHTML = innerHTML;
+                currentSubtitleIndex = newIndex;
+            }
+        } else {
+            // No subtitle active (gap in time)
+            if (currentSubtitleIndex !== -1) {
+                floatingWindow.innerHTML = '';
+                currentSubtitleIndex = -1;
+            }
+        }
+    };
+    
+    syncInterval = setInterval(syncLoop, 50); 
+    console.log("Subtitle sync loop started.");
+}
+
+function disableNetflixSubObserver() {
+    // Placeholder to disable the native subtitle observer, if it was defined elsewhere
+    if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
+        subtitleObserver.disconnect();
+        console.log("Netflix native subtitle observer disconnected.");
+    }
+}
+
+// ----------------------------------------------------------------------
+// --- END WINDOW/SYNC LOGIC ---
+// ----------------------------------------------------------------------
 
 
 // ----------------------------------------------------------------------
@@ -712,43 +900,9 @@ async function translateAllSubtitles(url) {
     }
 }
 
-
-/**
- * MODIFIED: Generates the HTML for a subtitle line, applying color coding if set to 'vocabulary'.
- * Now expects an array of {text: segmentString, color: hexColor} objects.
- */
-function generateCodedHtml(segmentsCoded, spanBaseCss, defaultTextColor) {
-    if (colourCodingPref === 'vocabulary' && segmentsCoded && segmentsCoded.length > 0) {
-        // Build the HTML by wrapping each segment in a span with its assigned color
-        const html = segmentsCoded.map(item => {
-            // Use the item's color, or fallback to the default if it was missed
-            const color = item.color || defaultTextColor; 
-            
-            // Ensure the spanBaseCss is applied, but with the color overridden by the segment color
-            const segmentSpanCss = `${spanBaseCss} color: ${color};`;
-            
-            // Use the full segment text which includes its punctuation
-            return `<span style="${segmentSpanCss}">${item.text}</span>`;
-            
-        }).join(' '); // Join segments with a single space to separate the spans.
-        
-        // Remove potential double spaces created by joining and return the final HTML
-        return html.replace(/\s+/g, ' ').trim();
-
-    } else {
-        // Fallback to the raw text (this path should be mostly avoided if 'vocabulary' is selected)
-        const rawText = segmentsCoded.map(item => item.text).join(' ');
-        // Wrap the whole phrase in a span with the base CSS for background/shadow/default color
-        const standardSpanCss = `${spanBaseCss} color: ${defaultTextColor};`;
-        return `<span style="${standardSpanCss}">${rawText.replace(/\s+/g, ' ').trim()}</span>`;
-    }
-}
 // ----------------------------------------------------------------------
-// --- END TRANSLATION/ALIGNMENT LOGIC ---
-// ----------------------------------------------------------------------
-
-
 // --- Message Listener for Popup Communication ---
+// ----------------------------------------------------------------------
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
