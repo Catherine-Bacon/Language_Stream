@@ -485,7 +485,152 @@ async function translateAllSubtitles(url) {
     }
 }
 
-// ... (functions getFontSizeEm, startSubtitleSync, disableNetflixSubObserver remain the same) ...
+// --- NEW helper function to convert the string preference to a CSS 'em' value ---
+function getFontSizeEm(preference) {
+    switch (preference) {
+        case 'small':
+            return '0.7em';
+        case 'large':
+            return '1.0em';
+        case 'medium':
+        default:
+            return '0.8em';
+    }
+}
+// ---------------------------------------------------------------------------------
+
+function startSubtitleSync() {
+    const videoElement = getNetflixVideoElement();
+
+    if (!videoElement) {
+        console.warn("Video element not found. Retrying sync setup in 1 second...");
+        setTimeout(startSubtitleSync, 1000);
+        return;
+    }
+
+    if (syncInterval) {
+        clearInterval(syncInterval);
+    }
+    
+    var currentSubtitleIndex = -1;
+    var lastTime = 0;
+    
+    if (floatingWindow) {
+        floatingWindow.style.display = 'block';
+    }
+
+    // Determine the size once at the start of the loop setup
+    const currentFontSizeEm = getFontSizeEm(fontSizeEm);
+
+    const syncLoop = () => {
+        const currentTime = videoElement.currentTime;
+        const isPaused = videoElement.paused;
+
+        if (isPaused && currentTime === lastTime) {
+            return;
+        }
+
+        let newSubtitle = null;
+        let newIndex = -1;
+        let subtitleFound = false;
+
+        // Efficient search: Check near current index
+        for (let i = Math.max(0, currentSubtitleIndex - 2); i < Math.min(currentSubtitleIndex + 4, parsedSubtitles.length); i++) {
+             const sub = parsedSubtitles[i];
+             if (i >= 0 && sub) {
+                 if (currentTime >= sub.begin && currentTime < sub.end) {
+                     newSubtitle = sub;
+                     newIndex = i;
+                     subtitleFound = true;
+                     break;
+                 }
+             }
+        }
+
+        // Fallback search (if jump occurred)
+        if (!subtitleFound) {
+            for (let i = 0; i < parsedSubtitles.length; i++) {
+                const sub = parsedSubtitles[i];
+                if (currentTime >= sub.begin && currentTime < sub.end) {
+                    newSubtitle = sub;
+                    newIndex = i;
+                    subtitleFound = true;
+                    break;
+                }
+            }
+        }
+        
+        lastTime = currentTime;
+
+        // Update the display
+        if (subtitleFound) {
+            if (newIndex !== currentSubtitleIndex) {
+                
+                const baseText = newSubtitle.text;
+                const translatedText = newSubtitle.translatedText; // <-- Get the translated text (can be null while translating)
+
+                let innerHTML = '';
+                
+                // --- CRITICAL FIX START: Check if translatedText is available ---
+                if (translatedText) {
+                     if (isTranslatedOnly) {
+                        // Show only the translated text (with matching font size, non-bold)
+                        innerHTML = `
+                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
+                                ${translatedText}
+                            </span>
+                        `;
+                    } else {
+                        // Show both (original text and translated text use the same 0.8em size, both non-bold)
+                        innerHTML = `
+                            <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
+                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
+                                ${translatedText}
+                            </span>
+                        `;
+                    }
+                } else {
+                     // If translation is NOT complete, show a placeholder or nothing
+                     
+                     if (isTranslatedOnly) {
+                         // If the user wants ONLY translated text, but it's not ready, show nothing
+                         innerHTML = ''; 
+                     } else {
+                         // Show base text (non-bold), and a simple loading indicator (with matching font size)
+                         innerHTML = `
+                             <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; font-size: ${currentFontSizeEm};">
+                                 (Translating...)
+                             </span>
+                         `;
+                     }
+                }
+                // --- CRITICAL FIX END ---
+                
+                floatingWindow.innerHTML = innerHTML;
+                currentSubtitleIndex = newIndex;
+            }
+        } else {
+            // No subtitle active (gap in time)
+            if (currentSubtitleIndex !== -1) {
+                floatingWindow.innerHTML = '';
+                currentSubtitleIndex = -1;
+            }
+        }
+    };
+    
+    syncInterval = setInterval(syncLoop, 50); 
+    console.log("Subtitle sync loop started.");
+}
+
+function disableNetflixSubObserver() {
+    // Placeholder to disable the native subtitle observer, if it was defined elsewhere
+    if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
+        subtitleObserver.disconnect();
+        console.log("Netflix native subtitle observer disconnected.");
+    }
+}
+
 
 // --- Message Listener for Popup Communication ---
 
@@ -629,15 +774,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         // Since isProcessing is reset by the async wrapper, we just set the status immediately
-        // (The status will be overwritten by the translateAllSubtitles' final state, but that's okay)
         sendStatusUpdate("Subtitle generation cancelled by user.", 0);
         
         isProcessing = false; // Reset processing status
-        return true;
+        // CRITICAL FIX: Return false to prevent the "A listener indicated an asynchronous response..." error
+        return false; 
     }
     
     if (request.command === "ping") {
-        sendResponse({ status: "ready" });
-        return true;
+        // Since this isn't performing an async operation back to the sender, return false is safest.
+        return false;
     }
 });
