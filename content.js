@@ -423,9 +423,24 @@ function simulateVocabularyCoding(baseText, translatedText) {
     const baseWords = baseText.trim().split(/\s+/).filter(w => w.length > 0);
     const translatedWords = translatedText.trim().split(/\s+/).filter(w => w.length > 0);
     
-    // 2. Define a set of colours to cycle through
-    // Using distinct, accessible colours (e.g., Red, Green, Blue, Purple, Orange)
-    const colours = ['#FF6347', '#3CB371', '#4169E1', '#9370DB', '#FFA500']; 
+    // 2. Define a set of colours to cycle through (Now 15 distinct colors)
+    const colours = [
+        '#FF6347', // Tomato Red
+        '#3CB371', // Medium Sea Green
+        '#4169E1', // Royal Blue
+        '#9370DB', // Medium Purple
+        '#FFA500', // Orange
+        '#00FFFF', // Cyan
+        '#FFD700', // Gold
+        '#7CFC00', // Lawn Green
+        '#DC143C', // Crimson
+        '#1E90FF', // Dodger Blue
+        '#FF69B4', // Hot Pink
+        '#DAA520', // Goldenrod
+        '#00CED1', // Dark Cyan
+        '#F08080', // Light Coral
+        '#20B2AA'  // Light Sea Green
+    ]; 
     
     // 3. Simulate a simple 1:1 mapping for demonstration (often not true in real translation)
     // We'll map base word index to translated word index, using the minimum length to avoid errors
@@ -436,7 +451,8 @@ function simulateVocabularyCoding(baseText, translatedText) {
     
     // Assign colours based on the word index (simulating correspondence)
     for (let i = 0; i < baseWords.length; i++) {
-        const colour = colours[i % colours.length];
+        // Use modulo 15 to cycle through the 15 colors
+        const colour = colours[i % colours.length]; 
         
         // Simulating 1:1 match for words up to minLength
         if (i < minLength) {
