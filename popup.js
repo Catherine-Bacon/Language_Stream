@@ -253,7 +253,8 @@ function openCustomSettingsWindow() {
 
 function getLanguageName(langCode) {
     const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
-    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode;
+    // Return capitalized name or the uppercased code if not found
+    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
 }
 
 function loadSavedStatus(elements) {
@@ -297,11 +298,16 @@ function loadSavedStatus(elements) {
 
         // Load Language Inputs and last URL first
         let currentFullLangName = 'Spanish'; // Default value
+        let currentBaseLangName = null; // NEW: Store Base Language Name
         if (data.last_input) {
              const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
              currentFullLangName = fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1);
              elements.targetLanguageInput.value = currentFullLangName;
              elements.subtitleUrlInput.value = data.last_input.url || '';
+        }
+        // NEW: Get Base Language Name from saved status if available
+        if (status && status.baseLang) {
+             currentBaseLangName = getLanguageName(status.baseLang);
         }
 
         if (status && status.progress > 0) {
@@ -329,7 +335,14 @@ function loadSavedStatus(elements) {
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
             } else {
                 // Process finished (progress == 100)
-                // Status Box is handled below by neutral state logic, as is URL status
+                
+                // MODIFICATION: SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
+                if (currentBaseLangName) {
+                    elements.urlStatusText.textContent = `${currentBaseLangName} subtitles ready to translate!`;
+                } else {
+                    // Fallback if base language detection somehow failed entirely
+                    elements.urlStatusText.textContent = "Subtitle URL accepted. Ready to generate.";
+                }
                 
                 elements.confirmButton.disabled = false; // Allow re-run
                 elements.targetLanguageInput.disabled = false; 
@@ -360,7 +373,9 @@ function loadSavedStatus(elements) {
              const urlValue = elements.subtitleUrlInput.value.trim();
              if (urlValue && urlValue.startsWith('http')) {
                  // URL ready
-                 elements.urlStatusText.textContent = `x subtitles ready to translate!`;
+                 
+                 // MODIFICATION: Display simple "Ready" status instead of target language name
+                 elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
                  elements.confirmButton.disabled = false;
                  
                  // If there's a URL-related error message, show it
@@ -623,6 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 3. Load previous status and set initial UI state
+    // FIX APPLIED HERE: loadSavedStatus is now called only after 'elements' is defined.
     loadSavedStatus(elements);
 
     // --- Final, Robust Listener Attachment ---
@@ -669,8 +685,8 @@ document.addEventListener('DOMContentLoaded', () => {
          const fullLangName = getLanguageName(targetLang);
 
          if (isUrlValid) {
-             // MODIFICATION: Include target language in the "ready" status
-             elements.urlStatusText.textContent = `Subtitle URL ready. Target Language: ${fullLangName}`;
+             // MODIFICATION: Use the simplified "accepted" status here
+             elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
          } else {
               // MODIFICATION: Set to "Waiting" status
               elements.urlStatusText.textContent = "Waiting for URL...";
@@ -688,11 +704,9 @@ document.addEventListener('DOMContentLoaded', () => {
          const isUrlValid = (url && url.startsWith('http'));
          
          if (isUrlValid) {
-             // Update the "ready" message with the new language name
-             const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
-             const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
-             const fullLangName = getLanguageName(targetLang);
-             elements.urlStatusText.textContent = `Subtitle URL ready. Target Language: ${fullLangName}`;
+             // MODIFICATION: Do NOT update the "ready" message with the target language.
+             // Keep it simple when the URL is ready, as per the new requirement.
+             elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
          }
          // Clear language status text on new input
          elements.langStatusText.textContent = "";
@@ -755,17 +769,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 
                 // Re-enable settings button based on style selection
-                chrome.storage.local.get(['subtitle_style_pref'], (data) => {
+                chrome.storage.local.get(['subtitle_style_pref', 'ls_status'], (data) => {
                      elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
+                     
+                     // MODIFICATION: SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
+                     const baseLangCode = data.ls_status?.baseLang;
+                     if (baseLangCode) {
+                         const baseLangName = getLanguageName(baseLangCode);
+                         elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
+                     } else {
+                         elements.urlStatusText.textContent = "Subtitle URL accepted. Ready to generate.";
+                     }
                 });
-
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
                 
-                // Restore URL status to ready
-                const fullLangName = getLanguageName(elements.targetLanguageInput.value.trim().toLowerCase());
-                elements.urlStatusText.textContent = `Subtitle URL ready. Target Language: ${fullLangName}`;
                 
             } else if (progress > 0) {
                 // --- PROGRESS 0% < x < 100% STATE (RUNNING) ---
@@ -784,7 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // --- PROGRESS 0% STATE (ERROR/NEUTRAL) ---
                 const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
-                const fullLangName = getLanguageName(elements.targetLanguageInput.value.trim().toLowerCase());
                 
                 elements.confirmButton.disabled = !isUrlValid;
 
@@ -793,7 +811,8 @@ document.addEventListener('DOMContentLoaded', () => {
                      // If it's a non-URL/Lang error (like API missing), the main status is set.
                      // If it's just a neutral state, restore URL status to ready.
                      if (!elements.urlStatusText.textContent && !elements.langStatusText.textContent && !elements.statusText.textContent) {
-                         elements.urlStatusText.textContent = `Subtitle URL ready. Target Language: ${fullLangName}`;
+                         // MODIFICATION: Restore the simplified accepted status
+                         elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
                      }
                 } else {
                     elements.urlStatusText.textContent = "Waiting for URL...";

@@ -32,7 +32,8 @@ function sendStatusUpdate(message, progress, url = null, route = 'main') {
         'ls_status': { 
             message: message,
             progress: progress,
-            baseLang: progress < 100 ? subtitleLanguages.base : null,
+            // MODIFIED: Always save the base language code if available
+            baseLang: subtitleLanguages.base, 
             targetLang: progress < 100 ? subtitleLanguages.target : null,
             url: progress < 100 ? url : null 
         }
