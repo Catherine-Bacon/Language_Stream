@@ -401,13 +401,9 @@ async function translateAllSubtitles(url) {
         const sub = criticalBatch[index];
         let translatedText;
         
-        // Skip lines that are sound effects
-        if (sub.text.match(/^\[.*\]$/)) {
-             translatedText = sub.text;
-        } else {
-             // Execute translation SEQUENTIALLY
-             translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
-        }
+        // --- MODIFICATION: REMOVED IF-BLOCK. ALL TEXT IS TRANSLATED. ---
+        translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        // -------------------------------------------------------------------------
         
         // Update the original subtitle object directly
         // NOTE: We update the object in the main 'parsedSubtitles' array as 'sub' is a reference
@@ -432,13 +428,9 @@ async function translateAllSubtitles(url) {
     const translationPromises = concurrentBatch.map(async (sub, index) => {
         let translatedText;
         
-        // Skip lines that are just sound effects
-        if (sub.text.match(/^\[.*\]$/)) {
-             translatedText = sub.text;
-        } else {
-             // 2.2. Execute translation call (which returns a Promise)
-             translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
-        }
+        // --- MODIFICATION: REMOVED IF-BLOCK. ALL TEXT IS TRANSLATED. ---
+        translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        // -------------------------------------------------------------------------
         
         // 2.3. Update the subtitle object
         sub.translatedText = translatedText;
