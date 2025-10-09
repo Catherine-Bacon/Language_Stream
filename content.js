@@ -24,7 +24,8 @@ var TICK_RATE = TICK_RATE || 10000000;
 
 // ----------------------------------------------------------------------
 // --- GLOBAL LANGUAGE MAP (Minimal set for helper function) ---
-const LANGUAGE_MAP_CONTENT = {
+// FIX: Changed const to var to prevent "Identifier 'LANGUAGE_MAP_CONTENT' has already been declared" error
+var LANGUAGE_MAP_CONTENT = {
     "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "korean": "ko", "latin": "la", "dutch / flemish": "nl", "norwegian": "no", "polish": "pl", "portuguese": "pt", "romanian / moldavian / moldovan": "ro", "russian": "ru", "swedish": "sv", "thai": "th", "turkish": "tr", "ukrainian": "uk", "vietnamese": "vi", "chinese": "zh"
     // Truncated list for brevity and assuming core languages are sufficient for this utility
 };
