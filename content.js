@@ -23,7 +23,7 @@ var currentTranslator = currentTranslator || null;
 var TICK_RATE = TICK_RATE || 10000000; 
 
 // ----------------------------------------------------------------------
-// --- NEW SECTION: STYLE HELPER FUNCTIONS (Moved to the top to fix ReferenceError) ---
+// --- NEW SECTION: STYLE HELPER FUNCTIONS ---
 // ----------------------------------------------------------------------
 
 // --- NEW helper function to convert the string preference to a CSS 'em' value ---
@@ -394,86 +394,11 @@ function makeDraggable(element) {
 }
 
 
-// --- Translation Logic (REWRITTEN FOR NATIVE API) ---
+// ----------------------------------------------------------------------
+// --- START TRANSLATION/ALIGNMENT LOGIC (Moved up to fix ReferenceError) ---
+// ----------------------------------------------------------------------
 
 var currentTranslator = currentTranslator || null; 
-
-/**
- * Translates the given text using the native Chrome Translator API.
- * Handles Translator instance creation and model download monitoring.
- * * MODIFIED: This function now returns a structured object to simulate
- * word-for-word translation data when colour coding is active.
- */
-async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
-    const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
-    if (translationCache[cacheKey]) {
-        // Return the cached result (which is now the structured object)
-        return translationCache[cacheKey];
-    }
-    
-    // Check if the translator needs to be created or updated
-    if (!currentTranslator || 
-        currentTranslator.sourceLanguage !== sourceLang || 
-        currentTranslator.targetLanguage !== targetLang) {
-
-        if (!('Translator' in self)) {
-            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
-            return { raw: "(Translation Failed - API Missing)", structured: null };
-        }
-        
-        try {
-             // 1. Create the new translator instance, monitoring download progress
-             currentTranslator = await Translator.create({
-                sourceLanguage: sourceLang,
-                targetLanguage: targetLang,
-                monitor(m) {
-                    m.addEventListener('downloadprogress', (e) => {
-                        const loaded = Math.floor(e.loaded * 100);
-                        // PROGRESS UPDATE: Model download is 30% to 60%
-                        const overallProgress = 30 + Math.floor(loaded * 0.3); 
-                        sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
-                    });
-                }
-            });
-            // PROGRESS UPDATE: Model ready just before translation loop starts
-            sendStatusUpdate("Translator model ready. Starting translation...", 60); 
-
-        } catch (e) {
-            console.error("Native Translator API failed to create:", e);
-            sendStatusUpdate(`Translation failed during model setup: ${e.message}`, 0);
-            return { raw: "(Translation Failed - Model Setup Error)", structured: null };
-        }
-    }
-
-    // 2. Perform the translation
-    try {
-        const translatedText = await currentTranslator.translate(textToTranslate);
-        if (translatedText) {
-            const rawText = translatedText.trim();
-            
-            // 3. --- NEW: SIMULATE WORD-FOR-WORD STRUCTURE IF VOCAB CODING IS ACTIVE ---
-            if (colourCodingPref === 'vocabulary') {
-                const simulatedStructure = simulateVocabularyCoding(textToTranslate, rawText);
-                const result = { raw: rawText, structured: simulatedStructure };
-                translationCache[cacheKey] = result;
-                return result;
-            }
-            // --------------------------------------------------------------------------
-            
-            // If not colour coding, just cache and return the raw string (for sync loop compatibility)
-            const result = { raw: rawText, structured: null };
-            translationCache[cacheKey] = result;
-            return result;
-
-        }
-        throw new Error("Empty translation result.");
-
-    } catch (e) {
-        console.error(`Native translation failed for: "${textToTranslate}"`, e);
-        return { raw: `(Translation Failed - Unavailable)`, structured: null };
-    }
-}
-
 
 /**
  * UPDATED: SIMULATION FUNCTION FOR VOCABULARY CODING.
@@ -599,6 +524,194 @@ function simulateVocabularyCoding(baseText, translatedText) {
     };
 }
 
+/**
+ * Translates the given text using the native Chrome Translator API.
+ * Handles Translator instance creation and model download monitoring.
+ */
+async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
+    const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
+    if (translationCache[cacheKey]) {
+        // Return the cached result (which is now the structured object)
+        return translationCache[cacheKey];
+    }
+    
+    // Check if the translator needs to be created or updated
+    if (!currentTranslator || 
+        currentTranslator.sourceLanguage !== sourceLang || 
+        currentTranslator.targetLanguage !== targetLang) {
+
+        if (!('Translator' in self)) {
+            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
+            return { raw: "(Translation Failed - API Missing)", structured: null };
+        }
+        
+        try {
+             // 1. Create the new translator instance, monitoring download progress
+             currentTranslator = await Translator.create({
+                sourceLanguage: sourceLang,
+                targetLanguage: targetLang,
+                monitor(m) {
+                    m.addEventListener('downloadprogress', (e) => {
+                        const loaded = Math.floor(e.loaded * 100);
+                        // PROGRESS UPDATE: Model download is 30% to 60%
+                        const overallProgress = 30 + Math.floor(loaded * 0.3); 
+                        sendStatusUpdate(`Downloading model: ${loaded}% complete.`, overallProgress);
+                    });
+                }
+            });
+            // PROGRESS UPDATE: Model ready just before translation loop starts
+            sendStatusUpdate("Translator model ready. Starting translation...", 60); 
+
+        } catch (e) {
+            console.error("Native Translator API failed to create:", e);
+            sendStatusUpdate(`Translation failed during model setup: ${e.message}`, 0);
+            return { raw: "(Translation Failed - Model Setup Error)", structured: null };
+        }
+    }
+
+    // 2. Perform the translation
+    try {
+        const translatedText = await currentTranslator.translate(textToTranslate);
+        if (translatedText) {
+            const rawText = translatedText.trim();
+            
+            // 3. --- NEW: SIMULATE WORD-FOR-WORD STRUCTURE IF VOCAB CODING IS ACTIVE ---
+            if (colourCodingPref === 'vocabulary') {
+                const simulatedStructure = simulateVocabularyCoding(textToTranslate, rawText);
+                const result = { raw: rawText, structured: simulatedStructure };
+                translationCache[cacheKey] = result;
+                return result;
+            }
+            // --------------------------------------------------------------------------
+            
+            // If not colour coding, just cache and return the raw string (for sync loop compatibility)
+            const result = { raw: rawText, structured: null };
+            translationCache[cacheKey] = result;
+            return result;
+
+        }
+        throw new Error("Empty translation result.");
+
+    } catch (e) {
+        console.error(`Native translation failed for: "${textToTranslate}"`, e);
+        return { raw: `(Translation Failed - Unavailable)`, structured: null };
+    }
+}
+
+
+/**
+ * Runs CONCURRENT translation for all parsed subtitles, prioritizing the first 30 lines.
+ */
+async function translateAllSubtitles(url) {
+    const totalSubs = parsedSubtitles.length;
+    const baseLang = subtitleLanguages.base;
+    const targetLang = subtitleLanguages.target;
+    
+    // Define the critical, prioritized batch size
+    const CRITICAL_BATCH_SIZE = 30; 
+    
+    // Split the subtitles into two groups
+    const criticalBatch = parsedSubtitles.slice(0, CRITICAL_BATCH_SIZE);
+    const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
+
+    // Initial progress before starting translation is 60%
+    const START_PROGRESS = 60;
+    const CRITICAL_BATCH_WEIGHT = 10; // Allocate 10% of the progress bar to the first batch (60% to 70%)
+    const CONCURRENT_BATCH_WEIGHT = 30; // Allocate 30% to the rest (70% to 100%)
+
+
+    // ----------------------------------------------------------------------
+    // 1. PHASE 1: SEQUENTIAL TRANSLATION (CRITICAL BATCH) - 60% to 70%
+    // ----------------------------------------------------------------------
+    console.log(`C6.1. Starting sequential translation of the first ${criticalBatch.length} lines.`);
+    sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
+
+    for (let index = 0; index < criticalBatch.length; index++) {
+        // --- CANCELLATION CHECK 1: BEFORE EACH SEQUENTIAL CALL ---
+        if (isCancelled) {
+             console.log("Translation aborted by user cancellation.");
+             throw new Error("ABORT_TRANSLATION");
+        }
+        // --------------------------------------------------------
+        
+        const sub = criticalBatch[index];
+        let translationResult;
+        
+        // --- MODIFICATION: The result is now the structured object { raw: string, structured: object } ---
+        translationResult = await translateSubtitle(sub.text, baseLang, targetLang);
+        // -------------------------------------------------------------------------
+        
+        // Update the original subtitle object directly
+        sub.translatedText = translationResult; // Store the entire result object
+        
+        // Update progress for the critical batch (60% to 70%)
+        const progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_WEIGHT);
+        sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
+    }
+    
+    // Ensure we reach the boundary progress before starting the main batch
+    const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_WEIGHT; // 70%
+    sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
+
+
+    // ----------------------------------------------------------------------
+    // 2. PHASE 2: CONCURRENT TRANSLATION (REMAINING BATCH) - 70% to 100%
+    // ----------------------------------------------------------------------
+    console.log(`C6.2. Starting concurrent translation of the remaining ${concurrentBatch.length} lines.`);
+
+    // 2.1. Create an array of Promises for the concurrent batch translation jobs
+    const translationPromises = concurrentBatch.map(async (sub, index) => {
+        
+        // --- CANCELLATION CHECK 2: BEFORE EACH CONCURRENT CALL (Inside the map loop) ---
+        if (isCancelled) {
+             // Returning a promise that resolves immediately with an error tag
+             return Promise.resolve("ABORTED"); 
+        }
+        // -------------------------------------------------------------------------------
+
+        let translationResult;
+        
+        // --- MODIFICATION: The result is now the structured object { raw: string, structured: object } ---
+        translationResult = await translateSubtitle(sub.text, baseLang, targetLang);
+        // -------------------------------------------------------------------------
+        
+        // 2.3. Update the subtitle object
+        sub.translatedText = translationResult; // Store the entire result object
+
+        // 2.4. Update the progress status *periodically*
+        if (index % 5 === 0 || index === concurrentBatch.length - 1) { 
+             // PROGRESS CALCULATION: Range 70% to 100%
+             const progress = CONCURRENT_START_PROGRESS + Math.floor(((index + 1) / concurrentBatch.length) * CONCURRENT_BATCH_WEIGHT); 
+             if (progress < 100) { 
+                 // Send a message showing total lines ready (critical + concurrent index)
+                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
+                 sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url);
+             }
+        }
+
+        return translationResult; // Return value is not strictly used, but keeps Promise.all happy
+    });
+
+    // 2.5. Wait for all Promises (translations) to resolve concurrently
+    // We expect some promises to resolve with "ABORTED" if cancelled
+    await Promise.all(translationPromises);
+    
+    // ----------------------------------------------------------------------
+    // 3. PHASE 3: FINAL COMPLETION - 100%
+    // ----------------------------------------------------------------------
+    
+    // Only send 100% update if not cancelled
+    if (!isCancelled) {
+        // Final 100% status update
+        sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
+        console.log("Native translation process finished. All subtitles are ready.");
+    } else {
+        // MODIFICATION: Do NOT send "Subtitle generation cancelled by user" message.
+        // The popup is responsible for displaying a neutral status on cancellation.
+        console.log("Translation finished, but process was marked as cancelled. No 100% status sent.");
+    }
+}
+
 
 /**
  * MODIFIED: Generates the HTML for a subtitle line, applying color coding if set to 'vocabulary'.
@@ -630,188 +743,9 @@ function generateCodedHtml(segmentsCoded, spanBaseCss, defaultTextColor) {
         return `<span style="${standardSpanCss}">${rawText.replace(/\s+/g, ' ').trim()}</span>`;
     }
 }
-
-// ---------------------------------------------------------------------------------
-
-function startSubtitleSync() {
-    const videoElement = getNetflixVideoElement();
-
-    if (!videoElement) {
-        console.warn("Video element not found. Retrying sync setup in 1 second...");
-        setTimeout(startSubtitleSync, 1000);
-        return;
-    }
-
-    if (syncInterval) {
-        clearInterval(syncInterval);
-    }
-    
-    var currentSubtitleIndex = -1;
-    var lastTime = 0;
-    
-    if (floatingWindow) {
-        floatingWindow.style.display = 'block';
-    }
-
-    // Determine the styles once at the start of the loop setup
-    const currentFontSizeEm = getFontSizeEm(fontSizeEm);
-    const currentFontShadow = getFontShadowCss(fontShadowPref);
-    const currentFontColor = getFontColor(fontColorPref); // This is the user-selected text color.
-    // NEW: Get span-specific background color
-    const currentSpanBgColor = getSpanBackgroundColor(backgroundColorPref);
-
-
-    // Update the floating window's text shadow (color is managed by inner spans when coding)
-    if (floatingWindow) {
-        floatingWindow.style.textShadow = currentFontShadow;
-        // NOTE: We leave floatingWindow.style.color at its default/user-selected value, 
-        // but the individual word spans will override it when colour coding is active.
-    }
-    
-    // NEW: Base CSS for the span tag (used for background, padding, font size, etc.)
-    const spanBaseCss = `
-        display: inline-block; 
-        padding: 0 0.5em; 
-        border-radius: 0.2em;
-        background-color: ${currentSpanBgColor};
-        font-size: ${currentFontSizeEm}; 
-        /* The default font color is NOT set here if coding is active, 
-           as it will be set by generateCodedHtml */
-    `;
-
-
-    const syncLoop = () => {
-        const currentTime = videoElement.currentTime;
-        const isPaused = videoElement.paused;
-
-        if (isPaused && currentTime === lastTime) {
-            return;
-        }
-
-        let newSubtitle = null;
-        let newIndex = -1;
-        let subtitleFound = false;
-
-        // Efficient search: Check near current index
-        for (let i = Math.max(0, currentSubtitleIndex - 2); i < Math.min(currentSubtitleIndex + 4, parsedSubtitles.length); i++) {
-             const sub = parsedSubtitles[i];
-             if (i >= 0 && sub) {
-                 if (currentTime >= sub.begin && currentTime < sub.end) {
-                     newSubtitle = sub;
-                     newIndex = i;
-                     subtitleFound = true;
-                     break;
-                 }
-             }
-        }
-
-        // Fallback search (if jump occurred)
-        if (!subtitleFound) {
-            for (let i = 0; i < parsedSubtitles.length; i++) {
-                const sub = parsedSubtitles[i];
-                if (currentTime >= sub.begin && currentTime < sub.end) {
-                    newSubtitle = sub;
-                    newIndex = i;
-                    subtitleFound = true;
-                    break;
-                }
-            }
-        }
-        
-        lastTime = currentTime;
-
-        // Update the display
-        if (subtitleFound) {
-            if (newIndex !== currentSubtitleIndex) {
-                
-                // --- MODIFICATION START: EXTRACTING TRANSLATION DATA ---
-                const translationResult = newSubtitle.translatedText; 
-                
-                // Get the raw strings for the fallback
-                const baseText = newSubtitle.text;
-                const translatedText = translationResult ? translationResult.raw : null;
-
-                // Get the structured data for coding
-                const structuredData = translationResult ? translationResult.structured : null;
-                
-                let innerHTML = '';
-                
-                if (translatedText) {
-                    // --- APPLY COLOUR CODING OR FALLBACK TO STANDARD STYLE ---
-                    
-                    const isVocabCoding = colourCodingPref === 'vocabulary' && structuredData;
-                    
-                    let baseHtml = '';
-                    let translatedHtml = '';
-
-                    // The logic here is simplified because generateCodedHtml now handles segmentation.
-                    // When 'vocabulary' is NOT selected, we still need to provide a structured list 
-                    // to generateCodedHtml so it can fall back to the raw text, which we do below.
-                    
-                    // Create a pseudo-structured data object for non-vocabulary modes, 
-                    // so generateCodedHtml can fall back to the whole text.
-                    const fallbackSegments = [{ text: baseText, color: currentFontColor }];
-                    const fallbackTranslatedSegments = [{ text: translatedText, color: currentFontColor }];
-                    
-                    const finalBaseSegments = structuredData?.base || fallbackSegments;
-                    const finalTranslatedSegments = structuredData?.translated || fallbackTranslatedSegments;
-                    
-                    // Generate HTML using the new segment-based function
-                    baseHtml = generateCodedHtml(finalBaseSegments, spanBaseCss, currentFontColor);
-                    // Add opacity to translated line by styling the outer span
-                    translatedHtml = generateCodedHtml(finalTranslatedSegments, `${spanBaseCss} opacity: 1.0;`, currentFontColor);
-                    
-
-                    // Construct final innerHTML
-                     if (isTranslatedOnly) {
-                        innerHTML = translatedHtml;
-                    } else {
-                        innerHTML = `${baseHtml}<br>${translatedHtml}`;
-                    }
-                    
-                } else {
-                     // If translation is NOT complete, show placeholder
-                     
-                     // Use the user's default text color for the base text and placeholder
-                     const standardSpanCss = `${spanBaseCss} color: ${currentFontColor};`;
-
-                     if (isTranslatedOnly) {
-                         innerHTML = ''; // If translated only, show nothing when not ready
-                     } else {
-                         // Show base text, and a simple loading indicator
-                         innerHTML = `
-                             <span class="base-sub" style="${standardSpanCss}">${baseText}</span><br>
-                             <span class="translated-sub" style="opacity: 0.6; ${standardSpanCss}">
-                                 (Translating...)
-                             </span>
-                         `;
-                     }
-                }
-                // --- MODIFICATION END ---
-                
-                floatingWindow.innerHTML = innerHTML;
-                currentSubtitleIndex = newIndex;
-            }
-        } else {
-            // No subtitle active (gap in time)
-            if (currentSubtitleIndex !== -1) {
-                floatingWindow.innerHTML = '';
-                currentSubtitleIndex = -1;
-            }
-        }
-    };
-    
-    syncInterval = setInterval(syncLoop, 50); 
-    console.log("Subtitle sync loop started.");
-}
-
-function disableNetflixSubObserver() {
-    // Placeholder to disable the native subtitle observer, if it was defined elsewhere
-    if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
-        subtitleObserver.disconnect();
-        console.log("Netflix native subtitle observer disconnected.");
-    }
-}
+// ----------------------------------------------------------------------
+// --- END TRANSLATION/ALIGNMENT LOGIC ---
+// ----------------------------------------------------------------------
 
 
 // --- Message Listener for Popup Communication ---
@@ -985,7 +919,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 url: tempUrl // Send URL back for comparison
             }).catch(e => {
                 if (!e.message.includes('Receiving end does not exist')) {
-                     console.warn("Could not send detection result message:", e);
+                     console.warn("Could could not send detection result message:", e);
                 }
             });
             
