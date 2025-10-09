@@ -371,52 +371,100 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
 
 /**
- * Runs CONCURRENT translation for all parsed subtitles to drastically increase speed.
+ * Runs CONCURRENT translation for all parsed subtitles, prioritizing the first 30 lines.
  */
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
+    
+    // Define the critical, prioritized batch size
+    const CRITICAL_BATCH_SIZE = 30; 
+    
+    // Split the subtitles into two groups
+    const criticalBatch = parsedSubtitles.slice(0, CRITICAL_BATCH_SIZE);
+    const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
 
-    // 1. Create an array of Promises for all translation jobs
-    const translationPromises = parsedSubtitles.map(async (sub, index) => {
+    // Initial progress before starting translation is 60%
+    const START_PROGRESS = 60;
+    const CRITICAL_BATCH_WEIGHT = 10; // Allocate 10% of the progress bar to the first batch (60% to 70%)
+    const CONCURRENT_BATCH_WEIGHT = 30; // Allocate 30% to the rest (70% to 100%)
+
+
+    // ----------------------------------------------------------------------
+    // 1. PHASE 1: SEQUENTIAL TRANSLATION (CRITICAL BATCH) - 60% to 70%
+    // ----------------------------------------------------------------------
+    console.log(`C6.1. Starting sequential translation of the first ${criticalBatch.length} lines.`);
+    sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
+
+    for (let index = 0; index < criticalBatch.length; index++) {
+        const sub = criticalBatch[index];
         let translatedText;
         
-        // Skip lines that are just sound effects (e.g., [Music], [Sigh])
+        // Skip lines that are sound effects
         if (sub.text.match(/^\[.*\]$/)) {
              translatedText = sub.text;
         } else {
-             // 2. Execute translation call (which returns a Promise)
+             // Execute translation SEQUENTIALLY
              translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         }
         
-        // Update the progress status *periodically* since the loop isn't sequential
-        // FIX: Smoother update, checking every 5 lines
-        if (index % 5 === 0 || index === totalSubs - 1) { 
-             // PROGRESS CALCULATION: Range 60% to 100%
-             const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
+        // Update the original subtitle object directly
+        // NOTE: We update the object in the main 'parsedSubtitles' array as 'sub' is a reference
+        sub.translatedText = translatedText; 
+        
+        // Update progress for the critical batch (60% to 70%)
+        const progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_WEIGHT);
+        sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
+    }
+    
+    // Ensure we reach the boundary progress before starting the main batch
+    const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_WEIGHT; // 70%
+    sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
+
+
+    // ----------------------------------------------------------------------
+    // 2. PHASE 2: CONCURRENT TRANSLATION (REMAINING BATCH) - 70% to 100%
+    // ----------------------------------------------------------------------
+    console.log(`C6.2. Starting concurrent translation of the remaining ${concurrentBatch.length} lines.`);
+
+    // 2.1. Create an array of Promises for the concurrent batch translation jobs
+    const translationPromises = concurrentBatch.map(async (sub, index) => {
+        let translatedText;
+        
+        // Skip lines that are just sound effects
+        if (sub.text.match(/^\[.*\]$/)) {
+             translatedText = sub.text;
+        } else {
+             // 2.2. Execute translation call (which returns a Promise)
+             translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        }
+        
+        // 2.3. Update the subtitle object
+        sub.translatedText = translatedText;
+
+        // 2.4. Update the progress status *periodically*
+        if (index % 5 === 0 || index === concurrentBatch.length - 1) { 
+             // PROGRESS CALCULATION: Range 70% to 100%
+             const progress = CONCURRENT_START_PROGRESS + Math.floor(((index + 1) / concurrentBatch.length) * CONCURRENT_BATCH_WEIGHT); 
              if (progress < 100) { 
-                 sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
+                 // Send a message showing total lines ready (critical + concurrent index)
+                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
+                 sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url);
              }
         }
 
-        return translatedText;
+        return translatedText; // Return value is not strictly used, but keeps Promise.all happy
     });
 
-    // 3. Wait for all Promises (translations) to resolve concurrently
-    sendStatusUpdate(`Starting concurrent translation of ${totalSubs} lines...`, 60, url);
-    const results = await Promise.all(translationPromises);
+    // 2.5. Wait for all Promises (translations) to resolve concurrently
+    await Promise.all(translationPromises);
     
-    // 4. Update the original subtitle objects with the results
-    results.forEach((translatedText, index) => {
-        parsedSubtitles[index].translatedText = translatedText;
-    });
-
-    // -------------------------------------------------------------------------------------
-    // ⭐ CRITICAL FIX: Move the final 100% status update to AFTER the subtitle objects are 
-    // updated. This ensures the sync loop has the translated text available when the 
-    // status is sent.
-    // -------------------------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // 3. PHASE 3: FINAL COMPLETION - 100%
+    // ----------------------------------------------------------------------
+    
+    // Final 100% status update
     sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
     console.log("Native translation process finished. All subtitles are ready.");
 }
