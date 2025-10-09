@@ -243,7 +243,7 @@ function openCustomSettingsWindow() {
         url: 'custom_settings.html', // NEW FILE
         type: 'popup',
         width: 350,
-        height: 380, // MODIFIED: Adjusted height to be smaller
+        height: 300, // MODIFIED: Adjusted height to be smaller
         focused: true
     });
 }

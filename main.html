@@ -111,9 +111,11 @@
           margin: 0;
       }
       
+      /* MODIFIED: Standard Radio Group for Subtitle Mode */
       .radio-group {
         display: flex;
-        justify-content: flex-start;
+        justify-content: center; /* MODIFIED: Center horizontally */
+        align-items: center;     /* NEW: Center vertically */
         gap: 10px; 
         margin-bottom: 0; 
         padding: 5px 5px; 
@@ -121,6 +123,7 @@
         border-radius: 4px;
         flex-grow: 1; 
         flex-wrap: wrap; 
+        height: 38px; /* MODIFIED: Set fixed height to match Style Group minus button padding */
       }
       .radio-group label {
         display: flex;
@@ -136,28 +139,38 @@
       
       /* New style for the Custom Settings Button */
       #customSettingsButton {
-          width: auto;
-          padding: 4px 8px;
+          width: 30px; /* MODIFIED: Fixed width for cog button */
+          height: 30px; /* MODIFIED: Fixed height for cog button */
+          padding: 0; /* REMOVED padding */
           margin-left: 10px;
           background-color: #555;
+          line-height: 1; /* Center text/icon vertically */
+          font-size: 1.1em;
+          border: none; /* Removed border */
+          flex-shrink: 0;
       }
       #customSettingsButton:hover {
           background-color: #777;
       }
 
-      /* Style for the container holding the radio buttons and the button */
+      /* MODIFIED: Style for the container holding the style radio buttons and the button */
       .style-selection-group {
           display: flex;
           align-items: center;
+          /* MODIFIED: Set width to match the simple radio-group.
+             We make the radio section flex-grow and the button flex-shrink to manage space. */
           width: 100%;
           border: 1px solid #ddd;
           border-radius: 4px;
-          padding: 5px 5px; 
+          padding: 3px 5px; /* MODIFIED: Reduced vertical padding to keep it tight */
       }
       .style-radio-group {
           display: flex;
           gap: 10px;
-          flex-grow: 1;
+          flex-grow: 1; /* Takes up all available space */
+          justify-content: center; /* MODIFIED: Center the radio options */
+          align-items: center; /* NEW: Center vertically */
+          min-height: 30px; /* Ensure minimum height */
       }
       .style-radio-group label {
           display: flex;
