@@ -13,6 +13,8 @@ var backgroundColorPref = 'black'; // <--- NEW: Background color preference
 var fontShadowPref = 'black_shadow'; // <--- NEW: Font shadow preference
 var fontColorPref = 'white'; // <--- NEW: Font color preference
 
+var colourCodingPref = 'none'; // <--- NEW: Colour Coding preference
+
 var isProcessing = false; // <--- NEW: Flag to prevent repeated execution
 var isCancelled = false; // <--- NEW: Cancellation flag
 
@@ -337,10 +339,13 @@ var currentTranslator = currentTranslator || null;
 /**
  * Translates the given text using the native Chrome Translator API.
  * Handles Translator instance creation and model download monitoring.
+ * * MODIFIED: This function now returns a structured object to simulate
+ * word-for-word translation data when colour coding is active.
  */
 async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
     if (translationCache[cacheKey]) {
+        // Return the cached result (which is now the structured object)
         return translationCache[cacheKey];
     }
     
@@ -350,9 +355,8 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
         currentTranslator.targetLanguage !== targetLang) {
 
         if (!('Translator' in self)) {
-            // Feature detection check
             sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
-            return "(Translation Failed - API Missing)";
+            return { raw: "(Translation Failed - API Missing)", structured: null };
         }
         
         try {
@@ -375,7 +379,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
         } catch (e) {
             console.error("Native Translator API failed to create:", e);
             sendStatusUpdate(`Translation failed during model setup: ${e.message}`, 0);
-            return "(Translation Failed - Model Setup Error)";
+            return { raw: "(Translation Failed - Model Setup Error)", structured: null };
         }
     }
 
@@ -383,16 +387,76 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     try {
         const translatedText = await currentTranslator.translate(textToTranslate);
         if (translatedText) {
-            translationCache[cacheKey] = translatedText.trim();
-            return translatedText.trim();
+            const rawText = translatedText.trim();
+            
+            // 3. --- NEW: SIMULATE WORD-FOR-WORD STRUCTURE IF VOCAB CODING IS ACTIVE ---
+            if (colourCodingPref === 'vocabulary') {
+                const simulatedStructure = simulateVocabularyCoding(textToTranslate, rawText);
+                const result = { raw: rawText, structured: simulatedStructure };
+                translationCache[cacheKey] = result;
+                return result;
+            }
+            // --------------------------------------------------------------------------
+            
+            // If not colour coding, just cache and return the raw string (for sync loop compatibility)
+            const result = { raw: rawText, structured: null };
+            translationCache[cacheKey] = result;
+            return result;
+
         }
         throw new Error("Empty translation result.");
 
     } catch (e) {
         console.error(`Native translation failed for: "${textToTranslate}"`, e);
-        // This usually means the API or language pair is unavailable.
-        return `(Translation Failed - Unavailable)`;
+        return { raw: `(Translation Failed - Unavailable)`, structured: null };
     }
+}
+
+
+/**
+ * NEW: SIMULATION FUNCTION FOR VOCABULARY CODING.
+ * In a real-world scenario, the `translateSubtitle` function would receive this
+ * structure directly from a more advanced NMT API.
+ */
+function simulateVocabularyCoding(baseText, translatedText) {
+    // 1. Split both strings into words.
+    const baseWords = baseText.trim().split(/\s+/).filter(w => w.length > 0);
+    const translatedWords = translatedText.trim().split(/\s+/).filter(w => w.length > 0);
+    
+    // 2. Define a set of colours to cycle through
+    // Using distinct, accessible colours (e.g., Red, Green, Blue, Purple, Orange)
+    const colours = ['#FF6347', '#3CB371', '#4169E1', '#9370DB', '#FFA500']; 
+    
+    // 3. Simulate a simple 1:1 mapping for demonstration (often not true in real translation)
+    // We'll map base word index to translated word index, using the minimum length to avoid errors
+    const minLength = Math.min(baseWords.length, translatedWords.length);
+    
+    const baseCoded = [];
+    const translatedCoded = [];
+    
+    // Assign colours based on the word index (simulating correspondence)
+    for (let i = 0; i < baseWords.length; i++) {
+        const colour = colours[i % colours.length];
+        
+        // Simulating 1:1 match for words up to minLength
+        if (i < minLength) {
+             baseCoded.push({ word: baseWords[i], color: colour });
+             translatedCoded.push({ word: translatedWords[i], color: colour });
+        } else if (i < baseWords.length) {
+             // Handle extra base words (e.g., if target translation is shorter)
+             baseCoded.push({ word: baseWords[i], color: getFontColor(fontColorPref) }); // Use default text color
+        }
+    }
+    
+    // Handle extra translated words (e.g., if target translation is longer)
+    for (let i = minLength; i < translatedWords.length; i++) {
+        translatedCoded.push({ word: translatedWords[i], color: getFontColor(fontColorPref) }); // Use default text color
+    }
+    
+    return {
+        base: baseCoded,
+        translated: translatedCoded
+    };
 }
 
 
@@ -434,14 +498,14 @@ async function translateAllSubtitles(url) {
         // --------------------------------------------------------
         
         const sub = criticalBatch[index];
-        let translatedText;
+        let translationResult;
         
-        // --- MODIFICATION: REMOVED IF-BLOCK. ALL TEXT IS TRANSLATED. ---
-        translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        // --- MODIFICATION: The result is now the structured object { raw: string, structured: object } ---
+        translationResult = await translateSubtitle(sub.text, baseLang, targetLang);
         // -------------------------------------------------------------------------
         
         // Update the original subtitle object directly
-        sub.translatedText = translatedText; 
+        sub.translatedText = translationResult; // Store the entire result object
         
         // Update progress for the critical batch (60% to 70%)
         const progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_WEIGHT);
@@ -468,14 +532,14 @@ async function translateAllSubtitles(url) {
         }
         // -------------------------------------------------------------------------------
 
-        let translatedText;
+        let translationResult;
         
-        // --- MODIFICATION: REMOVED IF-BLOCK. ALL TEXT IS TRANSLATED. ---
-        translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        // --- MODIFICATION: The result is now the structured object { raw: string, structured: object } ---
+        translationResult = await translateSubtitle(sub.text, baseLang, targetLang);
         // -------------------------------------------------------------------------
         
         // 2.3. Update the subtitle object
-        sub.translatedText = translatedText;
+        sub.translatedText = translationResult; // Store the entire result object
 
         // 2.4. Update the progress status *periodically*
         if (index % 5 === 0 || index === concurrentBatch.length - 1) { 
@@ -488,7 +552,7 @@ async function translateAllSubtitles(url) {
              }
         }
 
-        return translatedText; // Return value is not strictly used, but keeps Promise.all happy
+        return translationResult; // Return value is not strictly used, but keeps Promise.all happy
     });
 
     // 2.5. Wait for all Promises (translations) to resolve concurrently
@@ -564,6 +628,26 @@ function getSpanBackgroundColor(preference) {
             return 'transparent'; // No background
     }
 }
+
+/**
+ * NEW: Generates the HTML for a subtitle line, applying color coding if set to 'vocabulary'.
+ */
+function generateCodedHtml(wordsCoded, spanBaseCss, defaultTextColor) {
+    if (colourCodingPref === 'vocabulary' && wordsCoded && wordsCoded.length > 0) {
+        // Build the HTML by wrapping each word in a span with its assigned color
+        return wordsCoded.map(item => {
+            // Use the item's color, or fallback to the default if the simulation missed it
+            const color = item.color || defaultTextColor; 
+            return `<span style="color: ${color};">${item.word}</span>`;
+        }).join(' '); // Join words with a single space
+    } else {
+        // Fallback to the raw text from the first word object, or just a simple string
+        const rawText = wordsCoded.map(item => item.word).join(' ');
+        // Wrap the whole phrase in a span with the base CSS for background/shadow
+        return `<span style="${spanBaseCss}">${rawText}</span>`;
+    }
+}
+
 // ---------------------------------------------------------------------------------
 
 function startSubtitleSync() {
@@ -589,25 +673,27 @@ function startSubtitleSync() {
     // Determine the styles once at the start of the loop setup
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
     const currentFontShadow = getFontShadowCss(fontShadowPref);
-    const currentFontColor = getFontColor(fontColorPref);
+    const currentFontColor = getFontColor(fontColorPref); // This is the user-selected text color.
     // NEW: Get span-specific background color
     const currentSpanBgColor = getSpanBackgroundColor(backgroundColorPref);
 
 
-    // Update the floating window's text shadow and color (window background is transparent)
+    // Update the floating window's text shadow (color is managed by inner spans when coding)
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
-        floatingWindow.style.color = currentFontColor;
+        // NOTE: We leave floatingWindow.style.color at its default/user-selected value, 
+        // but the individual word spans will override it when colour coding is active.
     }
     
-    // NEW: Base CSS for the span tag
+    // NEW: Base CSS for the span tag (used for background, padding, font size, etc.)
     const spanBaseCss = `
         display: inline-block; 
         padding: 0 0.5em; 
         border-radius: 0.2em;
-        background-color: ${currentSpanBgColor};
+        background-color: ${currentSpanBgBgColor};
         font-size: ${currentFontSizeEm}; 
-        color: ${currentFontColor};
+        /* The default font color is NOT set here if coding is active, 
+           as it will be set by generateCodedHtml */
     `;
 
 
@@ -655,46 +741,76 @@ function startSubtitleSync() {
         if (subtitleFound) {
             if (newIndex !== currentSubtitleIndex) {
                 
+                // --- MODIFICATION START: EXTRACTING TRANSLATION DATA ---
+                const translationResult = newSubtitle.translatedText; 
+                
+                // Get the raw strings for the fallback
                 const baseText = newSubtitle.text;
-                const translatedText = newSubtitle.translatedText; // <-- Get the translated text (can be null while translating)
+                const translatedText = translationResult ? translationResult.raw : null;
 
+                // Get the structured data for coding
+                const structuredData = translationResult ? translationResult.structured : null;
+                
                 let innerHTML = '';
                 
-                // --- CRITICAL FIX START: Check if translatedText is available ---
                 if (translatedText) {
-                     if (isTranslatedOnly) {
-                        // Show only the translated text (with background applied to the span)
-                        innerHTML = `
-                            <span class="translated-sub" style="opacity: 1.0; ${spanBaseCss}">
-                                ${translatedText}
-                            </span>
-                        `;
+                    // --- APPLY COLOUR CODING OR FALLBACK TO STANDARD STYLE ---
+                    
+                    const isVocabCoding = colourCodingPref === 'vocabulary' && structuredData;
+                    
+                    let baseHtml = '';
+                    let translatedHtml = '';
+
+                    if (isVocabCoding) {
+                        // A. VOCABULARY CODING ACTIVE (Use structured data to generate word-by-word spans)
+                        
+                        // Base text (use structured data for base)
+                        baseHtml = generateCodedHtml(structuredData.base, '', currentFontColor);
+                        // Translated text (use structured data for translated)
+                        translatedHtml = generateCodedHtml(structuredData.translated, `opacity: 1.0;`, currentFontColor);
+                        
+                        // NOTE: When coding is active, spanBaseCss only contributes background/padding/size
+                        // The color is managed by the inner word spans generated by generateCodedHtml.
+                        
+                        // Wrap the coded HTML in the background/size span
+                        baseHtml = `<span class="base-sub" style="${spanBaseCss}">${baseHtml}</span>`;
+                        translatedHtml = `<span class="translated-sub" style="${spanBaseCss} opacity: 1.0;">${translatedHtml}</span>`;
+
                     } else {
-                        // Show both (background applied to each span)
-                        innerHTML = `
-                            <span class="base-sub" style="${spanBaseCss}">${baseText}</span><br>
-                            <span class="translated-sub" style="opacity: 1.0; ${spanBaseCss}">
-                                ${translatedText}
-                            </span>
-                        `;
+                        // B. STANDARD MODE (No coding or translation structure failed, use full phrase text)
+                        // Apply the full spanBaseCss, including the user's default font color
+                        const standardSpanCss = `${spanBaseCss} color: ${currentFontColor};`;
+                        
+                        baseHtml = `<span class="base-sub" style="${standardSpanCss}">${baseText}</span>`;
+                        translatedHtml = `<span class="translated-sub" style="${standardSpanCss} opacity: 1.0;">${translatedText}</span>`;
                     }
-                } else {
-                     // If translation is NOT complete, show a placeholder or nothing
-                     
+                    
+                    // Construct final innerHTML
                      if (isTranslatedOnly) {
-                         // If the user wants ONLY translated text, but it's not ready, show nothing
-                         innerHTML = ''; 
+                        innerHTML = translatedHtml;
+                    } else {
+                        innerHTML = `${baseHtml}<br>${translatedHtml}`;
+                    }
+                    
+                } else {
+                     // If translation is NOT complete, show placeholder
+                     
+                     // Use the user's default text color for the base text and placeholder
+                     const standardSpanCss = `${spanBaseCss} color: ${currentFontColor};`;
+
+                     if (isTranslatedOnly) {
+                         innerHTML = ''; // If translated only, show nothing when not ready
                      } else {
-                         // Show base text, and a simple loading indicator (with background applied to base span)
+                         // Show base text, and a simple loading indicator
                          innerHTML = `
-                             <span class="base-sub" style="${spanBaseCss}">${baseText}</span><br>
-                             <span class="translated-sub" style="opacity: 0.6; ${spanBaseCss}">
+                             <span class="base-sub" style="${standardSpanCss}">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; ${standardSpanCss}">
                                  (Translating...)
                              </span>
                          `;
                      }
                 }
-                // --- CRITICAL FIX END ---
+                // --- MODIFICATION END ---
                 
                 floatingWindow.innerHTML = innerHTML;
                 currentSubtitleIndex = newIndex;
@@ -807,7 +923,75 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             // Need the getLanguageName helper function from the top of the file!
             const getLanguageName = (langCode) => {
                 const LANGUAGE_MAP = {
-                    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "indonesian (deprecated: use id)": "in", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "yiddish (deprecated: use yi)": "ji", "javanese": "jv", "javanese (deprecated: use jv)": "jw", "georgian": "ka", "kong": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "ko": "korean", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "moldavian / moldovan (deprecated: use ro)": "mo", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "serbo-croatian": "sh", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
+                    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "indonesian (deprecated: use id)": "in", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "yiddish (deprecated: use yi)": "ji", "javanese": "jv", "javanese (deprecated: use jv)": "jw", "georgian": "ka", "kong": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "ko": "korean", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "moldavian / moldovan (deprecated: use ro)": "mo", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn",
+                    "norwegian": "no",
+                    "south ndebele": "nr",
+                    "navajo / navaho": "nv",
+                    "nyanja / chewa / chichewa": "ny",
+                    "occitan (post 1500)": "oc",
+                    "ojibwa": "oj",
+                    "oromo": "om",
+                    "oriya (macrolanguage) / odia (macrolanguage)": "or",
+                    "ossetian / ossetic": "os",
+                    "panjabi / punjabi": "pa",
+                    "pali": "pi",
+                    "polish": "pl",
+                    "pushto / pashto": "ps",
+                    "portuguese": "pt",
+                    "quechua": "qu",
+                    "romansh": "rm",
+                    "rundi": "rn",
+                    "romanian / moldavian / moldovan": "ro",
+                    "russian": "ru",
+                    "kinyarwanda": "rw",
+                    "sanskrit": "sa",
+                    "sardinian": "sc",
+                    "sindhi": "sd",
+                    "northern sami": "se",
+                    "sango": "sg",
+                    "serbo-croatian": "sh",
+                    "sinhala / sinhalese": "si",
+                    "slovak": "sk",
+                    "slovenian": "sl",
+                    "samoan": "sm",
+                    "shona": "sn",
+                    "somali": "so",
+                    "albanian": "sq",
+                    "serbian": "sr",
+                    "swati": "ss",
+                    "southern sotho": "st",
+                    "sundanese": "su",
+                    "swedish": "sv",
+                    "swahili (macrolanguage)": "sw",
+                    "tamil": "ta",
+                    "telugu": "te",
+                    "tajik": "tg",
+                    "thai": "th",
+                    "tigrinya": "ti",
+                    "turkmen": "tk",
+                    "tagalog": "tl",
+                    "tswana": "tn",
+                    "tonga (tonga islands)": "to",
+                    "turkish": "tr",
+                    "tsonga": "ts",
+                    "tatar": "tt",
+                    "twi": "tw",
+                    "tahitian": "ty",
+                    "uighur / uyghur": "ug",
+                    "ukrainian": "uk",
+                    "urdu": "ur",
+                    "uzbek": "uz",
+                    "venda": "ve",
+                    "vietnamese": "vi",
+                    "volapük": "vo",
+                    "walloon": "wa",
+                    "wolof": "wo",
+                    "xhosa": "xh",
+                    "yiddish": "yi",
+                    "yoruba": "yo",
+                    "zhuang / chuang": "za",
+                    "chinese": "zh",
+                    "zulu": "zu"
                 };
                 const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
                 return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
@@ -849,11 +1033,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 1. Store the preferences from the popup message
         subtitleLanguages.target = request.targetLang;
-        isTranslatedOnly = request.translatedOnly; // <--- ADDED: Preference tracker
-        fontSizeEm = request.fontSize; // <--- NEW: Get font size preference
-        backgroundColorPref = request.backgroundColor; // <--- NEW: Get background color preference
-        fontShadowPref = request.fontShadow; // <--- NEW: Get font shadow preference
-        fontColorPref = request.fontColor; // <--- NEW: Get font color preference
+        isTranslatedOnly = request.translatedOnly; 
+        fontSizeEm = request.fontSize; 
+        backgroundColorPref = request.backgroundColor; 
+        fontShadowPref = request.fontShadow; 
+        fontColorPref = request.fontColor;
+        
+        // NEW: Store the colour coding preference
+        colourCodingPref = request.colourCoding;
 
         translationCache = {}; 
         
