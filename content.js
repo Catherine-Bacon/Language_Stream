@@ -131,7 +131,7 @@ function parseTtmlXml(xmlString, url) {
             // 1. Get the inner HTML string.
             let rawHtml = p.innerHTML;
             
-            // Debug 1: Show the raw XML content (may contain multiple lines inside <span> or just text)
+            // Debug 1: Show the raw XML content (may contain multiple lines inside a span or just text)
             // console.log(`[DEBUG PARSE] Sub ${index + 1}: Raw Inner HTML: "${rawHtml}"`);
 
             // 2. FIX 1: Replace HTML line breaks with a space.
@@ -413,7 +413,11 @@ async function translateAllSubtitles(url) {
         parsedSubtitles[index].translatedText = translatedText;
     });
 
-    // FIX: Final status update to 100% after all work is done.
+    // -------------------------------------------------------------------------------------
+    // ⭐ CRITICAL FIX: Move the final 100% status update to AFTER the subtitle objects are 
+    // updated. This ensures the sync loop has the translated text available when the 
+    // status is sent.
+    // -------------------------------------------------------------------------------------
     sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
     console.log("Native translation process finished. All subtitles are ready.");
 }
