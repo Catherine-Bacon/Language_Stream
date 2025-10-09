@@ -228,15 +228,38 @@ async function handleConfirmClick(elements) {
 }
 
 async function handleCancelClick(elements) {
-    // Send cancel message to content script
+    // 1. Get the current active tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].id) {
-             // We don't wait for response, just send the stop command.
-             chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {});
+        if (!tabs[0] || !tabs[0].id) {
+            console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
+            return;
         }
+
+        const currentTabId = tabs[0].id;
+        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing cancel command.`);
+
+        // 2. Programmatically inject content.js to ensure the message listener is active.
+        chrome.scripting.executeScript({
+            target: { tabId: currentTabId },
+            files: ['content.js']
+        }, () => {
+            if (chrome.runtime.lastError) {
+                // This warning is usually fine, meaning the script was already injected/running.
+                console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
+            }
+            
+            // 3. Send the cancel message
+            // We use .catch() to suppress the common "Receiving end does not exist" error.
+            chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
+                 if (!e.message.includes('Receiving end does not exist')) {
+                     console.error("[POPUP] Error sending cancel message:", e);
+                 }
+            });
+        });
     });
     
-    // Clear local storage status and reload UI (this resets everything)
+    // 4. Clear local storage status and reload UI. This handles the UI reset immediately.
+    // NOTE: 'last_input' is *not* cleared here, keeping the URL and preferences loaded via loadSavedStatus.
     await chrome.storage.local.remove(['ls_status']);
     loadSavedStatus(elements); 
 }
