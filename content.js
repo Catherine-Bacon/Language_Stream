@@ -220,11 +220,6 @@ function detectBaseLanguage() {
 function createFloatingWindow() {
   let existingWindow = document.getElementById('language-stream-window');
   
-  // --- NEW: Dynamic styles based on preferences ---
-  const bgColor = backgroundColorPref === 'none' ? 'rgba(0, 0, 0, 0)' : 
-                  backgroundColorPref === 'black' ? 'rgba(0, 0, 0, 0.85)' : 
-                  'rgba(128, 128, 128, 0.85)'; // Gray
-  
   // Font shadow requires helper function or direct calculation
   const textShadow = getFontShadowCss(fontShadowPref);
   
@@ -233,10 +228,9 @@ function createFloatingWindow() {
   
   if (existingWindow) {
     floatingWindow = existingWindow;
-    // Update existing window styles
-    floatingWindow.style.backgroundColor = bgColor;
+    // Only update shadow/color on existing window, background is handled by the spans now.
     floatingWindow.style.textShadow = textShadow;
-    floatingWindow.style.color = defaultFontColor; // Apply the default color
+    floatingWindow.style.color = defaultFontColor; 
 
   } else {
     const windowDiv = document.createElement('div');
@@ -249,23 +243,25 @@ function createFloatingWindow() {
       width: 70%; 
       max-width: 800px;
       min-height: 50px;
-      background-color: ${bgColor}; /* NEW: Dynamic Background Color */
-      /* MODIFICATION: Removed the red border line */
-      /* border: 2px solid #e50914; */ 
-      border-radius: 12px;
-      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
+      
+      /* MODIFIED: REMOVE BACKGROUND COLOR AND PADDING from the main window */
+      background-color: rgba(0, 0, 0, 0); 
+      padding: 0; 
+      
+      /* MODIFIED: REMOVE BORDER/SHADOW from the main window, keeping only grab cursor and z-index */
+      border-radius: 0;
+      box-shadow: none;
       z-index: 9999;
-      padding: 20px 30px; 
-      color: ${defaultFontColor}; /* NEW: Dynamic Default Font Color */
+      
+      color: ${defaultFontColor}; 
       font-family: 'Inter', sans-serif;
-      /* Font size of the container is large, but text size is controlled by span */
       font-size: 3.6rem; 
       text-align: center;
       line-height: 1.4;
       overflow: hidden;
       cursor: grab;
       display: none; 
-      text-shadow: ${textShadow}; /* NEW: Dynamic Text Shadow */
+      text-shadow: ${textShadow}; 
     `;
     document.body.appendChild(windowDiv);
     floatingWindow = windowDiv; 
@@ -549,6 +545,19 @@ function getFontColor(preference) {
             return '#FFFFFF';
     }
 }
+
+// --- NEW helper function to get CSS background color for the span tag ---
+function getSpanBackgroundColor(preference) {
+    switch (preference) {
+        case 'black':
+            return 'rgba(0, 0, 0, 0.85)';
+        case 'gray':
+            return 'rgba(128, 128, 128, 0.85)';
+        case 'none':
+        default:
+            return 'transparent'; // No background
+    }
+}
 // ---------------------------------------------------------------------------------
 
 function startSubtitleSync() {
@@ -574,18 +583,26 @@ function startSubtitleSync() {
     // Determine the styles once at the start of the loop setup
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
     const currentFontShadow = getFontShadowCss(fontShadowPref);
-    const currentFontColor = getFontColor(fontColorPref); // New
+    const currentFontColor = getFontColor(fontColorPref);
+    // NEW: Get span-specific background color
+    const currentSpanBgColor = getSpanBackgroundColor(backgroundColorPref);
 
-    // Update the floating window's text shadow and background color
+
+    // Update the floating window's text shadow and color (window background is transparent)
     if (floatingWindow) {
-        const bgColor = backgroundColorPref === 'none' ? 'rgba(0, 0, 0, 0)' : 
-                        backgroundColorPref === 'black' ? 'rgba(0, 0, 0, 0.85)' : 
-                        'rgba(128, 128, 128, 0.85)'; // Gray
-        floatingWindow.style.backgroundColor = bgColor;
         floatingWindow.style.textShadow = currentFontShadow;
-        // The overall window color should be the chosen font color
         floatingWindow.style.color = currentFontColor;
     }
+    
+    // NEW: Base CSS for the span tag
+    const spanBaseCss = `
+        display: inline-block; 
+        padding: 0 0.5em; 
+        border-radius: 0.2em;
+        background-color: ${currentSpanBgColor};
+        font-size: ${currentFontSizeEm}; 
+        color: ${currentFontColor};
+    `;
 
 
     const syncLoop = () => {
@@ -640,18 +657,17 @@ function startSubtitleSync() {
                 // --- CRITICAL FIX START: Check if translatedText is available ---
                 if (translatedText) {
                      if (isTranslatedOnly) {
-                        // Show only the translated text (with matching font size, non-bold, and preferred color)
+                        // Show only the translated text (with background applied to the span)
                         innerHTML = `
-                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm}; color: ${currentFontColor};">
+                            <span class="translated-sub" style="opacity: 1.0; ${spanBaseCss}">
                                 ${translatedText}
                             </span>
                         `;
                     } else {
-                        // Show both (original text and translated text use the same size, and preferred color)
-                        // Note: Setting color on the span overrides the window's default color
+                        // Show both (background applied to each span)
                         innerHTML = `
-                            <span class="base-sub" style="font-size: ${currentFontSizeEm}; color: ${currentFontColor};">${baseText}</span><br>
-                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm}; color: ${currentFontColor};">
+                            <span class="base-sub" style="${spanBaseCss}">${baseText}</span><br>
+                            <span class="translated-sub" style="opacity: 1.0; ${spanBaseCss}">
                                 ${translatedText}
                             </span>
                         `;
@@ -663,10 +679,10 @@ function startSubtitleSync() {
                          // If the user wants ONLY translated text, but it's not ready, show nothing
                          innerHTML = ''; 
                      } else {
-                         // Show base text, and a simple loading indicator (with matching font size and preferred color)
+                         // Show base text, and a simple loading indicator (with background applied to base span)
                          innerHTML = `
-                             <span class="base-sub" style="font-size: ${currentFontSizeEm}; color: ${currentFontColor};">${baseText}</span><br>
-                             <span class="translated-sub" style="opacity: 0.6; font-size: ${currentFontSizeEm}; color: ${currentFontColor};">
+                             <span class="base-sub" style="${spanBaseCss}">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; ${spanBaseCss}">
                                  (Translating...)
                              </span>
                          `;
