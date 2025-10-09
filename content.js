@@ -22,6 +22,68 @@ var currentTranslator = currentTranslator || null;
 // CORRECTED TICK_RATE: Standard high-resolution for TTML timing (10,000,000 ticks/sec).
 var TICK_RATE = TICK_RATE || 10000000; 
 
+// ----------------------------------------------------------------------
+// --- NEW SECTION: STYLE HELPER FUNCTIONS (Moved to the top to fix ReferenceError) ---
+// ----------------------------------------------------------------------
+
+// --- NEW helper function to convert the string preference to a CSS 'em' value ---
+function getFontSizeEm(preference) {
+    switch (preference) {
+        case 'small':
+            return '0.75em'; // Adjusted for slightly smaller size on screen
+        case 'large':
+            return '1.1em'; // Adjusted for slightly larger size on screen
+        case 'medium':
+        default:
+            return '0.9em'; // Adjusted for a visually balanced medium on screen
+    }
+}
+
+// --- NEW helper function to get CSS text-shadow value ---
+function getFontShadowCss(preference) {
+    switch (preference) {
+        case 'black_shadow':
+            // Standard black drop shadow for readability
+            return '2px 2px 4px rgba(0, 0, 0, 0.8)'; 
+        case 'white_shadow':
+            // White outline/shadow for dark backgrounds
+            return '1px 1px 2px rgba(255, 255, 255, 0.8), -1px -1px 2px rgba(255, 255, 255, 0.8)';
+        case 'none':
+        default:
+            return 'none';
+    }
+}
+
+// --- NEW helper function to get CSS font color value ---
+function getFontColor(preference) {
+    switch (preference) {
+        case 'yellow':
+            return '#FFFF00';
+        case 'cyan':
+            return '#00FFFF';
+        case 'white':
+        default:
+            return '#FFFFFF';
+    }
+}
+
+// --- NEW helper function to get CSS background color for the span tag ---
+function getSpanBackgroundColor(preference) {
+    switch (preference) {
+        case 'black':
+            return 'rgba(0, 0, 0, 0.85)';
+        case 'gray':
+            return 'rgba(128, 128, 128, 0.85)';
+        case 'none':
+        default:
+            return 'transparent'; // No background
+    }
+}
+
+// ----------------------------------------------------------------------
+// --- END STYLE HELPER FUNCTIONS ---
+// ----------------------------------------------------------------------
+
 // --- Utility Functions ---
 
 /**
