@@ -31,14 +31,14 @@ async function resetStatus(elements) {
     if (!elements.confirmButton) return; 
 
     elements.subtitleUrlInput.value = '';
-    elements.targetLanguageSelect.value = 'es'; // Default target language
+    elements.targetLanguageInput.value = 'es'; // Default target language code
     elements.translatedOnlyCheckbox.checked = false;
     
     // NEW: Reset font size to default 'medium'
     elements.fontSizeMedium.checked = true;
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
-    elements.targetLanguageSelect.disabled = false;
+    elements.targetLanguageInput.disabled = false; // NEW: Enable language input element
     elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
     elements.cancelButton.classList.add('hidden-no-space'); 
@@ -58,7 +58,7 @@ function loadSavedStatus(elements) {
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
-        elements.targetLanguageSelect.disabled = false;
+        elements.targetLanguageInput.disabled = false; // NEW: Enable language input element
         elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
         
         elements.cancelButton.classList.add('hidden-no-space'); 
@@ -77,7 +77,7 @@ function loadSavedStatus(elements) {
         // Load Language Inputs and last URL first
         const input = data.last_input;
         if (input) {
-             elements.targetLanguageSelect.value = input.targetLang || 'es';
+             elements.targetLanguageInput.value = input.targetLang || 'es';
              elements.subtitleUrlInput.value = input.url || '';
         }
 
@@ -88,14 +88,14 @@ function loadSavedStatus(elements) {
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
-                elements.targetLanguageSelect.disabled = true;
+                elements.targetLanguageInput.disabled = true; 
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Running
             } else {
                 // Process finished (progress == 100)
                 elements.confirmButton.disabled = false; // Allow re-run
-                elements.targetLanguageSelect.disabled = false;
+                elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false;
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
@@ -113,7 +113,7 @@ function loadSavedStatus(elements) {
                  
                  // On clean state, ensure fields are empty (new requirement on refresh/clean)
                  elements.subtitleUrlInput.value = '';
-                 elements.targetLanguageSelect.value = 'es';
+                 elements.targetLanguageInput.value = 'es'; 
              }
              
              if (status && status.progress === 0 && status.message) {
@@ -135,6 +135,8 @@ async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
     const url = elements.subtitleUrlInput.value.trim();
+    const targetLang = elements.targetLanguageInput.value.trim().toLowerCase(); 
+    
     // NEW: Get preference values
     const translatedOnly = elements.translatedOnlyCheckbox.checked;
     
@@ -146,7 +148,6 @@ async function handleConfirmClick(elements) {
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
     
-    const targetLang = elements.targetLanguageSelect.value;
     
     console.log("[POPUP] Retrieved URL from input box. URL found:", !!url);
 
@@ -157,6 +158,16 @@ async function handleConfirmClick(elements) {
         elements.confirmButton.disabled = false; 
         return;
     }
+    
+    // --- NEW: Basic validation for 2-letter code ---
+    if (targetLang.length !== 2) {
+         elements.statusText.textContent = "Error: Target language must be a 2-letter code (e.g., 'es').";
+         elements.progressBar.style.width = '0%';
+         elements.confirmButton.disabled = false;
+         return;
+    }
+    // ----------------------------------------------
+
 
     // 1. Save language choices and preference and clear old status
     await chrome.storage.local.remove(['ls_status']);
@@ -172,7 +183,7 @@ async function handleConfirmClick(elements) {
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
-    elements.targetLanguageSelect.disabled = true; 
+    elements.targetLanguageInput.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
     
     // NEW: Disable font size radio buttons while processing
@@ -243,6 +254,7 @@ async function handleCancelClick(elements) {
             files: ['content.js']
         }, () => {
             if (chrome.runtime.lastError) {
+                // This warning is usually fine, meaning the script was already injected/running.
                 console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
             }
             
@@ -254,8 +266,8 @@ async function handleCancelClick(elements) {
         });
     });
     
-    // 2. Immediately clear the saved status AND force a UI reset.
-    // This is the CRITICAL STEP to eliminate the two-click requirement.
+    // 2. Immediately clear the saved status.
+    // This is CRITICAL. It forces loadSavedStatus (step 4) to skip the 'if (status && status.progress > 0)' block.
     await chrome.storage.local.remove(['ls_status']);
     
     // 3. Manually reset UI elements to the initial state
@@ -263,13 +275,14 @@ async function handleCancelClick(elements) {
     elements.statusText.textContent = "Subtitle generation cancelled.";
     elements.progressBar.style.width = '0%';
     elements.confirmButton.disabled = false;
-    elements.targetLanguageSelect.disabled = false;
+    elements.targetLanguageInput.disabled = false; 
     elements.translatedOnlyCheckbox.disabled = false;
     elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.cancelButton.classList.add('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
     
     // 4. Re-run loadSavedStatus to correctly load any saved URL/prefs (which were NOT cleared above)
+    // This executes synchronously, ensuring the UI is stable on the first click.
     loadSavedStatus(elements); 
 }
 
@@ -280,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Initialize DOM variables locally
     const elements = {
         confirmButton: document.getElementById('confirmButton'),
-        targetLanguageSelect: document.getElementById('targetLanguage'),
+        targetLanguageInput: document.getElementById('targetLanguage'), 
         subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
@@ -368,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progress >= 100) {
                 // --- PROGRESS 100% STATE ---
                 elements.confirmButton.disabled = false;
-                elements.targetLanguageSelect.disabled = false;
+                elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 
                 // NEW: Re-enable font size radio buttons
@@ -380,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (progress > 0) {
                 // --- PROGRESS 0% < x < 100% STATE (RUNNING) ---
                 elements.confirmButton.disabled = true;
-                elements.targetLanguageSelect.disabled = true;
+                elements.targetLanguageInput.disabled = true; 
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 
                 // NEW: Disable font size radio buttons
@@ -412,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.statusText.textContent = "";
                     elements.confirmButton.disabled = true;
                 }
-                elements.targetLanguageSelect.disabled = false;
+                elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 
                 // NEW: Re-enable font size radio buttons
