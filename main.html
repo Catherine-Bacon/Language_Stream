@@ -168,20 +168,23 @@
         <label for="translatedOnlyCheckbox">Show Translated Subtitles Only</label>
     </div>
 
-    <p style="font-size: 0.9em; margin-top: 5px; margin-bottom: 5px;">Font Size:</p>
-    <div id="fontSizeGroup" class="radio-group">
-        <label>
-            <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
-            Small
-        </label>
-        <label>
-            <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
-            Medium
-        </label>
-        <label>
-            <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
-            Large
-        </label>
+    <div id="fontSizeRow" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <p style="font-size: 0.9em; margin: 0;">Font Size:</p>
+        
+        <div id="fontSizeGroup" class="radio-group" style="margin-bottom: 0;">
+            <label>
+                <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
+                Small
+            </label>
+            <label>
+                <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
+                Medium
+            </label>
+            <label>
+                <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
+                Large
+            </label>
+        </div>
     </div>
     <button id="confirmButton">Generate Subtitles</button>
     
