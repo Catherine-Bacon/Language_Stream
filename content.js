@@ -724,7 +724,116 @@ function disableNetflixSubObserver() {
 // --- Message Listener for Popup Communication ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    // Note: request.baseLang is no longer sent from popup.js
+    
+    // NEW HANDLER: For language detection BEFORE GENERATION
+    if (request.command === "detect_language" && request.url) {
+        
+        console.log("C-DETECT: Received 'detect_language' command.");
+        const tempUrl = request.url;
+        
+        // Use an async IIFE to run the detection logic
+        (async () => {
+            // 1. Fetch
+            const xmlContent = await fetchXmlContent(tempUrl);
+            if (!xmlContent) {
+                // Error status is already sent back via sendStatusUpdate in fetchXmlContent
+                return; 
+            }
+            
+            // 2. Parse (using a temporary array to store the result)
+            let tempParsedSubtitles = [];
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlContent, 'application/xml'); 
+
+                // Basic parsing check for error
+                if (xmlDoc.querySelector('parsererror')) {
+                     console.error("C-DETECT: XML Parsing Error.");
+                     // Send detection failure back to popup (but not via sendStatusUpdate)
+                     chrome.runtime.sendMessage({
+                         command: "language_detected", 
+                         baseLangCode: null, 
+                         baseLangName: null, 
+                         url: tempUrl 
+                     }).catch(e => console.warn("Could not send detection failure message:", e));
+                     return;
+                }
+                
+                // Perform a simple and quick parse for the language detection
+                const subtitleParagraphs = xmlDoc.querySelectorAll('p');
+                subtitleParagraphs.forEach((p) => {
+                     // NEW: Use the proper text extraction logic without full parsing overhead
+                     let rawHtml = p.innerHTML;
+                     let htmlWithSpaces = rawHtml.replace(/<br[\s\S]*?\/>|<br>/gi, ' '); 
+                     const tempDiv = document.createElement('div');
+                     tempDiv.innerHTML = htmlWithSpaces;
+                     let text = tempDiv.textContent; 
+                     text = text.replace(/\s+/g, ' ').trim();
+                     if (text) tempParsedSubtitles.push({ text: text });
+                });
+                
+            } catch (e) {
+                 console.error("C-DETECT: Fatal error during temporary XML parsing:", e);
+                 chrome.runtime.sendMessage({
+                     command: "language_detected", 
+                     baseLangCode: null, 
+                     baseLangName: null, 
+                     url: tempUrl 
+                 }).catch(e => console.warn("Could not send detection failure message:", e));
+                 return;
+            }
+            
+            // 3. Detect Language (Use a temporary local copy of the detection function, operating on tempParsedSubtitles)
+            const tempDetectBaseLanguage = () => {
+                const sampleText = tempParsedSubtitles.slice(0, 50)
+                                                     .map(sub => sub.text)
+                                                     .join(' ')
+                                                     .slice(0, 1000);
+
+                return new Promise((resolve) => {
+                    if (!chrome.i18n || !chrome.i18n.detectLanguage) {
+                        resolve('en'); 
+                        return;
+                    }
+                    chrome.i18n.detectLanguage(sampleText, (result) => {
+                        const detectedCode = (result.languages && result.languages.length > 0 && result.languages[0].language !== 'und') 
+                                            ? result.languages[0].language : null;
+                        resolve(detectedCode);
+                    });
+                });
+            };
+
+            const detectedLangCode = await tempDetectBaseLanguage();
+            // Need the getLanguageName helper function from the top of the file!
+            const getLanguageName = (langCode) => {
+                const LANGUAGE_MAP = {
+                    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "indonesian (deprecated: use id)": "in", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "yiddish (deprecated: use yi)": "ji", "javanese": "jv", "javanese (deprecated: use jv)": "jw", "georgian": "ka", "kong": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "ko": "korean", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "moldavian / moldovan (deprecated: use ro)": "mo", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "serbo-croatian": "sh", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
+                };
+                const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
+                return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
+            };
+            const detectedLangName = detectedLangCode ? getLanguageName(detectedLangCode) : null;
+            
+            console.log(`C-DETECT: Detected language: ${detectedLangName} (${detectedLangCode}).`);
+
+            // 4. Send the result back to the popup
+            chrome.runtime.sendMessage({
+                command: "language_detected", 
+                baseLangCode: detectedLangCode, 
+                baseLangName: detectedLangName, 
+                url: tempUrl // Send URL back for comparison
+            }).catch(e => {
+                if (!e.message.includes('Receiving end does not exist')) {
+                     console.warn("Could not send detection result message:", e);
+                }
+            });
+            
+        })();
+        
+        return false; 
+    }
+    
+    // --- EXISTING 'fetch_and_process_url' HANDLER ---
     if (request.command === "fetch_and_process_url" && request.url) {
         
         // --- NEW CHECK: PREVENT RE-ENTRY ---

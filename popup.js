@@ -206,7 +206,8 @@ const LANGUAGE_MAP = {
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // MODIFICATION: Added subtitle_style_pref to the removal list
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref']); 
+    // NEW: Remove detected_base_lang_name
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name']); 
     
     if (!elements.confirmButton) return; 
 
@@ -259,7 +260,7 @@ function getLanguageName(langCode) {
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // MODIFICATION: Added subtitle_style_pref to retrieval list
+    // MODIFICATION: Added subtitle_style_pref and detected_base_lang_name to retrieval list
     chrome.storage.local.get([
         'ls_status', 
         'last_input', 
@@ -268,9 +269,11 @@ function loadSavedStatus(elements) {
         'font_size_pref', // Still retrieved, though managed by custom_settings.js
         'background_color_pref', 
         'font_shadow_pref', 
-        'font_color_pref'
+        'font_color_pref',
+        'detected_base_lang_name' // NEW: Retrieve the pre-detected language name
     ], (data) => {
         const status = data.ls_status;
+        const detectedBaseLangName = data.detected_base_lang_name; // NEW
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
@@ -340,8 +343,9 @@ function loadSavedStatus(elements) {
                 if (currentBaseLangName) {
                     elements.urlStatusText.textContent = `${currentBaseLangName} subtitles ready to translate!`;
                 } else {
-                    // Fallback if base language detection somehow failed entirely
-                    elements.urlStatusText.textContent = "Subtitle URL accepted. Ready to generate.";
+                    // Fallback to the saved detected language or generic message
+                    const finalLangName = detectedBaseLangName ? detectedBaseLangName : "Subtitle";
+                    elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
                 }
                 
                 elements.confirmButton.disabled = false; // Allow re-run
@@ -374,8 +378,13 @@ function loadSavedStatus(elements) {
              if (urlValue && urlValue.startsWith('http')) {
                  // URL ready
                  
-                 // MODIFICATION: Display simple "Ready" status instead of target language name
-                 elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
+                 // MODIFICATION 1: Use the pre-detected language name if available
+                 if (detectedBaseLangName) {
+                      elements.urlStatusText.textContent = `${detectedBaseLangName} subtitles ready to translate!`;
+                 } else {
+                     // MODIFICATION 2: Set "Detecting language..." if no detection yet
+                     elements.urlStatusText.textContent = "Detecting language..."; 
+                 }
                  elements.confirmButton.disabled = false;
                  
                  // If there's a URL-related error message, show it
@@ -426,6 +435,9 @@ function loadSavedStatus(elements) {
 
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
+    
+    // NEW: Clear the temp detection status as the full process is starting
+    await chrome.storage.local.remove(['detected_base_lang_name']);
 
     const url = elements.subtitleUrlInput.value.trim();
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
@@ -577,7 +589,7 @@ async function handleCancelClick(elements) {
     });
     
     // 2. Immediately clear the saved status and reset UI elements
-    await chrome.storage.local.remove(['ls_status']);
+    await chrome.storage.local.remove(['ls_status', 'detected_base_lang_name']); // NEW: Clear base language
     
     // MODIFICATION: Set a neutral message when cancelled
     elements.statusText.textContent = "Processing stopped. Click 'Clear Status & Reset' to restart.";
@@ -679,17 +691,31 @@ document.addEventListener('DOMContentLoaded', () => {
          const isUrlValid = (url && url.startsWith('http'));
          elements.confirmButton.disabled = !isUrlValid;
          
-         // Get the current language name for the status message
-         const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
-         const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
-         const fullLangName = getLanguageName(targetLang);
-
          if (isUrlValid) {
-             // MODIFICATION: Use the simplified "accepted" status here
-             elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
+             // MODIFICATION 1: Set a simple status and trigger language detection
+             elements.urlStatusText.textContent = `Detecting language...`;
+             
+             // NEW: Send message to content script to fetch/parse/detect language
+             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                 if (tabs[0] && tabs[0].id) {
+                     chrome.tabs.sendMessage(tabs[0].id, {
+                         command: "detect_language", 
+                         url: url
+                     }).catch(e => {
+                        // Handle case where content script might not be loaded yet
+                         if (!e.message.includes('Receiving end does not exist')) {
+                             console.warn("Could not send detection message, content script not ready:", e);
+                             elements.urlStatusText.textContent = `URL accepted. Ready to generate.`; // Fallback status
+                         }
+                     });
+                 }
+             });
+             
          } else {
               // MODIFICATION: Set to "Waiting" status
               elements.urlStatusText.textContent = "Waiting for URL...";
+              // Clear saved detected language on clearing URL
+              chrome.storage.local.remove(['detected_base_lang_name']); 
          }
          
          // Clear other status lines on input change
@@ -705,8 +731,10 @@ document.addEventListener('DOMContentLoaded', () => {
          
          if (isUrlValid) {
              // MODIFICATION: Do NOT update the "ready" message with the target language.
+             // The language_detected handler manages the ready message now.
              // Keep it simple when the URL is ready, as per the new requirement.
-             elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
+             // If a detection has already occurred, it will remain visible.
+             
          }
          // Clear language status text on new input
          elements.langStatusText.textContent = "";
@@ -716,6 +744,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. Listener to update status from content script
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         
+        // NEW HANDLER: Language detection result from content script
+        if (request.command === "language_detected") {
+             const baseLangCode = request.baseLangCode;
+             const baseLangName = request.baseLangName;
+             const urlForDetection = elements.subtitleUrlInput.value.trim();
+
+             // Only update if the URL in the box matches the URL we detected for
+             if (urlForDetection === request.url) { 
+                 if (baseLangCode) {
+                     const statusMessage = `${baseLangName} subtitles ready to translate!`;
+                     elements.urlStatusText.textContent = statusMessage;
+                     // Save the name for display on popup reload
+                     await chrome.storage.local.set({ 'detected_base_lang_name': baseLangName });
+                 } else {
+                     // Detection failed or returned 'und'
+                     elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
+                     await chrome.storage.local.remove(['detected_base_lang_name']); // Clear bad detection
+                 }
+             }
+             return false; // Not an async response
+        }
+        
+        // EXISTING HANDLER: To update status from content script
         if (request.command === "update_status") {
             const progress = request.progress;
             const message = request.message;
@@ -769,17 +820,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 
                 // Re-enable settings button based on style selection
-                chrome.storage.local.get(['subtitle_style_pref', 'ls_status'], (data) => {
+                chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], (data) => {
                      elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
                      
                      // MODIFICATION: SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
                      const baseLangCode = data.ls_status?.baseLang;
+                     const detectedBaseLangName = data.detected_base_lang_name;
+                     
                      if (baseLangCode) {
                          const baseLangName = getLanguageName(baseLangCode);
                          elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
                      } else {
-                         elements.urlStatusText.textContent = "Subtitle URL accepted. Ready to generate.";
+                         const finalLangName = detectedBaseLangName ? detectedBaseLangName : "Subtitle";
+                         elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
                      }
+                     
+                     // NEW: Clear the temp detection status as the full process is complete
+                     chrome.storage.local.remove(['detected_base_lang_name']);
                 });
 
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -808,14 +865,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (isUrlValid) {
                      // If it's a URL/Lang error, the status text is set by the routing logic above.
-                     // If it's a non-URL/Lang error (like API missing), the main status is set.
-                     // If it's just a neutral state, restore URL status to ready.
                      if (!elements.urlStatusText.textContent && !elements.langStatusText.textContent && !elements.statusText.textContent) {
-                         // MODIFICATION: Restore the simplified accepted status
-                         elements.urlStatusText.textContent = `Subtitle URL accepted. Ready to generate.`;
+                         // If it's a clean neutral state, check storage for pre-detection
+                         chrome.storage.local.get(['subtitle_style_pref', 'detected_base_lang_name'], (data) => {
+                             if (data.detected_base_lang_name) {
+                                 elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
+                             } else {
+                                 // Fallback to "Detecting" if URL is present but detection failed or not started
+                                 elements.urlStatusText.textContent = "Detecting language..."; 
+                             }
+                             // Also re-enable settings button based on style selection
+                             elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
+                         });
                      }
                 } else {
                     elements.urlStatusText.textContent = "Waiting for URL...";
+                     // Re-enable settings button based on style selection
+                    chrome.storage.local.get(['subtitle_style_pref'], (data) => {
+                         elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
+                    });
                 }
                 
                 elements.targetLanguageInput.disabled = false; 
@@ -824,11 +892,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 
-                // Re-enable settings button based on style selection
-                chrome.storage.local.get(['subtitle_style_pref'], (data) => {
-                     elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
-                });
-
 
                 elements.cancelButton.classList.add('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
