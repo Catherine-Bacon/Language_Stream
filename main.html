@@ -27,7 +27,6 @@
         width: 100%;
         padding: 8px;
         margin-top: 5px;
-        /* --- MODIFICATION 1: REMOVE margin-bottom from standard inputs/buttons --- */
         margin-bottom: 0px; 
         border-radius: 4px;
         border: 1px solid #ddd;
@@ -40,7 +39,6 @@
         cursor: pointer;
         transition: background-color 0.2s;
         margin-top: 0; 
-        /* --- MODIFICATION 2: Add back a small gap BELOW the primary button --- */
         margin-bottom: 5px;
       }
       button:hover {
@@ -49,17 +47,14 @@
       /* Style for the Cancel button */
       button#cancelButton { 
         background-color: #777; 
-        /* Add margin to separate from confirm button */
         margin-top: 5px; 
-        /* --- MODIFICATION 3: Ensure no margin pushes the status box down --- */
         margin-bottom: 0px; 
-        display: block; /* Use block to occupy space when visible */
+        display: block; 
       }
       button#cancelButton:hover {
         background-color: #999;
       }
       
-      /* --- CRITICAL NEW FIX: Class to fully remove element from flow and size --- */
       .hidden-no-space {
           display: none !important;
           margin-top: 0 !important;
@@ -67,12 +62,10 @@
           padding-top: 0 !important;
           padding-bottom: 0 !important;
           height: 0 !important;
-          /* Setting visibility to hidden just in case, though display:none is primary */
           visibility: hidden !important; 
       }
       
       #statusBox {
-        /* --- MODIFICATION 4: Standardize the gap ABOVE the status box to 10px & Center text --- */
         margin-top: 10px; 
         padding: 5px;
         border: 1px solid #eee;
@@ -97,7 +90,7 @@
         color: white;
         transition: width 0.3s;
       }
-      /* NEW STYLE FOR PREFERENCE SECTION */
+      
       h3 { 
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
@@ -105,17 +98,8 @@
         margin-top: 10px;
         margin-bottom: 10px;
       }
-      .checkbox-container {
-        display: flex;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .checkbox-container input[type="checkbox"] {
-        width: auto;
-        margin-right: 10px;
-      }
-      
-      /* --- NEW CSS: Container for the header text and radio group on the same row --- */
+
+      /* Preference Rows - Main Popup */
       .preference-row {
           display: flex;
           align-items: center;
@@ -123,12 +107,10 @@
           margin-bottom: 10px;
       }
       .preference-row p {
-          /* Ensure header text doesn't shrink and remains visually aligned */
           flex-shrink: 0; 
           margin: 0;
       }
       
-      /* NEW STYLE FOR RADIO BUTTONS */
       .radio-group {
         display: flex;
         justify-content: flex-start;
@@ -151,6 +133,43 @@
         width: auto;
         margin-right: 5px;
       }
+      
+      /* New style for the Custom Settings Button */
+      #customSettingsButton {
+          width: auto;
+          padding: 4px 8px;
+          margin-left: 10px;
+          background-color: #555;
+      }
+      #customSettingsButton:hover {
+          background-color: #777;
+      }
+
+      /* Style for the container holding the radio buttons and the button */
+      .style-selection-group {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          padding: 5px 5px; 
+      }
+      .style-radio-group {
+          display: flex;
+          gap: 10px;
+          flex-grow: 1;
+      }
+      .style-radio-group label {
+          display: flex;
+          align-items: center;
+          font-size: 0.9em;
+          cursor: pointer;
+      }
+      .style-radio-group input[type="radio"] {
+          width: auto;
+          margin-right: 5px;
+      }
+
     </style>
   </head>
   <body>
@@ -189,79 +208,23 @@
         </div>
     </div>
     
-
     <div class="preference-row">
-        <p>Font Size:</p>
-        <div id="fontSizeGroup" class="radio-group">
-            <label>
-                <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
-                Small
-            </label>
-            <label>
-                <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
-                Medium
-            </label>
-            <label>
-                <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
-                Large
-            </label>
+        <p>Subtitle Style:</p>
+        <div class="style-selection-group">
+            <div id="subtitleStyleGroup" class="style-radio-group">
+                <label>
+                    <input type="radio" name="subtitleStyle" value="netflix" id="subtitleStyleNetflix" checked>
+                    Netflix Style
+                </label>
+                <label>
+                    <input type="radio" name="subtitleStyle" value="custom" id="subtitleStyleCustom">
+                    Custom
+                </label>
+            </div>
+            <button id="customSettingsButton" title="Edit Custom Settings" disabled>⚙️</button>
         </div>
     </div>
-
-    <div class="preference-row">
-        <p>Background Color:</p>
-        <div id="backgroundColorGroup" class="radio-group">
-            <label>
-                <input type="radio" name="backgroundColor" value="none" id="backgroundColorNone">
-                None
-            </label>
-            <label>
-                <input type="radio" name="backgroundColor" value="black" id="backgroundColorBlack" checked>
-                Black
-            </label>
-            <label>
-                <input type="radio" name="backgroundColor" value="gray" id="backgroundColorGray">
-                Gray
-            </label>
-        </div>
-    </div>
-
-    <div class="preference-row">
-        <p>Font Shadow:</p>
-        <div id="fontShadowGroup" class="radio-group">
-            <label>
-                <input type="radio" name="fontShadow" value="none" id="fontShadowNone">
-                None
-            </label>
-            <label>
-                <input type="radio" name="fontShadow" value="black_shadow" id="fontShadowBlack" checked>
-                Black
-            </label>
-            <label>
-                <input type="radio" name="fontShadow" value="white_shadow" id="fontShadowWhite">
-                White
-            </label>
-        </div>
-    </div>
-
-    <div class="preference-row">
-        <p>Font Color:</p>
-        <div id="fontColorGroup" class="radio-group">
-            <label>
-                <input type="radio" name="fontColor" value="white" id="fontColorWhite" checked>
-                White
-            </label>
-            <label>
-                <input type="radio" name="fontColor" value="yellow" id="fontColorYellow">
-                Yellow
-            </label>
-            <label>
-                <input type="radio" name="fontColor" value="cyan" id="fontColorCyan">
-                Cyan
-            </label>
-        </div>
-    </div>
-
+    
     <button id="confirmButton">Generate Subtitles</button>
     
     <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
