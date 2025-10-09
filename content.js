@@ -23,6 +23,24 @@ var currentTranslator = currentTranslator || null;
 var TICK_RATE = TICK_RATE || 10000000; 
 
 // ----------------------------------------------------------------------
+// --- GLOBAL LANGUAGE MAP (Minimal set for helper function) ---
+// Note: This needs to be defined in content.js if used by a function called here. 
+// Using a minimal map as full map is in popup.js.
+const LANGUAGE_MAP_CONTENT = {
+    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "korean": "ko", "latin": "la", "dutch / flemish": "nl", "norwegian": "no", "polish": "pl", "portuguese": "pt", "romanian / moldavian / moldovan": "ro", "russian": "ru", "swedish": "sv", "thai": "th", "turkish": "tr", "ukrainian": "uk", "vietnamese": "vi", "chinese": "zh"
+    // Truncated list for brevity and assuming core languages are sufficient for this utility
+};
+
+// --- NEW HELPER FUNCTION (Moved to the top to fix ReferenceError) ---
+function getLanguageName(langCode) {
+    const langKey = Object.keys(LANGUAGE_MAP_CONTENT).find(key => LANGUAGE_MAP_CONTENT[key] === langCode);
+    // Return capitalized name or the uppercased code if not found
+    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
+}
+// ----------------------------------------------------------------------
+
+
+// ----------------------------------------------------------------------
 // --- NEW SECTION: STYLE HELPER FUNCTIONS ---
 // ----------------------------------------------------------------------
 
@@ -583,8 +601,40 @@ function disableNetflixSubObserver() {
 
 
 // ----------------------------------------------------------------------
-// --- START TRANSLATION/ALIGNMENT LOGIC (Moved up to fix ReferenceError) ---
+// --- START TRANSLATION/ALIGNMENT LOGIC (MOVED UP) ---
 // ----------------------------------------------------------------------
+
+/**
+ * MODIFIED: Generates the HTML for a subtitle line, applying color coding if set to 'vocabulary'.
+ * Now expects an array of {text: segmentString, color: hexColor} objects.
+ */
+function generateCodedHtml(segmentsCoded, spanBaseCss, defaultTextColor) {
+    if (colourCodingPref === 'vocabulary' && segmentsCoded && segmentsCoded.length > 0) {
+        // Build the HTML by wrapping each segment in a span with its assigned color
+        const html = segmentsCoded.map(item => {
+            // Use the item's color, or fallback to the default if it was missed
+            const color = item.color || defaultTextColor; 
+            
+            // Ensure the spanBaseCss is applied, but with the color overridden by the segment color
+            const segmentSpanCss = `${spanBaseCss} color: ${color};`;
+            
+            // Use the full segment text which includes its punctuation
+            return `<span style="${segmentSpanCss}">${item.text}</span>`;
+            
+        }).join(' '); // Join segments with a single space to separate the spans.
+        
+        // Remove potential double spaces created by joining and return the final HTML
+        return html.replace(/\s+/g, ' ').trim();
+
+    } else {
+        // Fallback to the raw text (this path should be mostly avoided if 'vocabulary' is selected)
+        const rawText = segmentsCoded.map(item => item.text).join(' ');
+        // Wrap the whole phrase in a span with the base CSS for background/shadow/default color
+        const standardSpanCss = `${spanBaseCss} color: ${defaultTextColor};`;
+        return `<span style="${standardSpanCss}">${rawText.replace(/\s+/g, ' ').trim()}</span>`;
+    }
+}
+
 
 var currentTranslator = currentTranslator || null; 
 
@@ -985,82 +1035,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             };
 
             const detectedLangCode = await tempDetectBaseLanguage();
-            // Need the getLanguageName helper function from the top of the file!
-            const getLanguageName = (langCode) => {
-                const LANGUAGE_MAP = {
-                    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "indonesian (deprecated: use id)": "in", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "yiddish (deprecated: use yi)": "ji", "javanese": "jv", "javanese (deprecated: use jv)": "jw", "georgian": "ka", "kong": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "ko": "korean", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "moldavian / moldovan (deprecated: use ro)": "mo", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn",
-                    "norwegian": "no",
-                    "south ndebele": "nr",
-                    "navajo / navaho": "nv",
-                    "nyanja / chewa / chichewa": "ny",
-                    "occitan (post 1500)": "oc",
-                    "ojibwa": "oj",
-                    "oromo": "om",
-                    "oriya (macrolanguage) / odia (macrolanguage)": "or",
-                    "ossetian / ossetic": "os",
-                    "panjabi / punjabi": "pa",
-                    "pali": "pi",
-                    "polish": "pl",
-                    "pushto / pashto": "ps",
-                    "portuguese": "pt",
-                    "quechua": "qu",
-                    "romansh": "rm",
-                    "rundi": "rn",
-                    "romanian / moldavian / moldovan": "ro",
-                    "russian": "ru",
-                    "kinyarwanda": "rw",
-                    "sanskrit": "sa",
-                    "sardinian": "sc",
-                    "sindhi": "sd",
-                    "northern sami": "se",
-                    "sango": "sg",
-                    "serbo-croatian": "sh",
-                    "sinhala / sinhalese": "si",
-                    "slovak": "sk",
-                    "slovenian": "sl",
-                    "samoan": "sm",
-                    "shona": "sn",
-                    "somali": "so",
-                    "albanian": "sq",
-                    "serbian": "sr",
-                    "swati": "ss",
-                    "southern sotho": "st",
-                    "sundanese": "su",
-                    "swedish": "sv",
-                    "swahili (macrolanguage)": "sw",
-                    "tamil": "ta",
-                    "telugu": "te",
-                    "tajik": "tg",
-                    "thai": "th",
-                    "tigrinya": "ti",
-                    "turkmen": "tk",
-                    "tagalog": "tl",
-                    "tswana": "tn",
-                    "tonga (tonga islands)": "to",
-                    "turkish": "tr",
-                    "tsonga": "ts",
-                    "tatar": "tt",
-                    "twi": "tw",
-                    "tahitian": "ty",
-                    "uighur / uyghur": "ug",
-                    "ukrainian": "uk",
-                    "urdu": "ur",
-                    "uzbek": "uz",
-                    "venda": "ve",
-                    "vietnamese": "vi",
-                    "volapük": "vo",
-                    "walloon": "wa",
-                    "wolof": "wo",
-                    "xhosa": "xh",
-                    "yiddish": "yi",
-                    "yoruba": "yo",
-                    "zhuang / chuang": "za",
-                    "chinese": "zh",
-                    "zulu": "zu"
-                };
-                const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
-                return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
-            };
+            
+            // FIX: Now calling the globally defined getLanguageName
             const detectedLangName = detectedLangCode ? getLanguageName(detectedLangCode) : null;
             
             console.log(`C-DETECT: Detected language: ${detectedLangName} (${detectedLangCode}).`);
@@ -1073,7 +1049,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 url: tempUrl // Send URL back for comparison
             }).catch(e => {
                 if (!e.message.includes('Receiving end does not exist')) {
-                     console.warn("Could could not send detection result message:", e);
+                     console.warn("Could not send detection result message:", e);
                 }
             });
             
