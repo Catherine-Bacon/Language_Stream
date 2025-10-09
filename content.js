@@ -348,7 +348,7 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
             sendStatusUpdate("Translator model ready. Starting translation...", 60); 
 
         } catch (e) {
-            console.error(`Native Translator API failed to create: ${e.message}`, e);
+            console.error("Native Translator API failed to create:", e);
             sendStatusUpdate(`Translation failed during model setup: ${e.message}`, 0);
             return "(Translation Failed - Model Setup Error)";
         }
@@ -378,10 +378,6 @@ async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
-    
-    // --- NEW VARIABLES FOR BLOCK REPORTING ---
-    // Removed: const REPORTING_INTERVAL = 10;
-    // Removed: let lastReportedEndIndex = 0; 
 
     // 1. Create an array of Promises for all translation jobs
     const translationPromises = parsedSubtitles.map(async (sub, index) => {
@@ -395,23 +391,20 @@ async function translateAllSubtitles(url) {
              translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         }
         
-        // --- MODIFICATION: Removed the non-functional Block Reporting Logic ---
-        /*
-        const currentIndex = index + 1;
-        if (currentIndex > lastReportedEndIndex && (currentIndex % REPORTING_INTERVAL === 0 || currentIndex === totalSubs)) {
-             const linesTranslated = currentIndex;
-             const progress = 60 + Math.floor((linesTranslated / totalSubs) * 40); 
-             sendStatusUpdate(`First ${linesTranslated} lines translated.`, progress, url);
-             lastReportedEndIndex = linesTranslated;
+        // Update the progress status *periodically* since the loop isn't sequential
+        // FIX: Smoother update, checking every 5 lines
+        if (index % 5 === 0 || index === totalSubs - 1) { 
+             // PROGRESS CALCULATION: Range 60% to 100%
+             const progress = 60 + Math.floor(((index + 1) / totalSubs) * 40); 
+             if (progress < 100) { 
+                 sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
+             }
         }
-        */
-        // --- END MODIFICATION ---
 
         return translatedText;
     });
 
     // 3. Wait for all Promises (translations) to resolve concurrently
-    // The bar will move straight from 60% (Start) to 100% (Complete) for fast translation times.
     sendStatusUpdate(`Starting concurrent translation of ${totalSubs} lines...`, 60, url);
     const results = await Promise.all(translationPromises);
     
