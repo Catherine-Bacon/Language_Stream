@@ -24,8 +24,9 @@ var TICK_RATE = TICK_RATE || 10000000;
 
 /**
  * Helper to send status updates back to the popup and save state to local storage.
+ * MODIFIED: Added 'route' parameter for new status line logic in popup.
  */
-function sendStatusUpdate(message, progress, url = null) {
+function sendStatusUpdate(message, progress, url = null, route = 'main') {
     // 1. Save state to local storage (for persistent popup display)
     chrome.storage.local.set({
         'ls_status': { 
@@ -43,7 +44,8 @@ function sendStatusUpdate(message, progress, url = null) {
     chrome.runtime.sendMessage({
         command: "update_status",
         message: message,
-        progress: progress
+        progress: progress,
+        route: route // NEW: Route information
     }).catch(e => {
         // Suppress the error: 'Could not establish connection. Receiving end does not exist.'
         // This is expected if the popup is closed.
@@ -94,11 +96,11 @@ async function fetchXmlContent(url) {
         
         // --- MODIFICATION START: Handle the specific 403 message first in catch ---
         if (e.message === "403_FORBIDDEN") {
-             // This is the message you requested for 403
-             sendStatusUpdate("Old subtitle URL used; please repeat URL retrieval steps.", 0, url);
+             // This is the message you requested for 403. Route as 'url' message.
+             sendStatusUpdate("Old subtitle URL used; please repeat URL retrieval steps.", 0, url, 'url');
         } else {
-             // Handle all other errors (including generic HTTP errors and network errors)
-             sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url);
+             // Handle all other errors (including generic HTTP errors and network errors). Route as 'url' message.
+             sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url, 'url');
         }
         // --- MODIFICATION END ---
         
@@ -118,7 +120,8 @@ function parseTtmlXml(xmlString, url) {
         if (errorNode) {
              // Keep this error for debugging parsing issues
              console.error("XML Parsing Error:", errorNode.textContent);
-             sendStatusUpdate(`Error: Could not parse XML. ${errorNode.textContent}`, 0, url);
+             // MODIFICATION: Use the consolidated error message. Route as 'url' message.
+             sendStatusUpdate(`Invalid URL retrieved - please repeat URL retrieval steps`, 0, url, 'url');
              return false;
         }
 
@@ -183,7 +186,8 @@ function parseTtmlXml(xmlString, url) {
 
     } catch (e) {
         console.error("Fatal error during XML parsing:", e);
-        sendStatusUpdate("Fatal error during XML parsing. Check console.", 0, url);
+        // MODIFICATION: Use the consolidated error message. Route as 'url' message.
+        sendStatusUpdate("Invalid URL retrieved - please repeat URL retrieval steps", 0, url, 'url');
         return false;
     }
 }
@@ -280,7 +284,7 @@ function makeDraggable(element) {
     isDragging = true;
     const rect = element.getBoundingClientRect();
     const clientX = e.clientX || e.touches[0].clientX;
-    const clientY = e.clientY || e.touches[0].clientY;
+    const clientY = e.touches[0].clientY;
     
     offsetX = clientX - rect.left;
     offsetY = clientY - rect.top;
@@ -302,7 +306,7 @@ function makeDraggable(element) {
     e.preventDefault(); 
     
     const clientX = e.clientX || e.touches[0].clientX;
-    const clientY = e.clientY || e.touches[0].clientY;
+    const clientY = e.touches[0].clientY;
     
     element.style.left = (clientX - offsetX) + 'px';
     element.style.top = (clientY - offsetY) + 'px';
@@ -500,8 +504,9 @@ async function translateAllSubtitles(url) {
         sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
         console.log("Native translation process finished. All subtitles are ready.");
     } else {
-        // Send a final status update that acknowledges the cancellation
-        sendStatusUpdate("Subtitle generation cancelled by user.", 0, url);
+        // MODIFICATION: Do NOT send "Subtitle generation cancelled by user" message.
+        // The popup is responsible for displaying a neutral status on cancellation.
+        console.log("Translation finished, but process was marked as cancelled. No 100% status sent.");
     }
 }
 
@@ -796,9 +801,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 
                 // FIX: Check if detectedLang is null (detection failed)
                 if (!subtitleLanguages.base) {
-                    // The language detection failure message is now the first message AFTER 
-                    // successful fetch/parse, so we jump the progress to 30% to acknowledge completion of initial steps
-                    sendStatusUpdate(`Detected Base Language: (FAIL). Starting translation...`, 30, url);
+                    // MODIFICATION: Send the new language error message with a 'lang' route
+                    sendStatusUpdate(`Language pair not yet available, please retry with different inputs.`, 30, url, 'lang');
                     // Use a fallback language if detection fails for translation
                     subtitleLanguages.base = 'en'; 
                 } else {
@@ -836,7 +840,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.error("C8. Failed to process XML or no subtitles found after parsing/cancellation.");
                 // Only send error status if it wasn't cancelled
                 if (!isCancelled) {
-                    sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
+                    // MODIFICATION: Use the consolidated error message for final failure. Route as 'url' message.
+                    sendStatusUpdate("Invalid URL retrieved - please repeat URL retrieval steps", 0, url, 'url');
                 }
                 isProcessing = false; // Reset flag on failure
             }
@@ -860,8 +865,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             floatingWindow.innerHTML = '';
         }
         
-        // Since isProcessing is reset by the async wrapper, we just set the status immediately
-        sendStatusUpdate("Subtitle generation cancelled by user.", 0);
+        // MODIFICATION: Do NOT send "Subtitle generation cancelled by user" status.
+        // The popup handles setting the neutral/reset status immediately.
         
         isProcessing = false; // Reset processing status
         // CRITICAL FIX: Return false to prevent the "A listener indicated an asynchronous response..." error
