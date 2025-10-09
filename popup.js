@@ -1,27 +1,200 @@
 console.log("1. popup.js script file loaded.");
 
+// --- NEW GLOBAL LANGUAGE MAP ---
 const LANGUAGE_MAP = {
-    'en': 'English',
-    'es': 'Spanish',
-    'fr': 'French',
-    'de': 'German',
-    'ja': 'Japanese',
-    'ko': 'Korean',
-    // Add other relevant languages if your translator supports them
-    'zh': 'Chinese (Detected)', 
-    'pt': 'Portuguese',
-    'ru': 'Russian',
-    'it': 'Italian',
-    'sv': 'Swedish',
-    'pl': 'Polish',
-    'tr': 'Turkish'
+    "afar": "aa",
+    "abkhazian": "ab",
+    "avesta": "ae",
+    "afrikaans": "af",
+    "akan": "ak",
+    "amharic": "am",
+    "aragonese": "an",
+    "arabic": "ar",
+    "assamese": "as",
+    "avaric": "av",
+    "aymara": "ay",
+    "azerbaijan": "az",
+    "bashkir": "ba",
+    "belarusian": "be",
+    "bulgarian": "bg",
+    "bihari languages": "bh",
+    "bislama": "bi",
+    "bambara": "bm",
+    "bengali / bangla": "bn",
+    "tibetan": "bo",
+    "breton": "br",
+    "bosnian": "bs",
+    "catalan / valencian": "ca",
+    "chechen": "ce",
+    "chamorro": "ch",
+    "corsican": "co",
+    "cree": "cr",
+    "czech": "cs",
+    "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu",
+    "chuvash": "cv",
+    "welsh": "cy",
+    "danish": "da",
+    "german": "de",
+    "dhivehi / divehi / maldivian": "dv",
+    "dzongkha": "dz",
+    "ewe": "ee",
+    "modern greek (1453-)": "el",
+    "english": "en",
+    "esperanto": "eo",
+    "spanish / castilian": "es",
+    "estonian": "et",
+    "basque": "eu",
+    "persian": "fa",
+    "fulah": "ff",
+    "finnish": "fi",
+    "fijian": "fj",
+    "faroese": "fo",
+    "french": "fr",
+    "western frisian": "fy",
+    "irish": "ga",
+    "scottish gaelic / gaelic": "gd",
+    "galician": "gl",
+    "guarani": "gn",
+    "gujarati": "gu",
+    "manx": "gv",
+    "hausa": "ha",
+    "hebrew": "he",
+    "hindi": "hi",
+    "hiri motu": "ho",
+    "croatian": "hr",
+    "haitian / haitian creole": "ht",
+    "hungarian": "hu",
+    "armenian": "hy",
+    "herero": "hz",
+    "interlingua (international auxiliary language association)": "ia",
+    "indonesian": "id",
+    "interlingue / occidental": "ie",
+    "igbo": "ig",
+    "sichuan yi / nuosu": "ii",
+    "inupiaq": "ik",
+    "indonesian (deprecated: use id)": "in",
+    "ido": "io",
+    "icelandic": "is",
+    "italian": "it",
+    "inuktitut": "iu",
+    "hebrew (deprecated: use he)": "iw",
+    "japanese": "ja",
+    "yiddish (deprecated: use yi)": "ji",
+    "javanese": "jv",
+    "javanese (deprecated: use jv)": "jw",
+    "georgian": "ka",
+    "kong": "kg",
+    "kikuyu / gikuyu": "ki",
+    "kuanyama / kwanyama": "kj",
+    "kazakh": "kk",
+    "kalaallisut / greenlandic": "kl",
+    "khmer / central khmer": "km",
+    "kannada": "kn",
+    "korean": "ko",
+    "kanuri": "kr",
+    "kashmiri": "ks",
+    "kurdish": "ku",
+    "komi": "kv",
+    "cornish": "kw",
+    "kirghiz / kyrgyz": "ky",
+    "latin": "la",
+    "luxembourgish / letzeburgesch": "lb",
+    "ganda / luganda": "lg",
+    "limburgan / limburger / limburgish": "li",
+    "lingala": "ln",
+    "lao": "lo",
+    "lithuanian": "lt",
+    "luba-katanga": "lu",
+    "latvian": "lv",
+    "malagasy": "mg",
+    "marshallese": "mh",
+    "maori": "mi",
+    "macedonian": "mk",
+    "malayalam": "ml",
+    "mongolian": "mn",
+    "moldavian / moldovan (deprecated: use ro)": "mo",
+    "marathi": "mr",
+    "malay (macrolanguage)": "ms",
+    "maltese": "mt",
+    "burmese": "my",
+    "nauru": "na",
+    "norwegian bokmål": "nb",
+    "north ndebele": "nd",
+    "nepali (macrolanguage)": "ne",
+    "ndonga": "ng",
+    "dutch / flemish": "nl",
+    "norwegian nynorsk": "nn",
+    "norwegian": "no",
+    "south ndebele": "nr",
+    "navajo / navaho": "nv",
+    "nyanja / chewa / chichewa": "ny",
+    "occitan (post 1500)": "oc",
+    "ojibwa": "oj",
+    "oromo": "om",
+    "oriya (macrolanguage) / odia (macrolanguage)": "or",
+    "ossetian / ossetic": "os",
+    "panjabi / punjabi": "pa",
+    "pali": "pi",
+    "polish": "pl",
+    "pushto / pashto": "ps",
+    "portuguese": "pt",
+    "quechua": "qu",
+    "romansh": "rm",
+    "rundi": "rn",
+    "romanian / moldavian / moldovan": "ro",
+    "russian": "ru",
+    "kinyarwanda": "rw",
+    "sanskrit": "sa",
+    "sardinian": "sc",
+    "sindhi": "sd",
+    "northern sami": "se",
+    "sango": "sg",
+    "serbo-croatian": "sh",
+    "sinhala / sinhalese": "si",
+    "slovak": "sk",
+    "slovenian": "sl",
+    "samoan": "sm",
+    "shona": "sn",
+    "somali": "so",
+    "albanian": "sq",
+    "serbian": "sr",
+    "swati": "ss",
+    "southern sotho": "st",
+    "sundanese": "su",
+    "swedish": "sv",
+    "swahili (macrolanguage)": "sw",
+    "tamil": "ta",
+    "telugu": "te",
+    "tajik": "tg",
+    "thai": "th",
+    "tigrinya": "ti",
+    "turkmen": "tk",
+    "tagalog": "tl",
+    "tswana": "tn",
+    "tonga (tonga islands)": "to",
+    "turkish": "tr",
+    "tsonga": "ts",
+    "tatar": "tt",
+    "twi": "tw",
+    "tahitian": "ty",
+    "uighur / uyghur": "ug",
+    "ukrainian": "uk",
+    "urdu": "ur",
+    "uzbek": "uz",
+    "venda": "ve",
+    "vietnamese": "vi",
+    "volapük": "vo",
+    "walloon": "wa",
+    "wolof": "wo",
+    "xhosa": "xh",
+    "yiddish": "yi",
+    "yoruba": "yo",
+    "zhuang / chuang": "za",
+    "chinese": "zh",
+    "zulu": "zu"
 };
 
-function getFullLanguageName(code) {
-    if (!code || code.toUpperCase() === '(FAIL)') return "Language not yet identified";
-    return LANGUAGE_MAP[code.toLowerCase()] || `Code: ${code.toUpperCase()}`; 
-}
-
+// --- REMOVED: getFullLanguageName is no longer needed ---
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
@@ -31,14 +204,16 @@ async function resetStatus(elements) {
     if (!elements.confirmButton) return; 
 
     elements.subtitleUrlInput.value = '';
-    elements.targetLanguageInput.value = 'es'; // Default target language code
+    // --- MODIFIED: Reset language input value ---
+    elements.targetLanguageInput.value = 'Spanish'; // Default language in full text
     elements.translatedOnlyCheckbox.checked = false;
     
     // NEW: Reset font size to default 'medium'
     elements.fontSizeMedium.checked = true;
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
-    elements.targetLanguageInput.disabled = false; // NEW: Enable language input element
+    // --- MODIFIED: Ensure new input is NOT disabled ---
+    elements.targetLanguageInput.disabled = false; 
     elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
     elements.cancelButton.classList.add('hidden-no-space'); 
@@ -58,7 +233,8 @@ function loadSavedStatus(elements) {
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
-        elements.targetLanguageInput.disabled = false; // NEW: Enable language input element
+        // --- MODIFIED: Reference new targetLanguageInput element ---
+        elements.targetLanguageInput.disabled = false; 
         elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
         
         elements.cancelButton.classList.add('hidden-no-space'); 
@@ -77,7 +253,11 @@ function loadSavedStatus(elements) {
         // Load Language Inputs and last URL first
         const input = data.last_input;
         if (input) {
-             elements.targetLanguageInput.value = input.targetLang || 'es';
+             // We can only reliably save the code (input.targetLang), so we need to look up the full name
+             const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === input.targetLang) || input.targetLang;
+             
+             // --- MODIFIED: Set value for input field (full name or code if not found) ---
+             elements.targetLanguageInput.value = fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1);
              elements.subtitleUrlInput.value = input.url || '';
         }
 
@@ -88,6 +268,7 @@ function loadSavedStatus(elements) {
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
+                // --- MODIFIED: Disable language input element ---
                 elements.targetLanguageInput.disabled = true; 
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -95,6 +276,7 @@ function loadSavedStatus(elements) {
             } else {
                 // Process finished (progress == 100)
                 elements.confirmButton.disabled = false; // Allow re-run
+                // --- MODIFIED: Enable language input element ---
                 elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false;
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -113,7 +295,8 @@ function loadSavedStatus(elements) {
                  
                  // On clean state, ensure fields are empty (new requirement on refresh/clean)
                  elements.subtitleUrlInput.value = '';
-                 elements.targetLanguageInput.value = 'es'; 
+                 // --- MODIFIED: Set language input default value ---
+                 elements.targetLanguageInput.value = 'Spanish'; 
              }
              
              if (status && status.progress === 0 && status.message) {
@@ -135,14 +318,27 @@ async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
     const url = elements.subtitleUrlInput.value.trim();
-    const targetLang = elements.targetLanguageInput.value.trim().toLowerCase(); 
-    
-    // NEW: Get preference values
-    const translatedOnly = elements.translatedOnlyCheckbox.checked;
+    // --- MODIFIED: Get full language name from input field ---
+    const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
     
     // NEW: Get selected font size preference
     const selectedFontSize = document.querySelector('input[name="fontSize"]:checked').value;
 
+
+    // --- NEW: LOOKUP THE 2-LETTER CODE ---
+    const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
+    
+    // --- NEW: VALIDATE THE LANGUAGE CODE (MUST BE 2 LETTERS) ---
+    if (targetLang.length !== 2) {
+         elements.statusText.textContent = `Error: Could not find 2-letter code for '${inputLangName}'. Please check spelling.`;
+         elements.progressBar.style.width = '0%';
+         elements.confirmButton.disabled = false;
+         return;
+    }
+    // --------------------------------------------------------
+
+    // NEW: Get preference values
+    const translatedOnly = elements.translatedOnlyCheckbox.checked;
 
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
@@ -158,22 +354,13 @@ async function handleConfirmClick(elements) {
         elements.confirmButton.disabled = false; 
         return;
     }
-    
-    // --- NEW: Basic validation for 2-letter code ---
-    if (targetLang.length !== 2) {
-         elements.statusText.textContent = "Error: Target language must be a 2-letter code (e.g., 'es').";
-         elements.progressBar.style.width = '0%';
-         elements.confirmButton.disabled = false;
-         return;
-    }
-    // ----------------------------------------------
 
 
     // 1. Save language choices and preference and clear old status
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({ 
-        // We only save the URL and Target Lang now
-        last_input: { url, targetLang },
+        // We save the found CODE, not the full name
+        last_input: { url, targetLang: targetLang },
         // NEW: Save the preference states
         translated_only_pref: translatedOnly,
         font_size_pref: selectedFontSize // NEW
@@ -183,6 +370,7 @@ async function handleConfirmClick(elements) {
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
+    // --- MODIFIED: Disable language input field ---
     elements.targetLanguageInput.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
     
@@ -208,7 +396,7 @@ async function handleConfirmClick(elements) {
         const message = { 
             command: "fetch_and_process_url", 
             url: url,
-            targetLang: targetLang,
+            targetLang: targetLang, // Pass the 2-letter code
             translatedOnly: translatedOnly,
             fontSize: selectedFontSize // NEW
         };
@@ -267,11 +455,9 @@ async function handleCancelClick(elements) {
     });
     
     // 2. Immediately clear the saved status.
-    // This is CRITICAL. It forces loadSavedStatus (step 4) to skip the 'if (status && status.progress > 0)' block.
     await chrome.storage.local.remove(['ls_status']);
     
     // 3. Manually reset UI elements to the initial state
-    // We clear the bar and re-enable inputs immediately.
     elements.statusText.textContent = "Subtitle generation cancelled.";
     elements.progressBar.style.width = '0%';
     elements.confirmButton.disabled = false;
@@ -282,7 +468,6 @@ async function handleCancelClick(elements) {
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
     
     // 4. Re-run loadSavedStatus to correctly load any saved URL/prefs (which were NOT cleared above)
-    // This executes synchronously, ensuring the UI is stable on the first click.
     loadSavedStatus(elements); 
 }
 
@@ -293,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Initialize DOM variables locally
     const elements = {
         confirmButton: document.getElementById('confirmButton'),
+        // --- MODIFIED: Reference new targetLanguageInput element ---
         targetLanguageInput: document.getElementById('targetLanguage'), 
         subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
         statusText: document.getElementById('statusText'),
