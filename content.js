@@ -485,7 +485,8 @@ function startSubtitleSync() {
             if (newIndex !== currentSubtitleIndex) {
                 // NEW SUBTITLE LINE DETECTED: Use the pre-translated text
                 const baseText = newSubtitle.text;
-                const translatedText = newSubtitle.translatedText || `(Translation Error)`;
+                // If translatedText is null (translation hasn't reached it yet), use a placeholder/base text
+                const translatedText = newSubtitle.translatedText || baseText;
 
                 let innerHTML = '';
 
@@ -598,16 +599,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         sendStatusUpdate(`Detected Base Language: ${detectedLang.toUpperCase()}. Starting translation...`, 30, url);
                     }
 
+                    // -------------------------------------------------------------------------------------
+                    // ⭐ CRITICAL CHANGE: Start the sync loop NOW, right after detection and before translation.
+                    // This allows subtitles to appear as soon as they are translated concurrently.
+                    // -------------------------------------------------------------------------------------
+                    console.log("C5. Starting subtitle sync loop *early* while translation runs in background.");
+                    startSubtitleSync();
+                    // -------------------------------------------------------------------------------------
+
 
                     // 6. Run concurrent translation (30% -> 100%)
-                    console.log(`C5. Starting concurrent translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
+                    console.log(`C6. Starting concurrent translation: ${subtitleLanguages.base} -> ${subtitleLanguages.target}...`);
                     await translateAllSubtitles(url);
 
-                    // 7. Start synchronization after translation is 100% complete
-                    console.log("C6. Translation complete. Starting subtitle sync loop.");
-                    startSubtitleSync();
+                    // 7. The sync loop (started in C5) continues running automatically.
+                    console.log("C7. Translation complete. Subtitle sync is already running.");
                 } else {
-                    console.error("C7. Failed to process XML or no subtitles found after parsing.");
+                    console.error("C8. Failed to process XML or no subtitles found after parsing.");
                     sendStatusUpdate("Failed to process XML or no subtitles found.", 0, url);
                 }
             }
