@@ -25,13 +25,17 @@ function getFullLanguageName(code) {
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref']); 
+    // MODIFICATION: Add 'font_size_pref' to removal list
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref']); 
     
     if (!elements.confirmButton) return; 
 
     elements.subtitleUrlInput.value = '';
     elements.targetLanguageSelect.value = 'es'; // Default target language
     elements.translatedOnlyCheckbox.checked = false;
+    
+    // NEW: Reset font size to default 'medium'
+    elements.fontSizeMedium.checked = true;
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     elements.targetLanguageSelect.disabled = false;
@@ -48,7 +52,8 @@ async function resetStatus(elements) {
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    chrome.storage.local.get(['ls_status', 'last_input', 'translated_only_pref'], (data) => {
+    // MODIFICATION: Retrieve 'font_size_pref'
+    chrome.storage.local.get(['ls_status', 'last_input', 'translated_only_pref', 'font_size_pref'], (data) => {
         const status = data.ls_status;
         
         // Always set the defaults first
@@ -59,9 +64,16 @@ function loadSavedStatus(elements) {
         elements.cancelButton.classList.add('hidden-no-space'); 
         elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Default text
         
-        // NEW: Load persistent preference
+        // NEW: Load persistent preference for translated only checkbox
         elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
         
+        // NEW: Load persistent preference for font size, default to 'medium'
+        const savedFontSize = data.font_size_pref || 'medium';
+        const fontSizeElement = document.getElementById(`fontSize${savedFontSize.charAt(0).toUpperCase() + savedFontSize.slice(1)}`);
+        if (fontSizeElement) {
+             fontSizeElement.checked = true;
+        }
+
         // Load Language Inputs and last URL first
         const input = data.last_input;
         if (input) {
@@ -123,8 +135,12 @@ async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
     const url = elements.subtitleUrlInput.value.trim();
-    // NEW: Get preference value
+    // NEW: Get preference values
     const translatedOnly = elements.translatedOnlyCheckbox.checked;
+    
+    // NEW: Get selected font size preference
+    const selectedFontSize = document.querySelector('input[name="fontSize"]:checked').value;
+
 
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
@@ -147,8 +163,9 @@ async function handleConfirmClick(elements) {
     await chrome.storage.local.set({ 
         // We only save the URL and Target Lang now
         last_input: { url, targetLang },
-        // NEW: Save the preference state
-        translated_only_pref: translatedOnly
+        // NEW: Save the preference states
+        translated_only_pref: translatedOnly,
+        font_size_pref: selectedFontSize // NEW
     });
 
     // 2. Update UI for start of process
@@ -157,6 +174,10 @@ async function handleConfirmClick(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageSelect.disabled = true; 
     elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
+    
+    // NEW: Disable font size radio buttons while processing
+    elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure running text
     elements.cancelButton.classList.remove('hidden-no-space'); // Show while running
 
@@ -172,12 +193,13 @@ async function handleConfirmClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
-        // ADDED: translatedOnly to the message
+        // MODIFICATION: Pass all preferences to content script
         const message = { 
             command: "fetch_and_process_url", 
             url: url,
             targetLang: targetLang,
-            translatedOnly: translatedOnly // NEW
+            translatedOnly: translatedOnly,
+            fontSize: selectedFontSize // NEW
         };
 
         // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
@@ -231,8 +253,12 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
-        // detectedLanguageText: document.getElementById('detectedLanguageText'),
-        translatedOnlyCheckbox: document.getElementById('translatedOnlyCheckbox')
+        translatedOnlyCheckbox: document.getElementById('translatedOnlyCheckbox'),
+        // NEW Elements for font size
+        fontSizeGroup: document.getElementById('fontSizeGroup'),
+        fontSizeSmall: document.getElementById('fontSizeSmall'),
+        fontSizeMedium: document.getElementById('fontSizeMedium'),
+        fontSizeLarge: document.getElementById('fontSizeLarge')
     };
     
     // CRITICAL DEBUG CHECK
@@ -255,6 +281,16 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.translatedOnlyCheckbox.addEventListener('change', (e) => {
         chrome.storage.local.set({ 'translated_only_pref': e.target.checked });
     });
+    
+    // NEW: Listener for font size radio buttons
+    elements.fontSizeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                chrome.storage.local.set({ 'font_size_pref': e.target.value });
+            }
+        });
+    });
+
     
     // NEW: Listen to changes in the URL input box to enable/disable the button
     elements.subtitleUrlInput.addEventListener('input', () => {
@@ -302,6 +338,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
+                
+                // NEW: Re-enable font size radio buttons
+                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
                 
@@ -310,6 +350,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageSelect.disabled = true;
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
+                
+                // NEW: Disable font size radio buttons
+                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
                 
@@ -338,6 +382,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 elements.targetLanguageSelect.disabled = false;
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
+                
+                // NEW: Re-enable font size radio buttons
+                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
                 elements.cancelButton.classList.add('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
             }
