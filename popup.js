@@ -330,7 +330,7 @@ async function handleConfirmClick(elements) {
     
     // --- NEW: VALIDATE THE LANGUAGE CODE (MUST BE 2 LETTERS) ---
     if (targetLang.length !== 2) {
-         elements.statusText.textContent = `Error: Could not find 2-letter code for '${inputLangName}'. Please check spelling.`;
+         elements.statusText.textContent = `Please check spelling.`;
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
          return;
