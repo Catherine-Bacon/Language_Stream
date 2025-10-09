@@ -114,24 +114,37 @@
         width: auto;
         margin-right: 10px;
       }
+      
+      /* --- NEW CSS: Container for the header text and radio group on the same row --- */
+      .preference-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 10px;
+      }
+      .preference-row p {
+          /* Ensure header text doesn't shrink and remains visually aligned */
+          flex-shrink: 0; 
+          margin: 0;
+      }
+      
       /* NEW STYLE FOR RADIO BUTTONS */
       .radio-group {
         display: flex;
-        /* --- MODIFICATION: Use flex-start and internal padding for better control --- */
         justify-content: flex-start;
-        gap: 10px; /* Space between radio button labels */
-        margin-bottom: 10px;
-        padding: 5px 5px; /* Add internal padding to the group container */
+        gap: 10px; 
+        margin-bottom: 0; /* Remove margin-bottom from group as it's handled by preference-row */
+        padding: 5px 5px; 
         border: 1px solid #ddd;
         border-radius: 4px;
-        flex-wrap: wrap; /* Allow wrapping if space is tight */
+        flex-grow: 1; /* Allow the radio group to take up remaining space */
+        flex-wrap: wrap; 
       }
       .radio-group label {
         display: flex;
         align-items: center;
         font-size: 0.9em;
         cursor: pointer;
-        /* --- MODIFICATION: Add padding to each label to ensure clicking works easily --- */
         padding: 2px 5px; 
       }
       .radio-group input[type="radio"] {
@@ -166,68 +179,76 @@
         <label for="translatedOnlyCheckbox">Show Translated Subtitles Only</label>
     </div>
 
-    <p style="font-size: 0.9em; margin: 0; margin-top: 5px; color: #333;">Font Size:</p>
-    <div id="fontSizeGroup" class="radio-group">
-        <label>
-            <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
-            Small
-        </label>
-        <label>
-            <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
-            Medium
-        </label>
-        <label>
-            <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
-            Large
-        </label>
+    <div class="preference-row">
+        <p>Font Size:</p>
+        <div id="fontSizeGroup" class="radio-group">
+            <label>
+                <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
+                Small
+            </label>
+            <label>
+                <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
+                Medium
+            </label>
+            <label>
+                <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
+                Large
+            </label>
+        </div>
     </div>
 
-    <p style="font-size: 0.9em; margin: 0; margin-top: 5px; color: #333;">Background Color:</p>
-    <div id="backgroundColorGroup" class="radio-group">
-        <label>
-            <input type="radio" name="backgroundColor" value="none" id="backgroundColorNone">
-            None
-        </label>
-        <label>
-            <input type="radio" name="backgroundColor" value="black" id="backgroundColorBlack" checked>
-            Black
-        </label>
-        <label>
-            <input type="radio" name="backgroundColor" value="gray" id="backgroundColorGray">
-            Gray
-        </label>
+    <div class="preference-row">
+        <p>Background Color:</p>
+        <div id="backgroundColorGroup" class="radio-group">
+            <label>
+                <input type="radio" name="backgroundColor" value="none" id="backgroundColorNone">
+                None
+            </label>
+            <label>
+                <input type="radio" name="backgroundColor" value="black" id="backgroundColorBlack" checked>
+                Black
+            </label>
+            <label>
+                <input type="radio" name="backgroundColor" value="gray" id="backgroundColorGray">
+                Gray
+            </label>
+        </div>
     </div>
 
-    <p style="font-size: 0.9em; margin: 0; margin-top: 5px; color: #333;">Font Shadow:</p>
-    <div id="fontShadowGroup" class="radio-group">
-        <label>
-            <input type="radio" name="fontShadow" value="none" id="fontShadowNone">
-            None
-        </label>
-        <label>
-            <input type="radio" name="fontShadow" value="black_shadow" id="fontShadowBlack" checked>
-            Black
-        </label>
-        <label>
-            <input type="radio" name="fontShadow" value="white_shadow" id="fontShadowWhite">
-            White
-        </label>
+    <div class="preference-row">
+        <p>Font Shadow:</p>
+        <div id="fontShadowGroup" class="radio-group">
+            <label>
+                <input type="radio" name="fontShadow" value="none" id="fontShadowNone">
+                None
+            </label>
+            <label>
+                <input type="radio" name="fontShadow" value="black_shadow" id="fontShadowBlack" checked>
+                Black
+            </label>
+            <label>
+                <input type="radio" name="fontShadow" value="white_shadow" id="fontShadowWhite">
+                White
+            </label>
+        </div>
     </div>
 
-    <p style="font-size: 0.9em; margin: 0; margin-top: 5px; color: #333;">Font Color:</p>
-    <div id="fontColorGroup" class="radio-group">
-        <label>
-            <input type="radio" name="fontColor" value="white" id="fontColorWhite" checked>
-            White
-        </label>
-        <label>
-            <input type="radio" name="fontColor" value="yellow" id="fontColorYellow">
-            Yellow
-        </label>
-        <label>
-            <input type="radio" name="fontColor" value="cyan" id="fontColorCyan">
-            Cyan
-        </label>
+    <div class="preference-row">
+        <p>Font Color:</p>
+        <div id="fontColorGroup" class="radio-group">
+            <label>
+                <input type="radio" name="fontColor" value="white" id="fontColorWhite" checked>
+                White
+            </label>
+            <label>
+                <input type="radio" name="fontColor" value="yellow" id="fontColorYellow">
+                Yellow
+            </label>
+            <label>
+                <input type="radio" name="fontColor" value="cyan" id="fontColorCyan">
+                Cyan
+            </label>
+        </div>
     </div>
 
     <button id="confirmButton">Generate Subtitles</button>
