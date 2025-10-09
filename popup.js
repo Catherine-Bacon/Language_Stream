@@ -194,8 +194,6 @@ const LANGUAGE_MAP = {
     "zulu": "zu"
 };
 
-// --- REMOVED: getFullLanguageName is no longer needed ---
-
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // MODIFICATION: Add new preferences to removal list
@@ -206,8 +204,10 @@ async function resetStatus(elements) {
     elements.subtitleUrlInput.value = '';
     // --- MODIFIED: Reset language input value ---
     elements.targetLanguageInput.value = 'Spanish'; // Default language in full text
-    elements.translatedOnlyCheckbox.checked = false;
     
+    // MODIFICATION: Reset subtitle mode to default 'dual'
+    elements.subtitleModeDual.checked = true;
+
     // NEW: Reset font size to default 'medium'
     elements.fontSizeMedium.checked = true;
     
@@ -223,9 +223,11 @@ async function resetStatus(elements) {
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     // --- MODIFIED: Ensure new input is NOT disabled ---
     elements.targetLanguageInput.disabled = false; 
-    elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
-    // NEW: Enable all preference radio buttons
+    // MODIFICATION: Enable all subtitle mode radio buttons
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    
+    // NEW: Enable all other preference radio buttons
     elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -242,11 +244,11 @@ async function resetStatus(elements) {
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // MODIFICATION: Retrieve new preferences
+    // MODIFICATION: Retrieve translated_only_pref
     chrome.storage.local.get([
         'ls_status', 
         'last_input', 
-        'translated_only_pref', 
+        'translated_only_pref', // This preference name is kept for backward compatibility and is now a boolean
         'font_size_pref', 
         'background_color_pref', 
         'font_shadow_pref', 
@@ -258,14 +260,21 @@ function loadSavedStatus(elements) {
         elements.progressBar.style.width = '0%';
         // --- MODIFIED: Reference new targetLanguageInput element ---
         elements.targetLanguageInput.disabled = false; 
-        elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox by default
         
         elements.cancelButton.classList.add('hidden-no-space'); 
         elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Default text
         
-        // NEW: Load persistent preference for translated only checkbox
-        elements.translatedOnlyCheckbox.checked = data.translated_only_pref || false;
+        // MODIFICATION: Load persistent preference for subtitle mode
+        // Note: The storage key 'translated_only_pref' is a boolean (true/false)
+        const isTranslatedOnlyPref = data.translated_only_pref;
         
+        if (isTranslatedOnlyPref === true) {
+            elements.subtitleModeTranslatedOnly.checked = true;
+        } else {
+            // Default to dual mode if preference is false, null, or undefined
+            elements.subtitleModeDual.checked = true; 
+        }
+
         // NEW: Load persistent preference for font size, default to 'medium'
         const savedFontSize = data.font_size_pref || 'medium';
         const fontSizeElement = document.getElementById(`fontSize${savedFontSize.charAt(0).toUpperCase() + savedFontSize.slice(1)}`);
@@ -315,9 +324,9 @@ function loadSavedStatus(elements) {
                 elements.confirmButton.disabled = true;
                 // --- MODIFIED: Disable language input element ---
                 elements.targetLanguageInput.disabled = true; 
-                elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
-
-                // NEW: Disable all preference radio buttons while running
+                
+                // MODIFICATION: Disable all preference radio buttons while running
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -330,9 +339,9 @@ function loadSavedStatus(elements) {
                 elements.confirmButton.disabled = false; // Allow re-run
                 // --- MODIFIED: Enable language input element ---
                 elements.targetLanguageInput.disabled = false; 
-                elements.translatedOnlyCheckbox.disabled = false;
                 
-                // NEW: Enable all preference radio buttons
+                // MODIFICATION: Enable all preference radio buttons
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -368,7 +377,8 @@ function loadSavedStatus(elements) {
                  elements.cancelButton.classList.add('hidden-no-space');
              }
              
-             // NEW: Ensure preferences are enabled on a neutral/error state
+             // MODIFICATION: Ensure preferences are enabled on a neutral/error state
+             elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
              elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
              elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
              elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -385,6 +395,10 @@ async function handleConfirmClick(elements) {
     const url = elements.subtitleUrlInput.value.trim();
     // --- MODIFIED: Get full language name from input field ---
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
+    
+    // MODIFICATION: Get selected subtitle mode preference
+    const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
+    const translatedOnly = (selectedSubtitleMode === 'translated_only'); // Set the boolean for content script
     
     // NEW: Get selected font size preference
     const selectedFontSize = document.querySelector('input[name="fontSize"]:checked').value;
@@ -411,9 +425,6 @@ async function handleConfirmClick(elements) {
     }
     // --------------------------------------------------------
 
-    // NEW: Get preference values
-    const translatedOnly = elements.translatedOnlyCheckbox.checked;
-
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
@@ -435,8 +446,8 @@ async function handleConfirmClick(elements) {
     await chrome.storage.local.set({ 
         // We save the found CODE, not the full name
         last_input: { url, targetLang: targetLang },
-        // NEW: Save the preference states
-        translated_only_pref: translatedOnly,
+        // MODIFICATION: Save the translatedOnly boolean based on selected mode
+        translated_only_pref: translatedOnly, 
         font_size_pref: selectedFontSize, // NEW
         background_color_pref: selectedBackgroundColor, // NEW
         font_shadow_pref: selectedFontShadow, // NEW
@@ -449,9 +460,9 @@ async function handleConfirmClick(elements) {
     elements.confirmButton.disabled = true;
     // --- MODIFIED: Disable language input field ---
     elements.targetLanguageInput.disabled = true; 
-    elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
     
-    // NEW: Disable font size radio buttons while processing
+    // MODIFICATION: Disable all preference radio buttons while processing
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -478,7 +489,7 @@ async function handleConfirmClick(elements) {
             command: "fetch_and_process_url", 
             url: url,
             targetLang: targetLang, // Pass the 2-letter code
-            translatedOnly: translatedOnly,
+            translatedOnly: translatedOnly, // Pass the boolean
             fontSize: selectedFontSize, // NEW
             backgroundColor: selectedBackgroundColor, // NEW
             fontShadow: selectedFontShadow, // NEW
@@ -546,9 +557,9 @@ async function handleCancelClick(elements) {
     elements.progressBar.style.width = '0%';
     elements.confirmButton.disabled = false;
     elements.targetLanguageInput.disabled = false; 
-    elements.translatedOnlyCheckbox.disabled = false;
     
-    // NEW: Re-enable all preference radio buttons
+    // MODIFICATION: Re-enable all preference radio buttons
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -574,7 +585,11 @@ document.addEventListener('DOMContentLoaded', () => {
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
-        translatedOnlyCheckbox: document.getElementById('translatedOnlyCheckbox'),
+        // MODIFICATION: Subtitle mode radio button elements
+        subtitleModeGroup: document.getElementById('subtitleModeGroup'), 
+        subtitleModeDual: document.getElementById('subtitleModeDual'), 
+        subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'), 
+        
         // NEW Elements for font size
         fontSizeGroup: document.getElementById('fontSizeGroup'),
         fontSizeSmall: document.getElementById('fontSizeSmall'),
@@ -598,8 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // CRITICAL DEBUG CHECK
-    if (!elements.confirmButton || !elements.statusText || !elements.translatedOnlyCheckbox) {
-        console.error("2. FATAL ERROR: Core DOM elements (button/status/checkbox) not found. Check main.html IDs.");
+    if (!elements.confirmButton || !elements.statusText || !elements.subtitleModeGroup) { 
+        console.error("2. FATAL ERROR: Core DOM elements (button/status/subtitleModeGroup) not found. Check main.html IDs.");
         return; 
     } else {
         console.log("2. All DOM elements found. Attaching listeners.");
@@ -614,9 +629,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // The handleCancelClick now handles both 'Cancel' and 'Clear Status & Reset'
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
     
-    // Listener for translated only checkbox
-    elements.translatedOnlyCheckbox.addEventListener('change', (e) => {
-        chrome.storage.local.set({ 'translated_only_pref': e.target.checked });
+    // MODIFICATION: Listener for subtitle mode radio buttons
+    elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // Save the boolean value for the preference: true if 'translated_only', false if 'dual'
+                const isTranslatedOnly = (e.target.value === 'translated_only');
+                chrome.storage.local.set({ 'translated_only_pref': isTranslatedOnly });
+            }
+        });
     });
     
     // NEW: Listener for font size radio buttons
@@ -701,9 +722,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- PROGRESS 100% STATE ---
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageInput.disabled = false; 
-                elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 
-                // NEW: Re-enable all preference radio buttons
+                // MODIFICATION: Re-enable all preference radio buttons
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -716,9 +737,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- PROGRESS 0% < x < 100% STATE (RUNNING) ---
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true; 
-                elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 
-                // NEW: Disable all preference radio buttons
+                // MODIFICATION: Disable all preference radio buttons
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -751,9 +772,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.confirmButton.disabled = true;
                 }
                 elements.targetLanguageInput.disabled = false; 
-                elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 
-                // NEW: Re-enable all preference radio buttons
+                // MODIFICATION: Re-enable all preference radio buttons
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
