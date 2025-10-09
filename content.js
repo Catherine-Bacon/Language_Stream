@@ -219,10 +219,10 @@ function createFloatingWindow() {
     const windowDiv = document.createElement('div');
     windowDiv.id = 'language-stream-window';
     windowDiv.style.cssText = `
-      position: absolute;
-      bottom: 10%; 
+      position: fixed;       /* FIX: Use 'fixed' to position relative to the viewport. */
+      top: 80%;            /* FIX: Set an initial position using 'top' instead of 'bottom'. */
       left: 50%;
-      transform: translateX(-50%); 
+      transform: translate(-50%, 0); /* FIX: Only translate X-axis for horizontal centering. */
       width: 70%; 
       max-width: 800px;
       min-height: 50px;
@@ -237,7 +237,6 @@ function createFloatingWindow() {
       font-size: 3.6rem; 
       text-align: center;
       line-height: 1.4;
-      /* FIX: Removed 'resize: both' to prevent size change on drag */
       overflow: hidden;
       cursor: grab;
       display: none; 
