@@ -242,8 +242,8 @@ function openCustomSettingsWindow() {
     chrome.windows.create({
         url: 'custom_settings.html', // NEW FILE
         type: 'popup',
-        width: 350,
-        height: 300, // MODIFIED: Adjusted height to be smaller
+        width: 400,
+        height: 400, // MODIFIED: Adjusted height to be smaller
         focused: true
     });
 }
