@@ -250,7 +250,8 @@ function createFloatingWindow() {
       max-width: 800px;
       min-height: 50px;
       background-color: ${bgColor}; /* NEW: Dynamic Background Color */
-      border: 2px solid #e50914;
+      /* MODIFICATION: Removed the red border line */
+      /* border: 2px solid #e50914; */ 
       border-radius: 12px;
       box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
       z-index: 9999;
