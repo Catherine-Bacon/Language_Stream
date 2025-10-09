@@ -2,10 +2,10 @@ console.log("1. popup.js script file loaded.");
 
 // --- NETFLIX STYLE PRESET ---
 const NETFLIX_PRESET = {
-    font_size_pref: 'medium',
-    background_color_pref: 'black',
-    font_shadow_pref: 'black_shadow',
-    font_color_pref: 'white'
+    font_size_pref: 'medium', // Corresponds to 0.9em in content.js
+    background_color_pref: 'black', // Corresponds to rgba(0, 0, 0, 0.85) in content.js
+    font_shadow_pref: 'black_shadow', // Corresponds to 2px 2px 4px rgba(0, 0, 0, 0.8) in content.js
+    font_color_pref: 'white' // Corresponds to #FFFFFF in content.js
 };
 // ----------------------------
 
@@ -99,7 +99,7 @@ const LANGUAGE_MAP = {
     "kalaallisut / greenlandic": "kl",
     "khmer / central khmer": "km",
     "kannada": "kn",
-    "korean": "ko",
+    "ko": "korean",
     "kanuri": "kr",
     "kashmiri": "ks",
     "kurdish": "ku",
@@ -211,25 +211,27 @@ async function resetStatus(elements) {
     if (!elements.confirmButton) return; 
 
     elements.subtitleUrlInput.value = '';
-    elements.targetLanguageInput.value = 'Spanish'; 
+    // --- MODIFIED: Reset language input value ---
+    elements.targetLanguageInput.value = 'Spanish'; // Default language in full text
     
     // MODIFICATION: Reset subtitle mode and style to default 'dual' and 'netflix'
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
     elements.customSettingsButton.disabled = true; // Disable button on reset
+
     
-    elements.confirmButton.disabled = true; 
+    elements.confirmButton.disabled = true; // Button disabled until URL is pasted
+    // --- MODIFIED: Ensure new input is NOT disabled ---
     elements.targetLanguageInput.disabled = false; 
     
-    // MODIFICATION: Enable all style-related radio buttons (although they are now saved/loaded by custom_settings.js)
-    // We only need to enable/disable the radio buttons in the main popup
+    // MODIFICATION: Enable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
-
     elements.cancelButton.classList.add('hidden-no-space'); 
-    elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
+    elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
 
+    // --- MODIFICATION: Set initial status text to empty string ---
     elements.statusText.textContent = ""; 
     elements.progressBar.style.width = '0%';
     console.log("Processing status reset completed. Fields cleared.");
@@ -238,10 +240,10 @@ async function resetStatus(elements) {
 // Function to handle opening the custom settings window
 function openCustomSettingsWindow() {
     chrome.windows.create({
-        url: 'custom_settings.html',
+        url: 'custom_settings.html', // NEW FILE
         type: 'popup',
         width: 350,
-        height: 500, // Adjusted height to fit all options nicely
+        height: 380, // MODIFIED: Adjusted height to be smaller
         focused: true
     });
 }
@@ -252,7 +254,7 @@ function loadSavedStatus(elements) {
     chrome.storage.local.get([
         'ls_status', 
         'last_input', 
-        'translated_only_pref', 
+        'translated_only_pref', // This preference name is kept for backward compatibility and is now a boolean
         'subtitle_style_pref', // New style tracker
         'font_size_pref', // Still retrieved, though managed by custom_settings.js
         'background_color_pref', 
@@ -311,7 +313,7 @@ function loadSavedStatus(elements) {
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
             } else {
                 // Process finished (progress == 100)
-                elements.confirmButton.disabled = false; 
+                elements.confirmButton.disabled = false; // Allow re-run
                 elements.targetLanguageInput.disabled = false; 
                 
                 // MODIFICATION: Enable all main popup preference radio buttons
@@ -323,7 +325,7 @@ function loadSavedStatus(elements) {
 
 
                 elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Status & Reset"; 
+                elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
             }
         } else {
              // Neutral or Error State
@@ -411,8 +413,6 @@ async function handleConfirmClick(elements) {
         last_input: { url, targetLang: targetLang },
         translated_only_pref: translatedOnly, 
         subtitle_style_pref: selectedStyle, // Save the selected style mode
-        // Note: Individual style prefs are NOT saved here if Netflix style is chosen, but that's okay, 
-        // as they are only retrieved by the custom settings window.
     });
 
     // 5. Update UI for start of process
