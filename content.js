@@ -534,17 +534,17 @@ function startSubtitleSync() {
                 // --- CRITICAL FIX START: Check if translatedText is available ---
                 if (translatedText) {
                      if (isTranslatedOnly) {
-                        // Show only the translated text (larger font)
+                        // Show only the translated text (with matching 0.8em font size)
                         innerHTML = `
-                            <span class="translated-sub" style="opacity: 1.0; font-size: 1em; font-weight: bold;">
+                            <span class="translated-sub" style="opacity: 1.0; font-size: 0.8em; font-weight: bold;">
                                 ${translatedText}
                             </span>
                         `;
                     } else {
-                        // Show both (original text smaller, translated larger)
+                        // Show both (original text and translated text use the same 0.8em size)
                         innerHTML = `
                             <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
-                            <span class="translated-sub" style="opacity: 1.0; font-size: 1em;">
+                            <span class="translated-sub" style="opacity: 1.0; font-size: 0.8em;">
                                 ${translatedText}
                             </span>
                         `;
@@ -556,7 +556,7 @@ function startSubtitleSync() {
                          // If the user wants ONLY translated text, but it's not ready, show nothing
                          innerHTML = ''; 
                      } else {
-                         // Show base text, and a simple loading indicator where the translated text would go
+                         // Show base text, and a simple loading indicator where the translated text would go (with matching 0.8em font size)
                          innerHTML = `
                              <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
                              <span class="translated-sub" style="opacity: 0.6; font-size: 0.8em;">
