@@ -8,7 +8,11 @@ var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {}; // Cache for translations
 
 var isTranslatedOnly = isTranslatedOnly || false; // <--- ADDED: Preference tracker
-var fontSizeEm = '0.8em'; // <--- NEW: Default font size value
+var fontSizeEm = 'medium'; // <--- UPDATED: Default font size value (preference string)
+var backgroundColorPref = 'black'; // <--- NEW: Background color preference
+var fontShadowPref = 'black_shadow'; // <--- NEW: Font shadow preference
+var fontColorPref = 'white'; // <--- NEW: Font color preference
+
 var isProcessing = false; // <--- NEW: Flag to prevent repeated execution
 var isCancelled = false; // <--- NEW: Cancellation flag
 
@@ -215,33 +219,52 @@ function detectBaseLanguage() {
 
 function createFloatingWindow() {
   let existingWindow = document.getElementById('language-stream-window');
+  
+  // --- NEW: Dynamic styles based on preferences ---
+  const bgColor = backgroundColorPref === 'none' ? 'rgba(0, 0, 0, 0)' : 
+                  backgroundColorPref === 'black' ? 'rgba(0, 0, 0, 0.85)' : 
+                  'rgba(128, 128, 128, 0.85)'; // Gray
+  
+  // Font shadow requires helper function or direct calculation
+  const textShadow = getFontShadowCss(fontShadowPref);
+  
+  // Font color is applied to the individual spans, but we set the container's default for clarity
+  const defaultFontColor = getFontColor(fontColorPref);
+  
   if (existingWindow) {
     floatingWindow = existingWindow;
+    // Update existing window styles
+    floatingWindow.style.backgroundColor = bgColor;
+    floatingWindow.style.textShadow = textShadow;
+    floatingWindow.style.color = defaultFontColor; // Apply the default color
+
   } else {
     const windowDiv = document.createElement('div');
     windowDiv.id = 'language-stream-window';
     windowDiv.style.cssText = `
-      position: fixed;       /* FIX: Use 'fixed' to position relative to the viewport. */
-      top: 80%;            /* FIX: Set an initial position using 'top' instead of 'bottom'. */
+      position: fixed;       
+      top: 80%;            
       left: 50%;
-      transform: translate(-50%, 0); /* FIX: Only translate X-axis for horizontal centering. */
+      transform: translate(-50%, 0); 
       width: 70%; 
       max-width: 800px;
       min-height: 50px;
-      background-color: rgba(0, 0, 0, 0.85);
+      background-color: ${bgColor}; /* NEW: Dynamic Background Color */
       border: 2px solid #e50914;
       border-radius: 12px;
       box-shadow: 0 6px 15px rgba(0, 0, 0, 0.7);
       z-index: 9999;
       padding: 20px 30px; 
-      color: white;
+      color: ${defaultFontColor}; /* NEW: Dynamic Default Font Color */
       font-family: 'Inter', sans-serif;
+      /* Font size of the container is large, but text size is controlled by span */
       font-size: 3.6rem; 
       text-align: center;
       line-height: 1.4;
       overflow: hidden;
       cursor: grab;
       display: none; 
+      text-shadow: ${textShadow}; /* NEW: Dynamic Text Shadow */
     `;
     document.body.appendChild(windowDiv);
     floatingWindow = windowDiv; 
@@ -489,12 +512,40 @@ async function translateAllSubtitles(url) {
 function getFontSizeEm(preference) {
     switch (preference) {
         case 'small':
-            return '0.7em';
+            return '0.75em'; // Adjusted for slightly smaller size on screen
         case 'large':
-            return '1.0em';
+            return '1.1em'; // Adjusted for slightly larger size on screen
         case 'medium':
         default:
-            return '0.8em';
+            return '0.9em'; // Adjusted for a visually balanced medium on screen
+    }
+}
+
+// --- NEW helper function to get CSS text-shadow value ---
+function getFontShadowCss(preference) {
+    switch (preference) {
+        case 'black_shadow':
+            // Standard black drop shadow for readability
+            return '2px 2px 4px rgba(0, 0, 0, 0.8)'; 
+        case 'white_shadow':
+            // White outline/shadow for dark backgrounds
+            return '1px 1px 2px rgba(255, 255, 255, 0.8), -1px -1px 2px rgba(255, 255, 255, 0.8)';
+        case 'none':
+        default:
+            return 'none';
+    }
+}
+
+// --- NEW helper function to get CSS font color value ---
+function getFontColor(preference) {
+    switch (preference) {
+        case 'yellow':
+            return '#FFFF00';
+        case 'cyan':
+            return '#00FFFF';
+        case 'white':
+        default:
+            return '#FFFFFF';
     }
 }
 // ---------------------------------------------------------------------------------
@@ -519,8 +570,22 @@ function startSubtitleSync() {
         floatingWindow.style.display = 'block';
     }
 
-    // Determine the size once at the start of the loop setup
+    // Determine the styles once at the start of the loop setup
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
+    const currentFontShadow = getFontShadowCss(fontShadowPref);
+    const currentFontColor = getFontColor(fontColorPref); // New
+
+    // Update the floating window's text shadow and background color
+    if (floatingWindow) {
+        const bgColor = backgroundColorPref === 'none' ? 'rgba(0, 0, 0, 0)' : 
+                        backgroundColorPref === 'black' ? 'rgba(0, 0, 0, 0.85)' : 
+                        'rgba(128, 128, 128, 0.85)'; // Gray
+        floatingWindow.style.backgroundColor = bgColor;
+        floatingWindow.style.textShadow = currentFontShadow;
+        // The overall window color should be the chosen font color
+        floatingWindow.style.color = currentFontColor;
+    }
+
 
     const syncLoop = () => {
         const currentTime = videoElement.currentTime;
@@ -574,17 +639,18 @@ function startSubtitleSync() {
                 // --- CRITICAL FIX START: Check if translatedText is available ---
                 if (translatedText) {
                      if (isTranslatedOnly) {
-                        // Show only the translated text (with matching font size, non-bold)
+                        // Show only the translated text (with matching font size, non-bold, and preferred color)
                         innerHTML = `
-                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
+                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm}; color: ${currentFontColor};">
                                 ${translatedText}
                             </span>
                         `;
                     } else {
-                        // Show both (original text and translated text use the same 0.8em size, both non-bold)
+                        // Show both (original text and translated text use the same size, and preferred color)
+                        // Note: Setting color on the span overrides the window's default color
                         innerHTML = `
-                            <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
-                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
+                            <span class="base-sub" style="font-size: ${currentFontSizeEm}; color: ${currentFontColor};">${baseText}</span><br>
+                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm}; color: ${currentFontColor};">
                                 ${translatedText}
                             </span>
                         `;
@@ -596,10 +662,10 @@ function startSubtitleSync() {
                          // If the user wants ONLY translated text, but it's not ready, show nothing
                          innerHTML = ''; 
                      } else {
-                         // Show base text (non-bold), and a simple loading indicator (with matching font size)
+                         // Show base text, and a simple loading indicator (with matching font size and preferred color)
                          innerHTML = `
-                             <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
-                             <span class="translated-sub" style="opacity: 0.6; font-size: ${currentFontSizeEm};">
+                             <span class="base-sub" style="font-size: ${currentFontSizeEm}; color: ${currentFontColor};">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; font-size: ${currentFontSizeEm}; color: ${currentFontColor};">
                                  (Translating...)
                              </span>
                          `;
@@ -653,6 +719,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly; // <--- ADDED: Preference tracker
         fontSizeEm = request.fontSize; // <--- NEW: Get font size preference
+        backgroundColorPref = request.backgroundColor; // <--- NEW: Get background color preference
+        fontShadowPref = request.fontShadow; // <--- NEW: Get font shadow preference
+        fontColorPref = request.fontColor; // <--- NEW: Get font color preference
+
         translationCache = {}; 
         
         if (syncInterval) {
