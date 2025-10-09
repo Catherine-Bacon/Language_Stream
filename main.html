@@ -133,11 +133,11 @@
         display: flex;
         justify-content: flex-start;
         gap: 10px; 
-        margin-bottom: 0; /* Remove margin-bottom from group as it's handled by preference-row */
+        margin-bottom: 0; 
         padding: 5px 5px; 
         border: 1px solid #ddd;
         border-radius: 4px;
-        flex-grow: 1; /* Allow the radio group to take up remaining space */
+        flex-grow: 1; 
         flex-wrap: wrap; 
       }
       .radio-group label {
@@ -174,10 +174,21 @@
     <input type="text" id="targetLanguage" placeholder="Enter full language name (e.g., Spanish)" value="es">
     
     <h3>3. Select Preferences</h3>
-    <div class="checkbox-container">
-        <input type="checkbox" id="translatedOnlyCheckbox">
-        <label for="translatedOnlyCheckbox">Show Translated Subtitles Only</label>
+    
+    <div class="preference-row">
+        <p>Subtitle Mode:</p>
+        <div id="subtitleModeGroup" class="radio-group">
+            <label>
+                <input type="radio" name="subtitleMode" value="dual" id="subtitleModeDual" checked>
+                Dual mode
+            </label>
+            <label>
+                <input type="radio" name="subtitleMode" value="translated_only" id="subtitleModeTranslatedOnly">
+                Translated only
+            </label>
+        </div>
     </div>
+    
 
     <div class="preference-row">
         <p>Font Size:</p>
