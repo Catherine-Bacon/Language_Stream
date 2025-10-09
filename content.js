@@ -483,33 +483,49 @@ function startSubtitleSync() {
         // Update the display
         if (subtitleFound) {
             if (newIndex !== currentSubtitleIndex) {
-                // NEW SUBTITLE LINE DETECTED: Use the pre-translated text
+                
                 const baseText = newSubtitle.text;
-                // If translatedText is null (translation hasn't reached it yet), use a placeholder/base text
-                const translatedText = newSubtitle.translatedText || baseText;
+                const translatedText = newSubtitle.translatedText; // <-- Get the translated text (can be null while translating)
 
                 let innerHTML = '';
-
-                // --- MODIFICATION START: Conditional Display Logic ---
-                if (isTranslatedOnly) {
-                    // Show only the translated text (larger font)
-                    innerHTML = `
-                        <span class="translated-sub" style="opacity: 1.0; font-size: 1em; font-weight: bold;">
-                            ${translatedText}
-                        </span>
-                    `;
-                } else {
-                    // Show both (original text smaller, translated larger)
-                    innerHTML = `
-                        <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
-                        <span class="translated-sub" style="opacity: 1.0; font-size: 1em;">
-                            ${translatedText}
-                        </span>
-                    `;
-                }
-                // --- MODIFICATION END ---
                 
-                floatingWindow.innerHTML = innerHTML; // Use the new variable
+                // --- CRITICAL FIX START: Check if translatedText is available ---
+                if (translatedText) {
+                     if (isTranslatedOnly) {
+                        // Show only the translated text (larger font)
+                        innerHTML = `
+                            <span class="translated-sub" style="opacity: 1.0; font-size: 1em; font-weight: bold;">
+                                ${translatedText}
+                            </span>
+                        `;
+                    } else {
+                        // Show both (original text smaller, translated larger)
+                        innerHTML = `
+                            <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
+                            <span class="translated-sub" style="opacity: 1.0; font-size: 1em;">
+                                ${translatedText}
+                            </span>
+                        `;
+                    }
+                } else {
+                     // If translation is NOT complete, show a placeholder or nothing
+                     
+                     if (isTranslatedOnly) {
+                         // If the user wants ONLY translated text, but it's not ready, show nothing
+                         innerHTML = ''; 
+                     } else {
+                         // Show base text, and a simple loading indicator where the translated text would go
+                         innerHTML = `
+                             <span class="base-sub" style="font-weight: bold; font-size: 0.8em;">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; font-size: 0.8em;">
+                                 (Translating...)
+                             </span>
+                         `;
+                     }
+                }
+                // --- CRITICAL FIX END ---
+                
+                floatingWindow.innerHTML = innerHTML;
                 currentSubtitleIndex = newIndex;
             }
         } else {
