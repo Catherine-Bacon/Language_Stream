@@ -1,5 +1,14 @@
 console.log("1. popup.js script file loaded.");
 
+// --- NETFLIX STYLE PRESET ---
+const NETFLIX_PRESET = {
+    font_size_pref: 'medium',
+    background_color_pref: 'black',
+    font_shadow_pref: 'black_shadow',
+    font_color_pref: 'white'
+};
+// ----------------------------
+
 // --- NEW GLOBAL LANGUAGE MAP ---
 const LANGUAGE_MAP = {
     "afar": "aa",
@@ -196,60 +205,56 @@ const LANGUAGE_MAP = {
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
-    // MODIFICATION: Add new preferences to removal list
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref']); 
+    // MODIFICATION: Added subtitle_style_pref to the removal list
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref']); 
     
     if (!elements.confirmButton) return; 
 
     elements.subtitleUrlInput.value = '';
-    // --- MODIFIED: Reset language input value ---
-    elements.targetLanguageInput.value = 'Spanish'; // Default language in full text
+    elements.targetLanguageInput.value = 'Spanish'; 
     
-    // MODIFICATION: Reset subtitle mode to default 'dual'
+    // MODIFICATION: Reset subtitle mode and style to default 'dual' and 'netflix'
     elements.subtitleModeDual.checked = true;
-
-    // NEW: Reset font size to default 'medium'
-    elements.fontSizeMedium.checked = true;
+    elements.subtitleStyleNetflix.checked = true;
+    elements.customSettingsButton.disabled = true; // Disable button on reset
     
-    // NEW: Reset background color to default 'black'
-    elements.backgroundColorBlack.checked = true;
-    
-    // NEW: Reset font shadow to default 'black_shadow'
-    elements.fontShadowBlack.checked = true;
-
-    // NEW: Reset font color to default 'white'
-    elements.fontColorWhite.checked = true;
-    
-    elements.confirmButton.disabled = true; // Button disabled until URL is pasted
-    // --- MODIFIED: Ensure new input is NOT disabled ---
+    elements.confirmButton.disabled = true; 
     elements.targetLanguageInput.disabled = false; 
     
-    // MODIFICATION: Enable all subtitle mode radio buttons
+    // MODIFICATION: Enable all style-related radio buttons (although they are now saved/loaded by custom_settings.js)
+    // We only need to enable/disable the radio buttons in the main popup
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    
-    // NEW: Enable all other preference radio buttons
-    elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
 
     elements.cancelButton.classList.add('hidden-no-space'); 
-    elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
+    elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
 
-    // --- MODIFICATION: Set initial status text to empty string ---
     elements.statusText.textContent = ""; 
     elements.progressBar.style.width = '0%';
     console.log("Processing status reset completed. Fields cleared.");
 }
 
+// Function to handle opening the custom settings window
+function openCustomSettingsWindow() {
+    chrome.windows.create({
+        url: 'custom_settings.html',
+        type: 'popup',
+        width: 350,
+        height: 500, // Adjusted height to fit all options nicely
+        focused: true
+    });
+}
+
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // MODIFICATION: Retrieve translated_only_pref
+    // MODIFICATION: Added subtitle_style_pref to retrieval list
     chrome.storage.local.get([
         'ls_status', 
         'last_input', 
-        'translated_only_pref', // This preference name is kept for backward compatibility and is now a boolean
-        'font_size_pref', 
+        'translated_only_pref', 
+        'subtitle_style_pref', // New style tracker
+        'font_size_pref', // Still retrieved, though managed by custom_settings.js
         'background_color_pref', 
         'font_shadow_pref', 
         'font_color_pref'
@@ -258,59 +263,32 @@ function loadSavedStatus(elements) {
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
-        // --- MODIFIED: Reference new targetLanguageInput element ---
         elements.targetLanguageInput.disabled = false; 
-        
         elements.cancelButton.classList.add('hidden-no-space'); 
-        elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Default text
+        elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
         
-        // MODIFICATION: Load persistent preference for subtitle mode
-        // Note: The storage key 'translated_only_pref' is a boolean (true/false)
+        // MODIFICATION: Load Subtitle Mode
         const isTranslatedOnlyPref = data.translated_only_pref;
-        
         if (isTranslatedOnlyPref === true) {
             elements.subtitleModeTranslatedOnly.checked = true;
         } else {
-            // Default to dual mode if preference is false, null, or undefined
             elements.subtitleModeDual.checked = true; 
         }
-
-        // NEW: Load persistent preference for font size, default to 'medium'
-        const savedFontSize = data.font_size_pref || 'medium';
-        const fontSizeElement = document.getElementById(`fontSize${savedFontSize.charAt(0).toUpperCase() + savedFontSize.slice(1)}`);
-        if (fontSizeElement) {
-             fontSizeElement.checked = true;
+        
+        // MODIFICATION: Load Subtitle Style, default to 'netflix'
+        const savedStyle = data.subtitle_style_pref || 'netflix';
+        if (savedStyle === 'custom') {
+            elements.subtitleStyleCustom.checked = true;
+            elements.customSettingsButton.disabled = false; // Enable custom button
+        } else {
+            elements.subtitleStyleNetflix.checked = true;
+            elements.customSettingsButton.disabled = true; // Disable custom button
         }
-
-        // NEW: Load persistent preference for background color, default to 'black'
-        const savedBgColor = data.background_color_pref || 'black';
-        const bgColorElement = document.getElementById(`backgroundColor${savedBgColor.charAt(0).toUpperCase() + savedBgColor.slice(1)}`);
-        if (bgColorElement) {
-             bgColorElement.checked = true;
-        }
-
-        // NEW: Load persistent preference for font shadow, default to 'black_shadow'
-        const savedFontShadow = data.font_shadow_pref || 'black_shadow';
-        const fontShadowElement = document.getElementById(`fontShadow${savedFontShadow.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('')}`);
-        if (fontShadowElement) {
-             fontShadowElement.checked = true;
-        }
-
-        // NEW: Load persistent preference for font color, default to 'white'
-        const savedFontColor = data.font_color_pref || 'white';
-        const fontColorElement = document.getElementById(`fontColor${savedFontColor.charAt(0).toUpperCase() + savedFontColor.slice(1)}`);
-        if (fontColorElement) {
-             fontColorElement.checked = true;
-        }
-
 
         // Load Language Inputs and last URL first
         const input = data.last_input;
         if (input) {
-             // We can only reliably save the code (input.targetLang), so we need to look up the full name
              const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === input.targetLang) || input.targetLang;
-             
-             // --- MODIFIED: Set value for input field (full name or code if not found) ---
              elements.targetLanguageInput.value = fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1);
              elements.subtitleUrlInput.value = input.url || '';
         }
@@ -322,53 +300,44 @@ function loadSavedStatus(elements) {
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
-                // --- MODIFIED: Disable language input element ---
                 elements.targetLanguageInput.disabled = true; 
                 
-                // MODIFICATION: Disable all preference radio buttons while running
+                // MODIFICATION: Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.customSettingsButton.disabled = true; // Also disable the settings button
 
                 elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Running
+                elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
             } else {
                 // Process finished (progress == 100)
-                elements.confirmButton.disabled = false; // Allow re-run
-                // --- MODIFIED: Enable language input element ---
+                elements.confirmButton.disabled = false; 
                 elements.targetLanguageInput.disabled = false; 
                 
-                // MODIFICATION: Enable all preference radio buttons
+                // MODIFICATION: Enable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                
+                // Re-enable settings button only if custom is selected
+                elements.customSettingsButton.disabled = (savedStyle === 'netflix');
+
 
                 elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
+                elements.cancelButton.textContent = "Clear Status & Reset"; 
             }
         } else {
              // Neutral or Error State
-             // Check the input field's value
              if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
                  elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
                  elements.confirmButton.disabled = false;
              } else {
-                 // --- MODIFICATION: Set initial text to empty string if URL is empty ---
                  elements.statusText.textContent = "";
                  elements.confirmButton.disabled = true;
-                 
-                 // On clean state, ensure fields are empty (new requirement on refresh/clean)
                  elements.subtitleUrlInput.value = '';
-                 // --- MODIFIED: Set language input default value ---
                  elements.targetLanguageInput.value = 'Spanish'; 
              }
              
              if (status && status.progress === 0 && status.message) {
-                 // If status is 0 and we have a message (e.g., 403 error or language fail)
                  if (status.message.includes("Detected Base Language: (FAIL)")) {
                     elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
                  } else {
@@ -377,63 +346,58 @@ function loadSavedStatus(elements) {
                  elements.cancelButton.classList.add('hidden-no-space');
              }
              
-             // MODIFICATION: Ensure preferences are enabled on a neutral/error state
+             // MODIFICATION: Ensure main popup preferences are enabled
              elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+             elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+             elements.customSettingsButton.disabled = (savedStyle === 'netflix');
+
         }
     });
 }
-
-// --- Handler Functions ---
 
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
 
     const url = elements.subtitleUrlInput.value.trim();
-    // --- MODIFIED: Get full language name from input field ---
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
     
-    // MODIFICATION: Get selected subtitle mode preference
+    // 1. Get Subtitle Mode (boolean)
     const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
-    const translatedOnly = (selectedSubtitleMode === 'translated_only'); // Set the boolean for content script
+    const translatedOnly = (selectedSubtitleMode === 'translated_only'); 
+
+    // 2. Get Subtitle Style Mode
+    const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    // NEW: Get selected font size preference
-    const selectedFontSize = document.querySelector('input[name="fontSize"]:checked').value;
-    
-    // NEW: Get selected background color preference
-    const selectedBackgroundColor = document.querySelector('input[name="backgroundColor"]:checked').value;
+    // 3. Determine Final Style Preferences
+    let finalStylePrefs = {};
+    if (selectedStyle === 'netflix') {
+        // Use the hardcoded preset
+        finalStylePrefs = NETFLIX_PRESET;
+    } else {
+        // Retrieve custom settings from storage
+        const customData = await chrome.storage.local.get(['font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref']);
+        finalStylePrefs.font_size_pref = customData.font_size_pref || NETFLIX_PRESET.font_size_pref;
+        finalStylePrefs.background_color_pref = customData.background_color_pref || NETFLIX_PRESET.background_color_pref;
+        finalStylePrefs.font_shadow_pref = customData.font_shadow_pref || NETFLIX_PRESET.font_shadow_pref;
+        finalStylePrefs.font_color_pref = customData.font_color_pref || NETFLIX_PRESET.font_color_pref;
+    }
 
-    // NEW: Get selected font shadow preference
-    const selectedFontShadow = document.querySelector('input[name="fontShadow"]:checked').value;
 
-    // NEW: Get selected font color preference
-    const selectedFontColor = document.querySelector('input[name="fontColor"]:checked').value;
-
-
-    // --- NEW: LOOKUP THE 2-LETTER CODE ---
+    // --- LOOKUP THE 2-LETTER CODE AND VALIDATE ---
     const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
-    
-    // --- NEW: VALIDATE THE LANGUAGE CODE (MUST BE 2 LETTERS) ---
     if (targetLang.length !== 2) {
          elements.statusText.textContent = `Please check language spelling`;
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
          return;
     }
-    // --------------------------------------------------------
+    // ---------------------------------------------
 
     // IMMEDIATE VISUAL FEEDBACK
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
     
-    
-    console.log("[POPUP] Retrieved URL from input box. URL found:", !!url);
-
     if (!url || !url.startsWith('http')) {
-        // --- MODIFICATION: Generic error message for invalid input ---
         elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
         elements.progressBar.style.width = '0%';
         elements.confirmButton.disabled = false; 
@@ -441,36 +405,30 @@ async function handleConfirmClick(elements) {
     }
 
 
-    // 1. Save language choices and preference and clear old status
+    // 4. Save runtime preferences and clear old status
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({ 
-        // We save the found CODE, not the full name
         last_input: { url, targetLang: targetLang },
-        // MODIFICATION: Save the translatedOnly boolean based on selected mode
         translated_only_pref: translatedOnly, 
-        font_size_pref: selectedFontSize, // NEW
-        background_color_pref: selectedBackgroundColor, // NEW
-        font_shadow_pref: selectedFontShadow, // NEW
-        font_color_pref: selectedFontColor // NEW
+        subtitle_style_pref: selectedStyle, // Save the selected style mode
+        // Note: Individual style prefs are NOT saved here if Netflix style is chosen, but that's okay, 
+        // as they are only retrieved by the custom settings window.
     });
 
-    // 2. Update UI for start of process
+    // 5. Update UI for start of process
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
-    // --- MODIFIED: Disable language input field ---
     elements.targetLanguageInput.disabled = true; 
     
-    // MODIFICATION: Disable all preference radio buttons while processing
+    // MODIFICATION: Disable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.customSettingsButton.disabled = true;
 
     
-    elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure running text
-    elements.cancelButton.classList.remove('hidden-no-space'); // Show while running
+    elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
+    elements.cancelButton.classList.remove('hidden-no-space'); 
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         
@@ -484,16 +442,16 @@ async function handleConfirmClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
-        // MODIFICATION: Pass all preferences to content script
+        // 6. MODIFICATION: Pass all final style preferences to content script
         const message = { 
             command: "fetch_and_process_url", 
             url: url,
-            targetLang: targetLang, // Pass the 2-letter code
-            translatedOnly: translatedOnly, // Pass the boolean
-            fontSize: selectedFontSize, // NEW
-            backgroundColor: selectedBackgroundColor, // NEW
-            fontShadow: selectedFontShadow, // NEW
-            fontColor: selectedFontColor // NEW
+            targetLang: targetLang, 
+            translatedOnly: translatedOnly, 
+            fontSize: finalStylePrefs.font_size_pref, // Use final determined value
+            backgroundColor: finalStylePrefs.background_color_pref, // Use final determined value
+            fontShadow: finalStylePrefs.font_shadow_pref, // Use final determined value
+            fontColor: finalStylePrefs.font_color_pref // Use final determined value
         };
 
         // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
@@ -502,7 +460,6 @@ async function handleConfirmClick(elements) {
             files: ['content.js']
         }, () => {
             if (chrome.runtime.lastError) {
-                // This error handler is for injection failures only
                 elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
                 console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
                 elements.progressBar.style.width = '0%';
@@ -510,9 +467,6 @@ async function handleConfirmClick(elements) {
             }
             
             elements.statusText.textContent = "Content script injected. Sending start command...";
-            console.log("[POPUP] Content script injected successfully. Sending message...");
-            
-            // Sending the message without a callback function.
             chrome.tabs.sendMessage(currentTabId, message);
 
             
@@ -522,7 +476,7 @@ async function handleConfirmClick(elements) {
 }
 
 async function handleCancelClick(elements) {
-    // 1. Send the cancel message to content.js (logic remains the same, ensuring injection)
+    // 1. Send the cancel message to content.js 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
             console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
@@ -537,7 +491,6 @@ async function handleCancelClick(elements) {
             files: ['content.js']
         }, () => {
             if (chrome.runtime.lastError) {
-                // This warning is usually fine, meaning the script was already injected/running.
                 console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
             }
             
@@ -549,26 +502,23 @@ async function handleCancelClick(elements) {
         });
     });
     
-    // 2. Immediately clear the saved status.
+    // 2. Immediately clear the saved status and reset UI elements
     await chrome.storage.local.remove(['ls_status']);
     
-    // 3. Manually reset UI elements to the initial state
     elements.statusText.textContent = "Subtitle generation cancelled.";
     elements.progressBar.style.width = '0%';
     elements.confirmButton.disabled = false;
     elements.targetLanguageInput.disabled = false; 
     
-    // MODIFICATION: Re-enable all preference radio buttons
+    // MODIFICATION: Re-enable main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    
+    // Re-enable custom settings button only if custom is selected (which loadSavedStatus will handle)
     
     elements.cancelButton.classList.add('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
     
-    // 4. Re-run loadSavedStatus to correctly load any saved URL/prefs (which were NOT cleared above)
     loadSavedStatus(elements); 
 }
 
@@ -579,42 +529,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Initialize DOM variables locally
     const elements = {
         confirmButton: document.getElementById('confirmButton'),
-        // --- MODIFIED: Reference new targetLanguageInput element ---
         targetLanguageInput: document.getElementById('targetLanguage'), 
         subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
+        
         // MODIFICATION: Subtitle mode radio button elements
         subtitleModeGroup: document.getElementById('subtitleModeGroup'), 
         subtitleModeDual: document.getElementById('subtitleModeDual'), 
         subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'), 
         
-        // NEW Elements for font size
-        fontSizeGroup: document.getElementById('fontSizeGroup'),
-        fontSizeSmall: document.getElementById('fontSizeSmall'),
-        fontSizeMedium: document.getElementById('fontSizeMedium'),
-        fontSizeLarge: document.getElementById('fontSizeLarge'),
-        // NEW Elements for background color
-        backgroundColorGroup: document.getElementById('backgroundColorGroup'),
-        backgroundColorNone: document.getElementById('backgroundColorNone'),
-        backgroundColorBlack: document.getElementById('backgroundColorBlack'),
-        backgroundColorGray: document.getElementById('backgroundColorGray'),
-        // NEW Elements for font shadow
-        fontShadowGroup: document.getElementById('fontShadowGroup'),
-        fontShadowNone: document.getElementById('fontShadowNone'),
-        fontShadowBlack: document.getElementById('fontShadowBlack'),
-        fontShadowWhite: document.getElementById('fontShadowWhite'),
-        // NEW Elements for font color
-        fontColorGroup: document.getElementById('fontColorGroup'),
-        fontColorWhite: document.getElementById('fontColorWhite'),
-        fontColorYellow: document.getElementById('fontColorYellow'),
-        fontColorCyan: document.getElementById('fontColorCyan')
+        // NEW: Subtitle Style elements
+        subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
+        subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
+        subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
+        customSettingsButton: document.getElementById('customSettingsButton'),
     };
     
     // CRITICAL DEBUG CHECK
-    if (!elements.confirmButton || !elements.statusText || !elements.subtitleModeGroup) { 
-        console.error("2. FATAL ERROR: Core DOM elements (button/status/subtitleModeGroup) not found. Check main.html IDs.");
+    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) { 
+        console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
         return; 
     } else {
         console.log("2. All DOM elements found. Attaching listeners.");
@@ -626,55 +561,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Final, Robust Listener Attachment ---
     
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
-    // The handleCancelClick now handles both 'Cancel' and 'Clear Status & Reset'
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
     
-    // MODIFICATION: Listener for subtitle mode radio buttons
+    // MODIFICATION: Listener for subtitle mode radio buttons (saves boolean for translated_only)
     elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             if (e.target.checked) {
-                // Save the boolean value for the preference: true if 'translated_only', false if 'dual'
                 const isTranslatedOnly = (e.target.value === 'translated_only');
                 chrome.storage.local.set({ 'translated_only_pref': isTranslatedOnly });
             }
         });
     });
     
-    // NEW: Listener for font size radio buttons
-    elements.fontSizeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+    // NEW: Listener for subtitle style radio buttons
+    elements.subtitleStyleGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             if (e.target.checked) {
-                chrome.storage.local.set({ 'font_size_pref': e.target.value });
+                const selectedStyle = e.target.value;
+                chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
+                    // Enable/Disable the settings button based on selection
+                    elements.customSettingsButton.disabled = (selectedStyle === 'netflix');
+                });
             }
         });
     });
-
-    // NEW: Listener for background color radio buttons
-    elements.backgroundColorGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                chrome.storage.local.set({ 'background_color_pref': e.target.value });
-            }
-        });
-    });
-
-    // NEW: Listener for font shadow radio buttons
-    elements.fontShadowGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                chrome.storage.local.set({ 'font_shadow_pref': e.target.value });
-            }
-        });
-    });
-
-    // NEW: Listener for font color radio buttons
-    elements.fontColorGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                chrome.storage.local.set({ 'font_color_pref': e.target.value });
-            }
-        });
-    });
+    
+    // NEW: Listener for the Custom Settings Button
+    elements.customSettingsButton.addEventListener('click', openCustomSettingsWindow);
 
     
     // NEW: Listen to changes in the URL input box to enable/disable the button
@@ -685,7 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
          if (elements.confirmButton.disabled === false) {
              elements.statusText.textContent = "Subtitle URL ready. Click Generate to start translation.";
          } else {
-              // --- MODIFICATION: Set status to empty string when input is invalid/empty ---
               elements.statusText.textContent = "";
          }
     });
@@ -723,12 +635,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageInput.disabled = false; 
                 
-                // MODIFICATION: Re-enable all preference radio buttons
+                // MODIFICATION: Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                
+                // Re-enable settings button based on style selection
+                chrome.storage.local.get(['subtitle_style_pref'], (data) => {
+                     elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
+                });
+
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
@@ -738,21 +653,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true; 
                 
-                // MODIFICATION: Disable all preference radio buttons
+                // MODIFICATION: Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.customSettingsButton.disabled = true; // Always disable while running
                 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
                 
             } else {
                 // --- PROGRESS 0% STATE (ERROR/NEUTRAL) ---
-                if (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http')) {
-                    
-                    // --- MODIFICATION START: REFINED ERROR HANDLING AT PROGRESS 0 ---
+                const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
+                
+                if (isUrlValid) {
                     
                     if (message.includes("Detected Base Language: (FAIL)")) {
                         elements.statusText.textContent = "Language pair not yet available, please retry with different inputs";
@@ -763,22 +676,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     else {
                         elements.statusText.textContent = "Non-subtitle URL inputted; please repeat URL retrieval steps.";
                     }
-                    // --- MODIFICATION END ---
                     
                     elements.confirmButton.disabled = false;
                 } else {
-                    // --- MODIFICATION: Set status to empty string when input is invalid/empty ---
                     elements.statusText.textContent = "";
                     elements.confirmButton.disabled = true;
                 }
                 elements.targetLanguageInput.disabled = false; 
                 
-                // MODIFICATION: Re-enable all preference radio buttons
+                // MODIFICATION: Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                
+                // Re-enable settings button based on style selection
+                chrome.storage.local.get(['subtitle_style_pref'], (data) => {
+                     elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
+                });
 
 
                 elements.cancelButton.classList.add('hidden-no-space');
