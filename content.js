@@ -8,6 +8,7 @@ var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {}; // Cache for translations
 
 var isTranslatedOnly = isTranslatedOnly || false; // <--- ADDED: Preference tracker
+var fontSizeEm = '0.8em'; // <--- NEW: Default font size value
 var isProcessing = false; // <--- NEW: Flag to prevent repeated execution
 
 var currentTranslator = currentTranslator || null; 
@@ -462,6 +463,19 @@ async function translateAllSubtitles(url) {
 
 // --- Floating Window & Sync Logic ---
 
+// NEW helper function to convert the string preference to a CSS 'em' value
+function getFontSizeEm(preference) {
+    switch (preference) {
+        case 'small':
+            return '0.7em';
+        case 'large':
+            return '1.0em';
+        case 'medium':
+        default:
+            return '0.8em';
+    }
+}
+
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
 
@@ -481,6 +495,9 @@ function startSubtitleSync() {
     if (floatingWindow) {
         floatingWindow.style.display = 'block';
     }
+
+    // Determine the size once at the start of the loop setup
+    const currentFontSizeEm = getFontSizeEm(fontSizeEm);
 
     const syncLoop = () => {
         const currentTime = videoElement.currentTime;
@@ -534,17 +551,17 @@ function startSubtitleSync() {
                 // --- CRITICAL FIX START: Check if translatedText is available ---
                 if (translatedText) {
                      if (isTranslatedOnly) {
-                        // Show only the translated text (with matching 0.8em font size, non-bold)
+                        // Show only the translated text (with matching font size, non-bold)
                         innerHTML = `
-                            <span class="translated-sub" style="opacity: 1.0; font-size: 0.8em;">
+                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
                                 ${translatedText}
                             </span>
                         `;
                     } else {
-                        // Show both (original text and translated text use the same 0.8em size, both non-bold)
+                        // Show both (original text and translated text use the same size, both non-bold)
                         innerHTML = `
-                            <span class="base-sub" style="font-size: 0.8em;">${baseText}</span><br>
-                            <span class="translated-sub" style="opacity: 1.0; font-size: 0.8em;">
+                            <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
+                            <span class="translated-sub" style="opacity: 1.0; font-size: ${currentFontSizeEm};">
                                 ${translatedText}
                             </span>
                         `;
@@ -556,10 +573,10 @@ function startSubtitleSync() {
                          // If the user wants ONLY translated text, but it's not ready, show nothing
                          innerHTML = ''; 
                      } else {
-                         // Show base text (non-bold), and a simple loading indicator (with matching 0.8em font size)
+                         // Show base text (non-bold), and a simple loading indicator (with matching font size)
                          innerHTML = `
-                             <span class="base-sub" style="font-size: 0.8em;">${baseText}</span><br>
-                             <span class="translated-sub" style="opacity: 0.6; font-size: 0.8em;">
+                             <span class="base-sub" style="font-size: ${currentFontSizeEm};">${baseText}</span><br>
+                             <span class="translated-sub" style="opacity: 0.6; font-size: ${currentFontSizeEm};">
                                  (Translating...)
                              </span>
                          `;
@@ -608,9 +625,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         console.log("C1. Received 'fetch_and_process_url' command from popup.");
 
-        // 1. Store the preferences
+        // 1. Store the preferences from the popup message
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly; // <--- ADDED: Preference tracker
+        fontSizeEm = request.fontSize; // <--- NEW: Get font size preference
         translationCache = {}; 
         
         if (syncInterval) {
