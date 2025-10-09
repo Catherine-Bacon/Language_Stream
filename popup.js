@@ -198,8 +198,8 @@ const LANGUAGE_MAP = {
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
-    // MODIFICATION: Add 'font_size_pref' to removal list
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref']); 
+    // MODIFICATION: Add new preferences to removal list
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref']); 
     
     if (!elements.confirmButton) return; 
 
@@ -211,11 +211,26 @@ async function resetStatus(elements) {
     // NEW: Reset font size to default 'medium'
     elements.fontSizeMedium.checked = true;
     
+    // NEW: Reset background color to default 'black'
+    elements.backgroundColorBlack.checked = true;
+    
+    // NEW: Reset font shadow to default 'black_shadow'
+    elements.fontShadowBlack.checked = true;
+
+    // NEW: Reset font color to default 'white'
+    elements.fontColorWhite.checked = true;
+    
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     // --- MODIFIED: Ensure new input is NOT disabled ---
     elements.targetLanguageInput.disabled = false; 
     elements.translatedOnlyCheckbox.disabled = false; // NEW: Enable checkbox
     
+    // NEW: Enable all preference radio buttons
+    elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
     elements.cancelButton.classList.add('hidden-no-space'); 
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
 
@@ -227,8 +242,16 @@ async function resetStatus(elements) {
 
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    // MODIFICATION: Retrieve 'font_size_pref'
-    chrome.storage.local.get(['ls_status', 'last_input', 'translated_only_pref', 'font_size_pref'], (data) => {
+    // MODIFICATION: Retrieve new preferences
+    chrome.storage.local.get([
+        'ls_status', 
+        'last_input', 
+        'translated_only_pref', 
+        'font_size_pref', 
+        'background_color_pref', 
+        'font_shadow_pref', 
+        'font_color_pref'
+    ], (data) => {
         const status = data.ls_status;
         
         // Always set the defaults first
@@ -249,6 +272,28 @@ function loadSavedStatus(elements) {
         if (fontSizeElement) {
              fontSizeElement.checked = true;
         }
+
+        // NEW: Load persistent preference for background color, default to 'black'
+        const savedBgColor = data.background_color_pref || 'black';
+        const bgColorElement = document.getElementById(`backgroundColor${savedBgColor.charAt(0).toUpperCase() + savedBgColor.slice(1)}`);
+        if (bgColorElement) {
+             bgColorElement.checked = true;
+        }
+
+        // NEW: Load persistent preference for font shadow, default to 'black_shadow'
+        const savedFontShadow = data.font_shadow_pref || 'black_shadow';
+        const fontShadowElement = document.getElementById(`fontShadow${savedFontShadow.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('')}`);
+        if (fontShadowElement) {
+             fontShadowElement.checked = true;
+        }
+
+        // NEW: Load persistent preference for font color, default to 'white'
+        const savedFontColor = data.font_color_pref || 'white';
+        const fontColorElement = document.getElementById(`fontColor${savedFontColor.charAt(0).toUpperCase() + savedFontColor.slice(1)}`);
+        if (fontColorElement) {
+             fontColorElement.checked = true;
+        }
+
 
         // Load Language Inputs and last URL first
         const input = data.last_input;
@@ -271,6 +316,13 @@ function loadSavedStatus(elements) {
                 // --- MODIFIED: Disable language input element ---
                 elements.targetLanguageInput.disabled = true; 
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
+
+                // NEW: Disable all preference radio buttons while running
+                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Running
             } else {
@@ -279,6 +331,13 @@ function loadSavedStatus(elements) {
                 // --- MODIFIED: Enable language input element ---
                 elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false;
+                
+                // NEW: Enable all preference radio buttons
+                elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
             }
@@ -308,6 +367,12 @@ function loadSavedStatus(elements) {
                  }
                  elements.cancelButton.classList.add('hidden-no-space');
              }
+             
+             // NEW: Ensure preferences are enabled on a neutral/error state
+             elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+             elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+             elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+             elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
         }
     });
 }
@@ -323,6 +388,15 @@ async function handleConfirmClick(elements) {
     
     // NEW: Get selected font size preference
     const selectedFontSize = document.querySelector('input[name="fontSize"]:checked').value;
+    
+    // NEW: Get selected background color preference
+    const selectedBackgroundColor = document.querySelector('input[name="backgroundColor"]:checked').value;
+
+    // NEW: Get selected font shadow preference
+    const selectedFontShadow = document.querySelector('input[name="fontShadow"]:checked').value;
+
+    // NEW: Get selected font color preference
+    const selectedFontColor = document.querySelector('input[name="fontColor"]:checked').value;
 
 
     // --- NEW: LOOKUP THE 2-LETTER CODE ---
@@ -363,7 +437,10 @@ async function handleConfirmClick(elements) {
         last_input: { url, targetLang: targetLang },
         // NEW: Save the preference states
         translated_only_pref: translatedOnly,
-        font_size_pref: selectedFontSize // NEW
+        font_size_pref: selectedFontSize, // NEW
+        background_color_pref: selectedBackgroundColor, // NEW
+        font_shadow_pref: selectedFontShadow, // NEW
+        font_color_pref: selectedFontColor // NEW
     });
 
     // 2. Update UI for start of process
@@ -376,6 +453,10 @@ async function handleConfirmClick(elements) {
     
     // NEW: Disable font size radio buttons while processing
     elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+
     
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure running text
     elements.cancelButton.classList.remove('hidden-no-space'); // Show while running
@@ -398,7 +479,10 @@ async function handleConfirmClick(elements) {
             url: url,
             targetLang: targetLang, // Pass the 2-letter code
             translatedOnly: translatedOnly,
-            fontSize: selectedFontSize // NEW
+            fontSize: selectedFontSize, // NEW
+            backgroundColor: selectedBackgroundColor, // NEW
+            fontShadow: selectedFontShadow, // NEW
+            fontColor: selectedFontColor // NEW
         };
 
         // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
@@ -463,7 +547,13 @@ async function handleCancelClick(elements) {
     elements.confirmButton.disabled = false;
     elements.targetLanguageInput.disabled = false; 
     elements.translatedOnlyCheckbox.disabled = false;
+    
+    // NEW: Re-enable all preference radio buttons
     elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    
     elements.cancelButton.classList.add('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
     
@@ -489,7 +579,22 @@ document.addEventListener('DOMContentLoaded', () => {
         fontSizeGroup: document.getElementById('fontSizeGroup'),
         fontSizeSmall: document.getElementById('fontSizeSmall'),
         fontSizeMedium: document.getElementById('fontSizeMedium'),
-        fontSizeLarge: document.getElementById('fontSizeLarge')
+        fontSizeLarge: document.getElementById('fontSizeLarge'),
+        // NEW Elements for background color
+        backgroundColorGroup: document.getElementById('backgroundColorGroup'),
+        backgroundColorNone: document.getElementById('backgroundColorNone'),
+        backgroundColorBlack: document.getElementById('backgroundColorBlack'),
+        backgroundColorGray: document.getElementById('backgroundColorGray'),
+        // NEW Elements for font shadow
+        fontShadowGroup: document.getElementById('fontShadowGroup'),
+        fontShadowNone: document.getElementById('fontShadowNone'),
+        fontShadowBlack: document.getElementById('fontShadowBlack'),
+        fontShadowWhite: document.getElementById('fontShadowWhite'),
+        // NEW Elements for font color
+        fontColorGroup: document.getElementById('fontColorGroup'),
+        fontColorWhite: document.getElementById('fontColorWhite'),
+        fontColorYellow: document.getElementById('fontColorYellow'),
+        fontColorCyan: document.getElementById('fontColorCyan')
     };
     
     // CRITICAL DEBUG CHECK
@@ -509,6 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // The handleCancelClick now handles both 'Cancel' and 'Clear Status & Reset'
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
     
+    // Listener for translated only checkbox
     elements.translatedOnlyCheckbox.addEventListener('change', (e) => {
         chrome.storage.local.set({ 'translated_only_pref': e.target.checked });
     });
@@ -518,6 +624,33 @@ document.addEventListener('DOMContentLoaded', () => {
         radio.addEventListener('change', (e) => {
             if (e.target.checked) {
                 chrome.storage.local.set({ 'font_size_pref': e.target.value });
+            }
+        });
+    });
+
+    // NEW: Listener for background color radio buttons
+    elements.backgroundColorGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                chrome.storage.local.set({ 'background_color_pref': e.target.value });
+            }
+        });
+    });
+
+    // NEW: Listener for font shadow radio buttons
+    elements.fontShadowGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                chrome.storage.local.set({ 'font_shadow_pref': e.target.value });
+            }
+        });
+    });
+
+    // NEW: Listener for font color radio buttons
+    elements.fontColorGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                chrome.storage.local.set({ 'font_color_pref': e.target.value });
             }
         });
     });
@@ -570,8 +703,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 
-                // NEW: Re-enable font size radio buttons
+                // NEW: Re-enable all preference radio buttons
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
@@ -582,8 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.targetLanguageInput.disabled = true; 
                 elements.translatedOnlyCheckbox.disabled = true; // NEW: Disable checkbox
                 
-                // NEW: Disable font size radio buttons
+                // NEW: Disable all preference radio buttons
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
@@ -614,8 +753,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.targetLanguageInput.disabled = false; 
                 elements.translatedOnlyCheckbox.disabled = false; // NEW: Re-enable checkbox
                 
-                // NEW: Re-enable font size radio buttons
+                // NEW: Re-enable all preference radio buttons
                 elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.backgroundColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.fontShadowGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.fontColorGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
 
                 elements.cancelButton.classList.add('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
