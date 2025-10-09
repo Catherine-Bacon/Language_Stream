@@ -114,6 +114,25 @@
         width: auto;
         margin-right: 10px;
       }
+      /* NEW STYLE FOR RADIO BUTTONS */
+      .radio-group {
+        display: flex;
+        justify-content: space-around;
+        margin-bottom: 10px;
+        padding: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      .radio-group label {
+        display: flex;
+        align-items: center;
+        font-size: 0.9em;
+        cursor: pointer;
+      }
+      .radio-group input[type="radio"] {
+        width: auto;
+        margin-right: 5px;
+      }
     </style>
   </head>
   <body>
@@ -149,6 +168,21 @@
         <label for="translatedOnlyCheckbox">Show Translated Subtitles Only</label>
     </div>
 
+    <p style="font-size: 0.9em; margin-top: 5px; margin-bottom: 5px;">Font Size:</p>
+    <div id="fontSizeGroup" class="radio-group">
+        <label>
+            <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
+            Small
+        </label>
+        <label>
+            <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
+            Medium
+        </label>
+        <label>
+            <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
+            Large
+        </label>
+    </div>
     <button id="confirmButton">Generate Subtitles</button>
     
     <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
