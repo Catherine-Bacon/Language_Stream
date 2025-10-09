@@ -690,7 +690,7 @@ function startSubtitleSync() {
         display: inline-block; 
         padding: 0 0.5em; 
         border-radius: 0.2em;
-        background-color: ${currentSpanBgBgColor};
+        background-color: ${currentSpanBgColor};
         font-size: ${currentFontSizeEm}; 
         /* The default font color is NOT set here if coding is active, 
            as it will be set by generateCodedHtml */
