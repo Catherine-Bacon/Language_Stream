@@ -510,9 +510,9 @@ async function handleConfirmClick(elements) {
     // --- LOOKUP THE 2-LETTER CODE AND VALIDATE ---
     const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
     if (targetLang.length !== 2) {
-         // MODIFICATION: Route language check error to lang status and main status
+         // MODIFICATION: Route language check error to lang status and NOT to main status
          elements.langStatusText.textContent = `Please check language spelling`;
-         elements.statusText.textContent = `Please check language spelling`;
+         elements.statusText.textContent = ""; // REMOVED redundant message
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
          return;
