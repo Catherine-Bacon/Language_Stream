@@ -1,0 +1,139 @@
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 15px;
+            width: 320px;
+        }
+        h2 {
+            font-size: 1.2em;
+            color: #e50914;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        /* Styles copied from main.html to ensure consistency */
+        .preference-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .preference-row p {
+            flex-shrink: 0;
+            margin: 0;
+            font-size: 0.9em;
+            color: #333;
+        }
+        .radio-group {
+            display: flex;
+            justify-content: flex-start;
+            gap: 10px;
+            margin-bottom: 0;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex-grow: 1;
+            flex-wrap: wrap;
+        }
+        .radio-group label {
+            display: flex;
+            align-items: center;
+            font-size: 0.9em;
+            cursor: pointer;
+            padding: 2px 5px;
+        }
+        .radio-group input[type="radio"] {
+            width: auto;
+            margin-right: 5px;
+        }
+        #saveStatus {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: green;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h2>Custom Subtitle Settings</h2>
+
+    <div class="preference-row">
+        <p>Font Size:</p>
+        <div id="fontSizeGroup" class="radio-group">
+            <label>
+                <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
+                Small
+            </label>
+            <label>
+                <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
+                Medium
+            </label>
+            <label>
+                <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
+                Large
+            </label>
+        </div>
+    </div>
+
+    <div class="preference-row">
+        <p>Background Color:</p>
+        <div id="backgroundColorGroup" class="radio-group">
+            <label>
+                <input type="radio" name="backgroundColor" value="none" id="backgroundColorNone">
+                None
+            </label>
+            <label>
+                <input type="radio" name="backgroundColor" value="black" id="backgroundColorBlack" checked>
+                Black
+            </label>
+            <label>
+                <input type="radio" name="backgroundColor" value="gray" id="backgroundColorGray">
+                Gray
+            </label>
+        </div>
+    </div>
+
+    <div class="preference-row">
+        <p>Font Shadow:</p>
+        <div id="fontShadowGroup" class="radio-group">
+            <label>
+                <input type="radio" name="fontShadow" value="none" id="fontShadowNone">
+                None
+            </label>
+            <label>
+                <input type="radio" name="fontShadow" value="black_shadow" id="fontShadowBlack" checked>
+                Black
+            </label>
+            <label>
+                <input type="radio" name="fontShadow" value="white_shadow" id="fontShadowWhite">
+                White
+            </label>
+        </div>
+    </div>
+
+    <div class="preference-row">
+        <p>Font Color:</p>
+        <div id="fontColorGroup" class="radio-group">
+            <label>
+                <input type="radio" name="fontColor" value="white" id="fontColorWhite" checked>
+                White
+            </label>
+            <label>
+                <input type="radio" name="fontColor" value="yellow" id="fontColorYellow">
+                Yellow
+            </label>
+            <label>
+                <input type="radio" name="fontColor" value="cyan" id="fontColorCyan">
+                Cyan
+            </label>
+        </div>
+    </div>
+    
+    <div id="saveStatus">Settings saved automatically.</div>
+
+    <script src="custom_settings.js"></script>
+</body>
+</html>
