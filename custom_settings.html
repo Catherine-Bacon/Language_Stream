@@ -44,7 +44,7 @@
         .radio-group label {
             display: flex;
             align-items: center;
-            font-size: 0.9em;
+            /* REMOVED: font-size: 0.9em; This will be set dynamically now */
             cursor: pointer;
             padding: 2px 5px;
         }
@@ -66,15 +66,15 @@
     <div class="preference-row">
         <p>Font Size:</p>
         <div id="fontSizeGroup" class="radio-group">
-            <label>
+            <label id="labelFontSizeSmall">
                 <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
                 Small
             </label>
-            <label>
+            <label id="labelFontSizeMedium">
                 <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
                 Medium
             </label>
-            <label>
+            <label id="labelFontSizeLarge">
                 <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
                 Large
             </label>
