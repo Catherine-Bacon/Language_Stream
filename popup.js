@@ -206,9 +206,8 @@ const LANGUAGE_MAP = {
 
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
-    // MODIFICATION: Added subtitle_style_pref to the removal list
-    // NEW: Remove detected_base_lang_name
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name']); 
+    // MODIFICATION: Added colour_coding_pref to the removal list
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'colour_coding_pref']); 
     
     if (!elements.confirmButton) return; 
 
@@ -219,6 +218,7 @@ async function resetStatus(elements) {
     // MODIFICATION: Reset subtitle mode and style to default 'dual' and 'netflix'
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
+    elements.colourCodingNone.checked = true; // NEW: Reset colour coding to 'none'
     elements.customSettingsButton.disabled = true; // Disable button on reset
 
     
@@ -229,6 +229,7 @@ async function resetStatus(elements) {
     // MODIFICATION: Enable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
 
     elements.cancelButton.classList.add('hidden-no-space'); 
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
@@ -310,6 +311,7 @@ function checkUrlAndDetectLanguage(elements) {
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     // MODIFICATION: Added subtitle_style_pref and detected_base_lang_name to retrieval list
+    // NEW: Added colour_coding_pref to retrieval list
     chrome.storage.local.get([
         'ls_status', 
         'last_input', 
@@ -319,7 +321,8 @@ function loadSavedStatus(elements) {
         'background_color_pref', 
         'font_shadow_pref', 
         'font_color_pref',
-        'detected_base_lang_name' // NEW: Retrieve the pre-detected language name
+        'detected_base_lang_name', // NEW: Retrieve the pre-detected language name
+        'colour_coding_pref' // NEW: Colour Coding preference
     ], (data) => {
         const status = data.ls_status;
         const detectedBaseLangName = data.detected_base_lang_name; // NEW
@@ -347,6 +350,12 @@ function loadSavedStatus(elements) {
             elements.subtitleStyleNetflix.checked = true;
             elements.customSettingsButton.disabled = true; // Disable custom button
         }
+        
+        // NEW: Load Colour Coding Preference, default to 'none'
+        const savedColourCoding = data.colour_coding_pref || 'none';
+        const codingElement = document.getElementById(`colourCoding${savedColourCoding.charAt(0).toUpperCase() + savedColourCoding.slice(1)}`);
+        if (codingElement) codingElement.checked = true;
+
 
         // Load Language Inputs and last URL first
         let currentFullLangName = 'Spanish'; // Default value
@@ -381,6 +390,7 @@ function loadSavedStatus(elements) {
                 // MODIFICATION: Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = true); // NEW: Disable color coding radios
                 elements.customSettingsButton.disabled = true; // Also disable the settings button
 
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -403,6 +413,7 @@ function loadSavedStatus(elements) {
                 // MODIFICATION: Enable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
                 
                 // Re-enable settings button only if custom is selected
                 elements.customSettingsButton.disabled = (savedStyle === 'netflix');
@@ -470,6 +481,7 @@ function loadSavedStatus(elements) {
              // MODIFICATION: Ensure main popup preferences are enabled
              elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
              elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+             elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
              elements.customSettingsButton.disabled = (savedStyle === 'netflix');
 
         }
@@ -492,7 +504,10 @@ async function handleConfirmClick(elements) {
     // 2. Get Subtitle Style Mode
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    // 3. Determine Final Style Preferences
+    // NEW: 3. Get Colour Coding Mode
+    const selectedColourCoding = document.querySelector('input[name="colourCoding"]:checked').value;
+    
+    // 4. Determine Final Style Preferences
     let finalStylePrefs = {};
     if (selectedStyle === 'netflix') {
         // Use the hardcoded preset
@@ -519,7 +534,7 @@ async function handleConfirmClick(elements) {
     }
     // ---------------------------------------------
 
-    // 4. Input validation and UI update
+    // 5. Input validation and UI update
     
     elements.statusText.textContent = "Generating subtitles...";
     elements.urlStatusText.textContent = ""; // Clear URL status when starting
@@ -536,15 +551,16 @@ async function handleConfirmClick(elements) {
     }
 
 
-    // 5. Save runtime preferences and clear old status
+    // 6. Save runtime preferences and clear old status
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({ 
         last_input: { url, targetLang: targetLang },
         translated_only_pref: translatedOnly, 
         subtitle_style_pref: selectedStyle, // Save the selected style mode
+        colour_coding_pref: selectedColourCoding, // NEW: Save the selected colour coding mode
     });
 
-    // 6. Update UI for start of process
+    // 7. Update UI for start of process
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
@@ -553,6 +569,7 @@ async function handleConfirmClick(elements) {
     // MODIFICATION: Disable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = true); // NEW: Disable color coding radios
     elements.customSettingsButton.disabled = true;
 
     
@@ -571,7 +588,7 @@ async function handleConfirmClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
-        // 7. MODIFICATION: Pass all final style preferences to content script
+        // 8. MODIFICATION: Pass all final style preferences and new colour coding to content script
         const message = { 
             command: "fetch_and_process_url", 
             url: url,
@@ -580,7 +597,8 @@ async function handleConfirmClick(elements) {
             fontSize: finalStylePrefs.font_size_pref, // Use final determined value
             backgroundColor: finalStylePrefs.background_color_pref, // Use final determined value
             fontShadow: finalStylePrefs.font_shadow_pref, // Use final determined value
-            fontColor: finalStylePrefs.font_color_pref // Use final determined value
+            fontColor: finalStylePrefs.font_color_pref, // Use final determined value
+            colourCoding: selectedColourCoding // NEW: Pass the colour coding preference
         };
 
         // --- IMPROVED SCRIPT INJECTION AND MESSAGING ---
@@ -643,6 +661,7 @@ async function handleCancelClick(elements) {
     // MODIFICATION: Re-enable main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
     
     // Re-enable custom settings button only if custom is selected (which loadSavedStatus will handle)
     
@@ -682,10 +701,16 @@ document.addEventListener('DOMContentLoaded', () => {
         subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
         subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
         customSettingsButton: document.getElementById('customSettingsButton'),
+        
+        // NEW: Colour Coding elements
+        colourCodingGroup: document.getElementById('colourCodingGroup'),
+        colourCodingNone: document.getElementById('colourCodingNone'),
+        colourCodingVocabulary: document.getElementById('colourCodingVocabulary'),
+        colourCodingGrammar: document.getElementById('colourCodingGrammar'),
     };
     
     // CRITICAL DEBUG CHECK
-    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) { 
+    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup || !elements.colourCodingGroup) { 
         console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
         return; 
     } else {
@@ -720,6 +745,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Enable/Disable the settings button based on selection
                     elements.customSettingsButton.disabled = (selectedStyle === 'netflix');
                 });
+            }
+        });
+    });
+    
+    // NEW: Listener for colour coding radio buttons
+    elements.colourCodingGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // Save the string value ('none', 'vocabulary', 'grammar')
+                chrome.storage.local.set({ 'colour_coding_pref': e.target.value });
             }
         });
     });
@@ -828,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // MODIFICATION: Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
                 
                 // Re-enable settings button based on style selection
                 chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], (data) => {
@@ -862,6 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // MODIFICATION: Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = true); // NEW: Disable color coding radios
                 elements.customSettingsButton.disabled = true; // Always disable while running
                 
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -907,6 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // MODIFICATION: Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
                 
 
                 elements.cancelButton.classList.add('hidden-no-space');
