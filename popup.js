@@ -228,7 +228,7 @@ async function handleConfirmClick(elements) {
 }
 
 async function handleCancelClick(elements) {
-    // 1. Get the current active tab
+    // 1. Send the cancel message to content.js (logic remains the same, ensuring injection)
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
             console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
@@ -238,18 +238,14 @@ async function handleCancelClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing cancel command.`);
 
-        // 2. Programmatically inject content.js to ensure the message listener is active.
         chrome.scripting.executeScript({
             target: { tabId: currentTabId },
             files: ['content.js']
         }, () => {
             if (chrome.runtime.lastError) {
-                // This warning is usually fine, meaning the script was already injected/running.
                 console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
             }
             
-            // 3. Send the cancel message
-            // We use .catch() to suppress the common "Receiving end does not exist" error.
             chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
                  if (!e.message.includes('Receiving end does not exist')) {
                      console.error("[POPUP] Error sending cancel message:", e);
@@ -258,9 +254,22 @@ async function handleCancelClick(elements) {
         });
     });
     
-    // 4. Clear local storage status and reload UI. This handles the UI reset immediately.
-    // NOTE: 'last_input' is *not* cleared here, keeping the URL and preferences loaded via loadSavedStatus.
+    // 2. Immediately clear the saved status AND force a UI reset.
+    // This is the CRITICAL STEP to eliminate the two-click requirement.
     await chrome.storage.local.remove(['ls_status']);
+    
+    // 3. Manually reset UI elements to the initial state
+    // We clear the bar and re-enable inputs immediately.
+    elements.statusText.textContent = "Subtitle generation cancelled.";
+    elements.progressBar.style.width = '0%';
+    elements.confirmButton.disabled = false;
+    elements.targetLanguageSelect.disabled = false;
+    elements.translatedOnlyCheckbox.disabled = false;
+    elements.fontSizeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.cancelButton.classList.add('hidden-no-space');
+    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+    
+    // 4. Re-run loadSavedStatus to correctly load any saved URL/prefs (which were NOT cleared above)
     loadSavedStatus(elements); 
 }
 
