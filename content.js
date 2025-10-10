@@ -617,8 +617,11 @@ function generateCodedHtml(segmentsCoded, spanBaseCss, defaultTextColor) {
             // Ensure the spanBaseCss is applied, but with the color overridden by the segment color
             const segmentSpanCss = `${spanBaseCss} color: ${color};`;
             
+            // FIX: Explicitly trim the segment text before placing it in the span.
+            const cleanText = item.text.trim();
+            
             // Use the full segment text which includes its punctuation
-            return `<span style="${segmentSpanCss}">${item.text}</span>`;
+            return `<span style="${segmentSpanCss}">${cleanText}</span>`;
             
         }).join(' '); // Join segments with a single space to separate the spans.
         
