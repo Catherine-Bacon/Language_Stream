@@ -329,7 +329,7 @@ function createFloatingWindow() {
       top: 80%;            
       left: 50%;
       transform: translate(-50%, 0); 
-      width: 70%; 
+      width: 100%; 
       max-width: 800px;
       min-height: 50px;
       
@@ -375,7 +375,7 @@ function makeDraggable(element) {
     offsetY = clientY - rect.top;
     
     // FIX: Ensure cursor update is immediate and persistent
-    element.style.cursor = 'grabbing !important'; 
+    element.style.setProperty('cursor', 'grabbing', 'important');
     element.style.position = 'fixed'; 
 
     document.addEventListener('mousemove', drag);
