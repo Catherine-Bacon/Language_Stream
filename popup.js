@@ -292,7 +292,7 @@ async function checkLanguagePairAvailability(elements) {
     // NEW: If the language box is empty, show a waiting message.
     if (inputLangName === '') {
         elements.langStatusText.textContent = "Waiting for language...";
-        elements.langStatusText.style.color = "#777"; // Neutral color
+        elements.langStatusText.style.color = "#e50914"; 
         return;
     }
 
