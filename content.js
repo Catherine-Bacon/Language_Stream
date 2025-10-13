@@ -91,6 +91,7 @@ function getSpanBackgroundColor(preference) {
         case 'black':
             return 'rgba(0, 0, 0, 0.85)';
         case 'gray':
+        case 'grey': // Accept 'grey' as an input too
             return 'rgba(128, 128, 128, 0.85)';
         case 'none':
         default:
@@ -185,6 +186,8 @@ async function fetchXmlContent(url) {
              // Handle all other errors (including generic HTTP errors and network errors). Route as 'url' message.
              sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url, 'url');
         }
+        // CRITICAL FIX: Reset the processing flag on fetch/network error
+        isProcessing = false;
         // --- MODIFICATION END ---
         
         return null;
@@ -205,6 +208,8 @@ function parseTtmlXml(xmlString, url) {
              console.error("XML Parsing Error:", errorNode.textContent);
              // MODIFICATION: Use the consolidated error message. Route as 'url' message.
              sendStatusUpdate(`Invalid URL retrieved - please repeat URL retrieval steps`, 0, url, 'url');
+             // CRITICAL FIX: Reset the processing flag on XML parsing error
+             isProcessing = false;
              return false;
         }
 
@@ -271,6 +276,8 @@ function parseTtmlXml(xmlString, url) {
         console.error("Fatal error during XML parsing:", e);
         // MODIFICATION: Use the consolidated error message. Route as 'url' message.
         sendStatusUpdate("Invalid URL retrieved - please repeat URL retrieval steps", 0, url, 'url');
+        // CRITICAL FIX: Reset the processing flag on XML parsing error
+        isProcessing = false;
         return false;
     }
 }
@@ -810,21 +817,85 @@ function simulateVocabularyCoding(baseText, translatedText) {
  * Runs CONCURRENT translation for all parsed subtitles, prioritizing the first 30 lines.
  */
 async function runFullTranslationPipeline(url, targetLang, translatedOnly, fontSize, backgroundColor, fontShadow, fontColor, colourCoding) {
-    // ... (rest of translation setup)
+    // 1. Fetch XML
+    sendStatusUpdate("Fetching and parsing XML content...", 10, url);
+    const xmlString = await fetchXmlContent(url);
+    if (!xmlString) {
+        // NOTE: isProcessing = false is already handled within fetchXmlContent on failure
+        return; // Exit on fetch/network/403 failure
+    }
     
-    // NOTE: The rest of the `runFullTranslationPipeline` function remains unchanged from the original.
-    // ... (The rest of the function continues here)
-    
+    // 2. Parse XML
+    if (!parseTtmlXml(xmlString, url)) {
+        // NOTE: isProcessing = false is already handled within parseTtmlXml on failure
+        return; // Exit on XML parsing failure
+    }
+
+    // 3. Detect Base Language
+    sendStatusUpdate("Detecting base language...", 25);
+    const baseLangCode = await detectBaseLanguage();
+
+    if (!baseLangCode) {
+        const errorMsg = "Detected Base Language: (FAIL). Cannot proceed with translation.";
+        sendStatusUpdate(errorMsg, 0, url, 'lang'); // Route to lang status box
+        isProcessing = false; // CRITICAL FIX: Reset on language detection failure
+        return;
+    }
+
+    // Store runtime preferences globally
     subtitleLanguages = { base: baseLangCode, target: targetLang };
     isTranslatedOnly = translatedOnly;
-    // Store style preferences globally for sync loop
     fontSizeEm = fontSize;
     backgroundColorPref = backgroundColor;
     fontShadowPref = fontShadow;
     fontColorPref = fontColor;
     colourCodingPref = colourCoding; // NEW: Store color coding preference
 
-    // ... (rest of the function)
+    sendStatusUpdate(`Base Language: ${getLanguageName(baseLangCode)} detected. Starting translation...`, 30);
+    
+    // Placeholder for actual translation logic (SIMULATION)
+    const totalSubs = parsedSubtitles.length;
+    for (let i = 0; i < totalSubs; i++) {
+        if (isCancelled) {
+            sendStatusUpdate("Processing cancelled by user.", 0, url);
+            isProcessing = false; // CRITICAL FIX: Reset on cancellation
+            return;
+        }
+        const sub = parsedSubtitles[i];
+        
+        // Check if translation is already cached or not needed
+        if (!sub.translatedText) {
+            // --- SIMULATE TRANSLATION AND CODING ---
+            // In a real scenario, this would involve an API call.
+            const simulatedTranslation = `Translated: ${sub.text}`; 
+            
+            let structuredData = null;
+            if (colourCoding === 'vocabulary') {
+                // Apply the simulation function for vocab coding
+                structuredData = simulateVocabularyCoding(sub.text, simulatedTranslation);
+            } else {
+                // Placeholder structured data for non-coded mode
+                 structuredData = { 
+                     base: [{ text: sub.text, color: getFontColor(fontColor) }],
+                     translated: [{ text: simulatedTranslation, color: getFontColor(fontColor) }]
+                 };
+            }
+            
+            // Store the result in the subtitle object
+            sub.translatedText = {
+                raw: simulatedTranslation,
+                structured: structuredData
+            };
+            // --- END SIMULATION ---
+        }
+
+        // Update progress (from 30% to 90%)
+        const currentProgress = 30 + Math.floor((i / totalSubs) * 60);
+        if (i % 50 === 0 || i === totalSubs - 1) { // Update status every 50 subs or at the end
+            sendStatusUpdate(`Translating subtitles (${i}/${totalSubs})...`, currentProgress);
+        }
+    }
+
 
     // 4. Create UI and start sync (90%)
     sendStatusUpdate("Translation complete. Starting subtitle sync.", 90);
@@ -842,11 +913,57 @@ async function runFullTranslationPipeline(url, targetLang, translatedOnly, fontS
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     if (request.command === "detect_language") {
-         // ... (language detection logic)
+        const url = request.url;
+        // Check if already processing (to prevent detection run while full process is starting)
+        if (isProcessing) {
+            console.warn("Full processing already underway. Ignoring detection request.");
+            return;
+        }
+        
+        // We only run full fetch/parse/detect here if we don't have subs already
+        if (parsedSubtitles.length === 0) {
+            // Set a temporary flag to prevent concurrent detection
+            isProcessing = true; 
+            
+            fetchXmlContent(url).then(xmlString => {
+                if (!xmlString) {
+                    // isProcessing reset inside fetchXmlContent on error
+                    return; 
+                }
+                
+                if (!parseTtmlXml(xmlString, url)) {
+                    // isProcessing reset inside parseTtmlXml on error
+                    return;
+                }
+
+                return detectBaseLanguage();
+            }).then(baseLangCode => {
+                if (baseLangCode) {
+                    const baseLangName = getLanguageName(baseLangCode);
+                    
+                    // Send result back to popup.js to update the 'ready' message
+                    chrome.runtime.sendMessage({
+                        command: "language_detected",
+                        url: url,
+                        baseLangCode: baseLangCode,
+                        baseLangName: baseLangName
+                    }).catch(e => { /* suppress error */ });
+                }
+            }).catch(e => {
+                console.error("Language detection pipeline failed:", e);
+                // Note: fetchXmlContent and parseTtmlXml handle their own error messages and resets
+                // This catch handles errors in detectBaseLanguage or subsequent .then()
+            }).finally(() => {
+                // CRITICAL FIX: Always reset the temporary processing flag for detection
+                isProcessing = false; 
+            });
+        }
+        
     } else if (request.command === "fetch_and_process_url") {
         if (isProcessing) {
              console.warn("Processing already underway. Ignoring new request.");
-             sendStatusUpdate("Processing is already active. Please cancel first.", 5, request.url);
+             // MODIFICATION: Send the status back with a specific route to clear main box
+             sendStatusUpdate("Processing is already active. Please cancel first.", 5, request.url, 'lang'); 
              return;
         }
         isProcessing = true;
@@ -873,12 +990,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             request.colourCoding // Pass the colour coding preference
         ).catch(e => {
             console.error("Translation pipeline failed:", e);
-            sendStatusUpdate(`Fatal Processing Error: ${e.message}`, 0, request.url);
-            isProcessing = false;
+            // MODIFIED: Send error status with a specific route for UI management
+            sendStatusUpdate(`Fatal Processing Error: ${e.message}`, 0, request.url, 'main');
+            isProcessing = false; // CRITICAL FIX: Reset flag on pipeline failure
         });
 
     } else if (request.command === "cancel_processing") {
-         // ... (cancellation logic)
+         if (syncInterval) {
+             clearInterval(syncInterval);
+             syncInterval = null;
+         }
+         isCancelled = true;
+         // MODIFIED: Set the flag to false, ensuring a proper reset if the process was running
+         isProcessing = false; 
+         // MODIFIED: Also hide the floating window if it exists
+         if (floatingWindow) {
+             floatingWindow.style.display = 'none';
+         }
+         // Send final status update to clear the progress bar in the popup
+         sendStatusUpdate("Processing cancelled by user.", 0, null, 'main');
     }
 
     // Indicate that the response is asynchronous if needed (though not strictly required for one-way messages)
