@@ -234,12 +234,15 @@ async function resetStatus(elements) {
     elements.cancelButton.classList.add('hidden-no-space'); 
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
 
-    // --- MODIFICATION: Set initial status text to empty string and new status lines to default ---
+    // MODIFIED: Hide the status box on reset
+    elements.statusBox.classList.add('hidden-no-space'); 
     elements.statusText.textContent = ""; 
-    elements.urlStatusText.textContent = "Waiting for URL..."; // NEW
+    elements.progressBar.style.width = '0%';
+    
+    // Set other status lines to default
+    elements.urlStatusText.textContent = "Waiting for URL..."; 
     elements.urlStatusText.style.color = "#e50914"; 
 
-    elements.progressBar.style.width = '0%';
     console.log("Processing status reset completed. Fields cleared.");
 
     // MODIFIED: Call the language checker to set the correct initial "Waiting for URL..." message.
@@ -378,9 +381,13 @@ function checkUrlAndDetectLanguage(elements) {
          chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']); 
     }
     
-    // Clear other status lines on input change
-    elements.statusText.textContent = "";
-    elements.progressBar.style.width = '0%';
+    // Clear other status lines on input change and hide status box
+    if (!elements.statusBox.classList.contains('hidden-no-space')) {
+        // Only reset if it was previously visible from an error state.
+        elements.statusBox.classList.add('hidden-no-space');
+        elements.statusText.textContent = "";
+        elements.progressBar.style.width = '0%';
+    }
 }
 
 function loadSavedStatus(elements) {
@@ -405,6 +412,9 @@ function loadSavedStatus(elements) {
         elements.targetLanguageInput.disabled = false; 
         elements.cancelButton.classList.add('hidden-no-space'); 
         elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
+        
+        // MODIFIED: Hide status box by default
+        elements.statusBox.classList.add('hidden-no-space');
         
         // Load Subtitle Mode
         const isTranslatedOnlyPref = data.translated_only_pref;
@@ -443,6 +453,9 @@ function loadSavedStatus(elements) {
 
         if (status && status.progress > 0) {
             // --- RUNNING STATE ---
+            
+            // MODIFIED: Show status box
+            elements.statusBox.classList.remove('hidden-no-space');
             
             // Status Box
             elements.statusText.textContent = status.message;
@@ -528,6 +541,9 @@ function loadSavedStatus(elements) {
                   if (!status.message.includes("Old subtitle URL used") && 
                       !status.message.includes("Error fetching subtitles") &&
                       !status.message.includes("Invalid URL retrieved")) {
+                      
+                      // MODIFIED: Show status box only for non-URL errors.
+                      elements.statusBox.classList.remove('hidden-no-space');
                       elements.statusText.textContent = status.message;
                   } else {
                        elements.statusText.textContent = "";
@@ -551,6 +567,9 @@ function loadSavedStatus(elements) {
 
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
+    
+    // MODIFIED: Show the status box
+    elements.statusBox.classList.remove('hidden-no-space');
     
     // NEW: Clear the temp detection status as the full process is starting
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
@@ -719,7 +738,8 @@ async function handleCancelClick(elements) {
     // 2. Immediately clear the saved status and reset UI elements
     await chrome.storage.local.remove(['ls_status', 'detected_base_lang_name', 'detected_base_lang_code']); 
     
-    // Set a neutral message when cancelled
+    // Set a neutral message when cancelled, keep status box visible for this message
+    elements.statusBox.classList.remove('hidden-no-space');
     elements.statusText.textContent = "Processing stopped. Click 'Clear Status & Reset' to restart.";
     elements.progressBar.style.width = '0%';
     elements.confirmButton.disabled = false;
@@ -747,6 +767,8 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmButton: document.getElementById('confirmButton'),
         targetLanguageInput: document.getElementById('targetLanguage'), 
         subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
+        // MODIFIED: Added statusBox element
+        statusBox: document.getElementById('statusBox'),
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
         cancelButton: document.getElementById('cancelButton'),
@@ -890,6 +912,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const progress = request.progress;
             const message = request.message;
             
+            // MODIFIED: Always make status box visible when there's a status update from content.js
+            elements.statusBox.classList.remove('hidden-no-space');
+            
             // --- NEW MESSAGE ROUTING LOGIC ---
             
             // 1. URL Status (Only update on URL errors or if process is cancelled/finished)
@@ -909,6 +934,9 @@ document.addEventListener('DOMContentLoaded', () => {
                  elements.statusText.textContent = message;
                  elements.urlStatusText.textContent = ""; // Clear URL status while running
                  elements.langStatusText.textContent = ""; // Clear language status while running
+            } else if (progress === 0) {
+                // If progress is 0, it's an error state
+                elements.statusText.textContent = message;
             }
             
             elements.progressBar.style.width = progress + '%';
@@ -972,35 +1000,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 elements.confirmButton.disabled = !isUrlValid;
 
-                if (isUrlValid) {
-                     // If it's a URL/Lang error, the status text is set by the routing logic above.
-                     if (!elements.urlStatusText.textContent && !elements.langStatusText.textContent && !elements.statusText.textContent) {
-                         // If it's a clean neutral state, check storage for pre-detection
-                         chrome.storage.local.get(['subtitle_style_pref', 'detected_base_lang_name'], (data) => {
-                             if (data.detected_base_lang_name) {
-                                 elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
-                                 elements.urlStatusText.style.color = "green";
-                             } else {
-                                 // Fallback to "Detecting" if URL is present but detection failed or not started
-                                 if (elements.subtitleUrlInput.value.trim()) {
-                                      elements.urlStatusText.textContent = "Detecting language..."; 
-                                      elements.urlStatusText.style.color = "#e50914"; 
-                                 } else {
-                                      elements.urlStatusText.textContent = "Waiting for URL...";
-                                      elements.urlStatusText.style.color = "#e50914";
-                                 }
-                             }
-                             // Also re-enable settings button based on style selection
-                             elements.editStyleSettingsButton.disabled = (data.subtitle_style_pref === 'netflix');
-                         });
-                     }
-                } else {
+                if (!isUrlValid) {
                     elements.urlStatusText.textContent = "Waiting for URL...";
                     elements.urlStatusText.style.color = "#e50914";
-                     // Re-enable settings button based on style selection
-                    chrome.storage.local.get(['subtitle_style_pref'], (data) => {
-                         elements.editStyleSettingsButton.disabled = (data.subtitle_style_pref === 'netflix');
-                    });
                 }
                 
                 elements.targetLanguageInput.disabled = false; 
