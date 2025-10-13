@@ -9,194 +9,40 @@ const NETFLIX_PRESET = {
 };
 // ----------------------------
 
-// --- NEW GLOBAL LANGUAGE MAP ---
+// --- NEW GLOBAL LANGUAGE MAP (Minimal set for helper function) ---
 const LANGUAGE_MAP = {
-    "afar": "aa",
-    "abkhazian": "ab",
-    "avesta": "ae",
-    "afrikaans": "af",
-    "akan": "ak",
-    "amharic": "am",
-    "aragonese": "an",
-    "arabic": "ar",
-    "assamese": "as",
-    "avaric": "av",
-    "aymara": "ay",
-    "azerbaijan": "az",
-    "bashkir": "ba",
-    "belarusian": "be",
-    "bulgarian": "bg",
-    "bihari languages": "bh",
-    "bislama": "bi",
-    "bambara": "bm",
-    "bengali / bangla": "bn",
-    "tibetan": "bo",
-    "breton": "br",
-    "bosnian": "bs",
-    "catalan / valencian": "ca",
-    "chechen": "ce",
-    "chamorro": "ch",
-    "corsican": "co",
-    "cree": "cr",
-    "czech": "cs",
-    "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu",
-    "chuvash": "cv",
-    "welsh": "cy",
-    "danish": "da",
-    "german": "de",
-    "dhivehi / divehi / maldivian": "dv",
-    "dzongkha": "dz",
-    "ewe": "ee",
-    "modern greek (1453-)": "el",
-    "english": "en",
-    "esperanto": "eo",
-    "spanish / castilian": "es",
-    "estonian": "et",
-    "basque": "eu",
-    "persian": "fa",
-    "fulah": "ff",
-    "finnish": "fi",
-    "fijian": "fj",
-    "faroese": "fo",
-    "french": "fr",
-    "western frisian": "fy",
-    "irish": "ga",
-    "scottish gaelic / gaelic": "gd",
-    "galician": "gl",
-    "guarani": "gn",
-    "gujarati": "gu",
-    "manx": "gv",
-    "hausa": "ha",
-    "hebrew": "he",
-    "hindi": "hi",
-    "hiri motu": "ho",
-    "croatian": "hr",
-    "haitian / haitian creole": "ht",
-    "hungarian": "hu",
-    "armenian": "hy",
-    "herero": "hz",
-    "interlingua (international auxiliary language association)": "ia",
-    "indonesian": "id",
-    "interlingue / occidental": "ie",
-    "igbo": "ig",
-    "sichuan yi / nuosu": "ii",
-    "inupiaq": "ik",
-    "indonesian (deprecated: use id)": "in",
-    "ido": "io",
-    "icelandic": "is",
-    "italian": "it",
-    "inuktitut": "iu",
-    "hebrew (deprecated: use he)": "iw",
-    "japanese": "ja",
-    "korean": "ko",
-    "kanuri": "kr",
-    "kashmiri": "ks",
-    "kurdish": "ku",
-    "komi": "kv",
-    "cornish": "kw",
-    "kirghiz / kyrgyz": "ky",
-    "latin": "la",
-    "luxembourgish / letzeburgesch": "lb",
-    "ganda / luganda": "lg",
-    "limburgan / limburger / limburgish": "li",
-    "lingala": "ln",
-    "lao": "lo",
-    "lithuanian": "lt",
-    "luba-katanga": "lu",
-    "latvian": "lv",
-    "malagasy": "mg",
-    "marshallese": "mh",
-    "maori": "mi",
-    "macedonian": "mk",
-    "malayalam": "ml",
-    "mongolian": "mn",
-    "moldavian / moldovan (deprecated: use ro)": "mo",
-    "marathi": "mr",
-    "malay (macrolanguage)": "ms",
-    "maltese": "mt",
-    "burmese": "my",
-    "nauru": "na",
-    "norwegian bokmål": "nb",
-    "north ndebele": "nd",
-    "nepali (macrolanguage)": "ne",
-    "ndonga": "ng",
-    "dutch / flemish": "nl",
-    "norwegian nynorsk": "nn",
-    "norwegian": "no",
-    "south ndebele": "nr",
-    "navajo / navaho": "nv",
-    "navajo / navaho": "nv",
-    "nyanja / chewa / chichewa": "ny",
-    "occitan (post 1500)": "oc",
-    "ojibwa": "oj",
-    "oromo": "om",
-    "oriya (macrolanguage) / odia (macrolanguage)": "or",
-    "ossetian / ossetic": "os",
-    "panjabi / punjabi": "pa",
-    "pali": "pi",
-    "polish": "pl",
-    "pushto / pashto": "ps",
-    "portuguese": "pt",
-    "quechua": "qu",
-    "romansh": "rm",
-    "rundi": "rn",
-    "romanian / moldavian / moldovan": "ro",
-    "russian": "ru",
-    "kinyarwanda": "rw",
-    "sanskrit": "sa",
-    "sardinian": "sc",
-    "sindhi": "sd",
-    "northern sami": "se",
-    "sango": "sg",
-    "serbo-croatian": "sh",
-    "sinhala / sinhalese": "si",
-    "slovak": "sk",
-    "slovenian": "sl",
-    "samoan": "sm",
-    "shona": "sn",
-    "somali": "so",
-    "albanian": "sq",
-    "serbian": "sr",
-    "swati": "ss",
-    "southern sotho": "st",
-    "sundanese": "su",
-    "swedish": "sv",
-    "swahili (macrolanguage)": "sw",
-    "tamil": "ta",
-    "telugu": "te",
-    "tajik": "tg",
-    "thai": "th",
-    "tigrinya": "ti",
-    "turkmen": "tk",
-    "tagalog": "tl",
-    "tswana": "tn",
-    "tonga (tonga islands)": "to",
-    "turkish": "tr",
-    "tsonga": "ts",
-    "tatar": "tt",
-    "twi": "tw",
-    "tahitian": "ty",
-    "uighur / uyghur": "ug",
-    "ukrainian": "uk",
-    "urdu": "ur",
-    "uzbek": "uz",
-    "venda": "ve",
-    "vietnamese": "vi",
-    "volapük": "vo",
-    "walloon": "wa",
-    "wolof": "wo",
-    "xhosa": "xh",
-    "yiddish": "yi",
-    "yoruba": "yo",
-    "zhuang / chuang": "za",
-    "chinese": "zh",
-    "zulu": "zu"
+    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo",
+    "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "korean": "ko", "latin": "la", "dutch / flemish": "nl", "norwegian": "no", "polish": "pl", "portuguese": "pt", "romanian / moldavian / moldovan": "ro", "russian": "ru", "swedish": "sv", "thai": "th", "turkish": "tr", "ukrainian": "uk", "vietnamese": "vi", "chinese": "zh",
+    "" : ""
 };
 
 /**
- * NEW: Function to toggle the visibility of the status box.
- * It uses the 'hidden-no-space' class defined in main.html.
+ * Helper to manage the disabled state and visual lock of input elements.
  */
+function setInputLock(elements, isLocked) {
+    // URL and Target Language Inputs
+    elements.subtitleUrlInput.disabled = isLocked;
+    elements.targetLanguageInput.disabled = isLocked;
+    
+    // Toggle visual desaturation class
+    elements.subtitleUrlInput.classList.toggle('input-locked', isLocked);
+    elements.targetLanguageInput.classList.toggle('input-locked', isLocked);
+
+    // Preference Radios/Buttons
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = isLocked);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = isLocked);
+    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = isLocked);
+    
+    // Custom Settings Button (always locked if processing, re-enabled based on radio state on unlock)
+    if (isLocked) {
+        elements.customSettingsButton.disabled = true;
+    } else {
+         const savedStyle = document.querySelector('input[name="subtitleStyle"]:checked')?.value || 'netflix';
+         elements.customSettingsButton.disabled = (savedStyle === 'netflix');
+    }
+}
+
+
 function setStatusBoxVisibility(elements, isVisible) {
     const statusBox = document.getElementById('statusBox');
     if (statusBox) {
@@ -226,17 +72,12 @@ async function resetStatus(elements) {
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
     elements.colourCodingNone.checked = true; // NEW: Reset colour coding to 'none'
-    elements.customSettingsButton.disabled = true; // Disable button on reset
 
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
-    // --- MODIFIED: Ensure new input is NOT disabled ---
-    elements.targetLanguageInput.disabled = false; 
     
-    // MODIFICATION: Enable all main popup preference radio buttons
-    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
+    // UNLOCK ALL INPUTS
+    setInputLock(elements, false);
 
     elements.cancelButton.classList.add('hidden-no-space'); 
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
@@ -275,6 +116,11 @@ function getLanguageName(langCode) {
  * NEW: Centralized function to check URL validity and trigger detection.
  */
 function checkUrlAndDetectLanguage(elements) {
+    // CRITICAL: If inputs are disabled, we assume the process is running/starting. Abort detection early.
+    if (elements.subtitleUrlInput.disabled) {
+        return;
+    }
+
     const url = elements.subtitleUrlInput.value.trim();
     const isUrlValid = (url && url.startsWith('http'));
     elements.confirmButton.disabled = !isUrlValid;
@@ -344,9 +190,6 @@ function loadSavedStatus(elements) {
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
-        elements.targetLanguageInput.disabled = false; 
-        elements.cancelButton.classList.add('hidden-no-space'); 
-        elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
         
         // MODIFICATION: Load Subtitle Mode
         const isTranslatedOnlyPref = data.translated_only_pref;
@@ -360,10 +203,8 @@ function loadSavedStatus(elements) {
         const savedStyle = data.subtitle_style_pref || 'netflix';
         if (savedStyle === 'custom') {
             elements.subtitleStyleCustom.checked = true;
-            elements.customSettingsButton.disabled = false; // Enable custom button
         } else {
             elements.subtitleStyleNetflix.checked = true;
-            elements.customSettingsButton.disabled = true; // Disable custom button
         }
         
         // NEW: Load Colour Coding Preference, default to 'none'
@@ -389,6 +230,9 @@ function loadSavedStatus(elements) {
         if (status && status.progress > 0) {
             // --- RUNNING STATE ---
             
+            // LOCK INPUTS
+            setInputLock(elements, true); 
+            
             // CRITICAL FIX: Show the status box only when progress is > 0
             setStatusBoxVisibility(elements, true);
             
@@ -403,18 +247,14 @@ function loadSavedStatus(elements) {
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
-                elements.targetLanguageInput.disabled = true; 
-                
-                // MODIFICATION: Disable all main popup preference radio buttons
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = true); // NEW: Disable color coding radios
-                elements.customSettingsButton.disabled = true; // Also disable the settings button
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
             } else {
                 // Process finished (progress == 100)
+                
+                // UNLOCK INPUTS on finish
+                setInputLock(elements, false); 
                 
                 // MODIFICATION: SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
                 if (currentBaseLangName) {
@@ -426,22 +266,15 @@ function loadSavedStatus(elements) {
                 }
                 
                 elements.confirmButton.disabled = false; // Allow re-run
-                elements.targetLanguageInput.disabled = false; 
-                
-                // MODIFICATION: Enable all main popup preference radio buttons
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
-                
-                // Re-enable settings button only if custom is selected
-                elements.customSettingsButton.disabled = (savedStyle === 'netflix');
-
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
             }
         } else {
              // --- NEUTRAL or ERROR State (Progress == 0) ---
+             
+             // UNLOCK INPUTS
+             setInputLock(elements, false);
              
              // CRITICAL FIX: Hide the status box completely on load if status is 0
              setStatusBoxVisibility(elements, false);
@@ -501,14 +334,6 @@ function loadSavedStatus(elements) {
              
              // Final UI fixes for neutral/error state
              elements.cancelButton.classList.add('hidden-no-space');
-             elements.targetLanguageInput.disabled = false;
-             
-             // MODIFICATION: Ensure main popup preferences are enabled
-             elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
-             elements.customSettingsButton.disabled = (savedStyle === 'netflix');
-
         }
     });
 }
@@ -516,6 +341,9 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
+    // CRITICAL: Disable inputs IMMEDIATELY to prevent detection race condition
+    setInputLock(elements, true); 
+
     // NEW: Clear the temp detection status as the full process is starting
     await chrome.storage.local.remove(['detected_base_lang_name']);
 
@@ -558,7 +386,7 @@ async function handleConfirmClick(elements) {
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
          
-         // Set isProcessing=false by clearing status and hiding box (though technically it wasn't set to true yet)
+         setInputLock(elements, false); // Unlock on validation failure
          await chrome.storage.local.remove(['ls_status']);
          setStatusBoxVisibility(elements, false);
          return; // ABORT GENERATION
@@ -583,7 +411,7 @@ async function handleConfirmClick(elements) {
         elements.progressBar.style.width = '0%';
         elements.confirmButton.disabled = false; 
         
-        // CRITICAL FIX: Remove status and hide box on setup error
+        setInputLock(elements, false); // Unlock on validation failure
         await chrome.storage.local.remove(['ls_status']);
         setStatusBoxVisibility(elements, false);
         return; // ABORT GENERATION
@@ -603,13 +431,6 @@ async function handleConfirmClick(elements) {
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
-    elements.targetLanguageInput.disabled = true; 
-    
-    // MODIFICATION: Disable all main popup preference radio buttons
-    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = true); // NEW: Disable color coding radios
-    elements.customSettingsButton.disabled = true;
 
     
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
@@ -622,7 +443,7 @@ async function handleConfirmClick(elements) {
             console.error("[POPUP] Failed to retrieve active tab information.");
             elements.progressBar.style.width = '0%';
             
-            // CRITICAL FIX: Remove status and hide box on fatal error
+            setInputLock(elements, false); // Unlock on fatal error
             chrome.storage.local.remove(['ls_status']);
             setStatusBoxVisibility(elements, false);
             return;
@@ -654,7 +475,7 @@ async function handleConfirmClick(elements) {
                 console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
                 elements.progressBar.style.width = '0%';
                 
-                // CRITICAL FIX: Remove status and hide box on fatal error
+                setInputLock(elements, false); // Unlock on fatal error
                 chrome.storage.local.remove(['ls_status']);
                 setStatusBoxVisibility(elements, false);
                 return;
@@ -703,12 +524,9 @@ async function handleCancelClick(elements) {
     elements.statusText.textContent = "Processing stopped. Click 'Clear Status & Reset' to restart.";
     elements.progressBar.style.width = '0%';
     elements.confirmButton.disabled = false;
-    elements.targetLanguageInput.disabled = false; 
     
-    // MODIFICATION: Re-enable main popup preference radio buttons
-    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
+    // UNLOCK ALL INPUTS
+    setInputLock(elements, false);
     
     // Re-enable custom settings button only if custom is selected (which loadSavedStatus will handle)
     
@@ -821,17 +639,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // NEW: Listen to changes in the language input box
     elements.targetLanguageInput.addEventListener('input', () => {
-         const url = elements.subtitleUrlInput.value.trim();
-         const isUrlValid = (url && url.startsWith('http'));
-         
-         if (isUrlValid) {
-             // MODIFICATION: Do NOT update the "ready" message with the target language.
-             // The language_detected handler manages the ready message now.
-             // Keep it simple when the URL is ready, as per the new requirement.
-             // If a detection has already occurred, it will remain visible.
-             
-         }
-         // Clear language status text on new input
+         // The main lock check in checkUrlAndDetectLanguage handles blocking the work
          elements.langStatusText.textContent = "";
     });
 
@@ -906,6 +714,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progress > 0) {
                  // CRITICAL FIX: Show the status box whenever progress is > 0
                  setStatusBoxVisibility(elements, true);
+                 // LOCK INPUTS while running
+                 setInputLock(elements, true);
             }
             
             if (progress >= 100) {
@@ -913,17 +723,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.statusText.textContent = message; // Show completion message
                 
                 elements.confirmButton.disabled = false;
-                elements.targetLanguageInput.disabled = false; 
                 
-                // MODIFICATION: Re-enable main popup preference radio buttons
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
+                // UNLOCK INPUTS on completion
+                setInputLock(elements, false);
                 
                 // Re-enable settings button based on style selection
                 chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], (data) => {
-                     elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
-                     
                      // MODIFICATION: SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
                      const baseLangCode = data.ls_status?.baseLang;
                      const detectedBaseLangName = data.detected_base_lang_name;
@@ -946,15 +751,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } else if (progress > 0) {
                 // --- PROGRESS 0% < x < 100% STATE (RUNNING) ---
-                // Status text set above
+                // Inputs are locked by the confirm handler/status check above.
                 elements.confirmButton.disabled = true;
-                elements.targetLanguageInput.disabled = true; 
-                
-                // MODIFICATION: Disable all main popup preference radio buttons
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = true); // NEW: Disable color coding radios
-                elements.customSettingsButton.disabled = true; // Always disable while running
                 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
@@ -964,6 +762,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
                 
                 elements.confirmButton.disabled = !isUrlValid;
+                
+                // UNLOCK INPUTS
+                setInputLock(elements, false);
                 
                 // CRITICAL FIX: Hide status box if all three status texts are empty/not error messages
                 const mainStatusText = elements.statusText.textContent.trim();
@@ -987,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isUrlValid) {
                      // If it's a clean neutral state, check storage for pre-detection
                      if (!elements.urlStatusText.textContent && !elements.langStatusText.textContent && !elements.statusText.textContent) {
-                         chrome.storage.local.get(['subtitle_style_pref', 'detected_base_lang_name'], (data) => {
+                         chrome.storage.local.get(['detected_base_lang_name'], (data) => {
                              if (data.detected_base_lang_name) {
                                  elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
                              } else {
@@ -998,31 +799,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                       elements.urlStatusText.textContent = "Waiting for URL...";
                                  }
                              }
-                             // Also re-enable settings button based on style selection
-                             elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
                          });
-                     } else {
-                          // The message was an error, re-enable buttons
-                          chrome.storage.local.get(['subtitle_style_pref'], (data) => {
-                             elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
-                          });
-                     }
+                     } 
                 } else {
                     elements.urlStatusText.textContent = "Waiting for URL...";
-                     // Re-enable settings button based on style selection
-                    chrome.storage.local.get(['subtitle_style_pref'], (data) => {
-                         elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
-                    });
                 }
                 
-                elements.targetLanguageInput.disabled = false; 
-                
-                // MODIFICATION: Re-enable main popup preference radio buttons
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.colourCodingGroup.querySelectorAll('input').forEach(input => input.disabled = false); // NEW: Enable color coding radios
-                
-
                 elements.cancelButton.classList.add('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
             }
