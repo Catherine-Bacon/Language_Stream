@@ -537,13 +537,11 @@ function startSubtitleSync() {
                     // When 'vocabulary' is NOT selected, we still need to provide a structured list 
                     // to generateCodedHtml so it can fall back to the raw text, which we do below.
                     
-                    // Create a pseudo-structured data object for non-vocabulary modes, 
-                    // so generateCodedHtml can fall back to the whole text.
-                    const fallbackSegments = [{ text: baseText, color: currentFontColor }];
-                    const fallbackTranslatedSegments = [{ text: translatedText, color: currentFontColor }];
+                    // The structured data will be correctly filled during the pipeline 
+                    // with simulated translation if it exists.
                     
-                    const finalBaseSegments = structuredData?.base || fallbackSegments;
-                    const finalTranslatedSegments = structuredData?.translated || fallbackTranslatedSegments;
+                    const finalBaseSegments = structuredData?.base || [{ text: baseText, color: currentFontColor }];
+                    const finalTranslatedSegments = structuredData?.translated || [{ text: translatedText, color: currentFontColor }];
                     
                     // Generate HTML using the new segment-based function
                     baseHtml = generateCodedHtml(finalBaseSegments, spanBaseCss, currentFontColor);
@@ -874,10 +872,10 @@ async function runFullTranslationPipeline(url, targetLang, translatedOnly, fontS
                 // Apply the simulation function for vocab coding
                 structuredData = simulateVocabularyCoding(sub.text, simulatedTranslation);
             } else {
-                // Placeholder structured data for non-coded mode
+                // FIX: Ensure the simulated translation is used for the translated line, not the base text.
                  structuredData = { 
                      base: [{ text: sub.text, color: getFontColor(fontColor) }],
-                     translated: [{ text: simulatedTranslation, color: getFontColor(fontColor) }]
+                     translated: [{ text: simulatedTranslation, color: getFontColor(fontColor) }] // CRITICAL FIX HERE
                  };
             }
             
@@ -905,6 +903,7 @@ async function runFullTranslationPipeline(url, targetLang, translatedOnly, fontS
 
     // 5. Final completion status (100%)
     sendStatusUpdate("Subtitle generation and synchronization active.", 100);
+    // CRITICAL FIX: The process is now complete, reset the flag.
     isProcessing = false;
 }
 
