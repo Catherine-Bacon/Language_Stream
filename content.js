@@ -913,50 +913,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     if (request.command === "detect_language") {
         const url = request.url;
-        // Check if already processing (to prevent detection run while full process is starting)
-        if (isProcessing) {
+        
+        // 1. BLOCK: If the main pipeline is currently running, block detection immediately.
+        if (isProcessing) { 
             console.warn("Full processing already underway. Ignoring detection request.");
             return;
         }
         
-        // We only run full fetch/parse/detect here if we don't have subs already
-        if (parsedSubtitles.length === 0) {
-            // Set a temporary flag to prevent concurrent detection
-            isProcessing = true; 
-            
-            fetchXmlContent(url).then(xmlString => {
-                if (!xmlString) {
-                    // isProcessing reset inside fetchXmlContent on error
-                    return; 
-                }
-                
-                if (!parseTtmlXml(xmlString, url)) {
-                    // isProcessing reset inside parseTtmlXml on error
-                    return;
-                }
-
-                return detectBaseLanguage();
-            }).then(baseLangCode => {
-                if (baseLangCode) {
-                    const baseLangName = getLanguageName(baseLangCode);
-                    
-                    // Send result back to popup.js to update the 'ready' message
-                    chrome.runtime.sendMessage({
-                        command: "language_detected",
-                        url: url,
-                        baseLangCode: baseLangCode,
-                        baseLangName: baseLangName
-                    }).catch(e => { /* suppress error */ });
-                }
-            }).catch(e => {
-                console.error("Language detection pipeline failed:", e);
-                // Note: fetchXmlContent and parseTtmlXml handle their own error messages and resets
-                // This catch handles errors in detectBaseLanguage or subsequent .then()
-            }).finally(() => {
-                // CRITICAL FIX: Always reset the temporary processing flag for detection
-                isProcessing = false; 
-            });
+        // 2. BLOCK: If we already have parsed subtitles, the base language is known and we don't need detection.
+        if (parsedSubtitles.length > 0) {
+             // Send the already known language back to the popup to update its status message
+             chrome.runtime.sendMessage({
+                command: "language_detected",
+                url: url,
+                baseLangCode: subtitleLanguages.base,
+                baseLangName: getLanguageName(subtitleLanguages.base)
+             }).catch(e => { /* suppress error */ });
+             return; 
         }
+
+        // 3. EXECUTE: Only if no processing is active AND no subtitles are loaded, proceed with detection.
+
+        // Set a temporary flag to prevent concurrent detection
+        isProcessing = true; 
+        
+        fetchXmlContent(url).then(xmlString => {
+            if (!xmlString) {
+                // isProcessing reset inside fetchXmlContent on error
+                return; 
+            }
+            
+            if (!parseTtmlXml(xmlString, url)) {
+                // isProcessing reset inside parseTtmlXml on error
+                return;
+            }
+
+            return detectBaseLanguage();
+        }).then(baseLangCode => {
+            if (baseLangCode) {
+                const baseLangName = getLanguageName(baseLangCode);
+                // Temporarily store the language for the message response before the final reset
+                subtitleLanguages.base = baseLangCode; 
+                
+                // Send result back to popup.js to update the 'ready' message
+                chrome.runtime.sendMessage({
+                    command: "language_detected",
+                    url: url,
+                    baseLangCode: baseLangCode,
+                    baseLangName: baseLangName
+                }).catch(e => { /* suppress error */ });
+            }
+        }).catch(e => {
+            console.error("Language detection pipeline failed:", e);
+        }).finally(() => {
+            // CRITICAL FIX: Always reset the temporary processing flag for detection
+            isProcessing = false; 
+        });
         
     } else if (request.command === "fetch_and_process_url") {
         if (isProcessing) {
@@ -965,6 +977,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
              sendStatusUpdate("Processing is already active. Please cancel first.", 5, request.url, 'lang'); 
              return;
         }
+        // IMPORTANT: isProcessing is set to TRUE immediately upon starting fetch_and_process_url
         isProcessing = true;
         isCancelled = false; // Reset cancellation flag
         

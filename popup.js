@@ -88,18 +88,7 @@ const LANGUAGE_MAP = {
     "inuktitut": "iu",
     "hebrew (deprecated: use he)": "iw",
     "japanese": "ja",
-    "yiddish (deprecated: use yi)": "ji",
-    "javanese": "jv",
-    "javanese (deprecated: use jv)": "jw",
-    "georgian": "ka",
-    "kong": "kg",
-    "kikuyu / gikuyu": "ki",
-    "kuanyama / kwanyama": "kj",
-    "kazakh": "kk",
-    "kalaallisut / greenlandic": "kl",
-    "khmer / central khmer": "km",
-    "kannada": "kn",
-    "ko": "korean",
+    "korean": "ko",
     "kanuri": "kr",
     "kashmiri": "ks",
     "kurdish": "ku",
@@ -500,7 +489,7 @@ function loadSavedStatus(elements) {
                       !status.message.includes("Error fetching subtitles") &&
                       !status.message.includes("Invalid URL retrieved") &&
                       !status.message.includes("Fatal Processing Error")) {
-                      elements.statusText.textContent = status.message;
+                      elements.statusText.textContent = message;
                       // CRITICAL: Re-show status box only for non-input errors
                       setStatusBoxVisibility(elements, true);
                   } else {
@@ -558,20 +547,21 @@ async function handleConfirmClick(elements) {
     }
 
 
-    // --- LOOKUP THE 2-LETTER CODE AND VALIDATE ---
+    // --- LOOKUP THE 2-LETTER CODE AND CRITICAL VALIDATION ---
     const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
+    
+    // CRITICAL VALIDATION CHECK: Ensure targetLang is a valid 2-letter code.
     if (targetLang.length !== 2) {
-         // CRITICAL FIX: Cancel processing and reset state on language error
          console.error("[POPUP] Invalid target language input. Resetting state.");
-         elements.langStatusText.textContent = `Please check language spelling`;
-         elements.statusText.textContent = "Error: Invalid target language. Please use a valid full name.";
+         elements.langStatusText.textContent = `Error: Please check language spelling. Enter a full name (e.g., Spanish).`;
+         elements.statusText.textContent = "";
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
          
-         // CRITICAL FIX: Remove status and hide box on setup error
+         // Set isProcessing=false by clearing status and hiding box (though technically it wasn't set to true yet)
          await chrome.storage.local.remove(['ls_status']);
          setStatusBoxVisibility(elements, false);
-         return;
+         return; // ABORT GENERATION
     }
     // ---------------------------------------------
 
@@ -596,7 +586,7 @@ async function handleConfirmClick(elements) {
         // CRITICAL FIX: Remove status and hide box on setup error
         await chrome.storage.local.remove(['ls_status']);
         setStatusBoxVisibility(elements, false);
-        return;
+        return; // ABORT GENERATION
     }
 
 
