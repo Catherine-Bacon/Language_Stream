@@ -138,7 +138,8 @@
       }
       
       /* New style for the Custom Settings Button */
-      #customSettingsButton {
+      /* MODIFIED: Renamed to editStyleSettingsButton and placed within the flex container */
+      #editStyleSettingsButton {
           width: 30px; 
           height: 30px; 
           padding: 0; 
@@ -149,7 +150,7 @@
           border: none; 
           flex-shrink: 0;
       }
-      #customSettingsButton:hover {
+      #editStyleSettingsButton:hover {
           background-color: #777;
       }
 
@@ -207,7 +208,7 @@
     <p style="margin: 0; padding: 0; margin-top: 5px;">Language to Translate To:</p>
     <input type="text" id="targetLanguage" placeholder="Enter full language name (e.g., Spanish)" value="es">
     
-    <p id="langStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold; min-height: 1.2em;">&nbsp;</p>
+    <p id="langStatusText" style="margin-top: 5px; color: green; font-weight: bold; min-height: 1.2em;">&nbsp;</p>
 
     
     <h3>3. Select Preferences</h3>
@@ -238,26 +239,16 @@
                     <input type="radio" name="subtitleStyle" value="custom" id="subtitleStyleCustom">
                     Custom
                 </label>
+                <label>
+                    <input type="radio" name="subtitleStyle" value="vocabulary" id="subtitleStyleVocabulary">
+                    Vocabulary
+                </label>
+                <label>
+                    <input type="radio" name="subtitleStyle" value="grammar" id="subtitleStyleGrammar">
+                    Grammar
+                </label>
             </div>
-            <button id="customSettingsButton" title="Edit Custom Settings" disabled>&#x2699;</button>
-        </div>
-    </div>
-    
-    <div class="preference-row">
-        <p>Colour Coding:</p>
-        <div id="colourCodingGroup" class="radio-group">
-            <label>
-                <input type="radio" name="colourCoding" value="none" id="colourCodingNone" checked>
-                None
-            </label>
-            <label>
-                <input type="radio" name="colourCoding" value="vocabulary" id="colourCodingVocabulary">
-                Vocabulary
-            </label>
-            <label>
-                <input type="radio" name="colourCoding" value="grammar" id="colourCodingGrammar">
-                Grammar
-            </label>
+            <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
         </div>
     </div>
     

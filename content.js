@@ -32,9 +32,9 @@ function sendStatusUpdate(message, progress, url = null, route = 'main') {
         'ls_status': { 
             message: message,
             progress: progress,
-            // MODIFIED: Always save the base language code if available
+            // MODIFIED: Always save the base and target language code if available
             baseLang: subtitleLanguages.base, 
-            targetLang: progress < 100 ? subtitleLanguages.target : null,
+            targetLang: progress < 100 ? subtitleLanguages.target : subtitleLanguages.target,
             url: progress < 100 ? url : null 
         }
     }).catch(e => console.error("Could not save status to storage:", e));
@@ -337,6 +337,7 @@ var currentTranslator = currentTranslator || null;
 /**
  * Translates the given text using the native Chrome Translator API.
  * Handles Translator instance creation and model download monitoring.
+ * MODIFIED: Now sends a final 'Ready to translate' status on successful creation.
  */
 async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
@@ -351,7 +352,8 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
 
         if (!('Translator' in self)) {
             // Feature detection check
-            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0);
+            // MODIFICATION: Route as 'lang' for language status line
+            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0, null, 'lang'); 
             return "(Translation Failed - API Missing)";
         }
         
@@ -369,12 +371,29 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                     });
                 }
             });
+            
+            // ---------------------------------------------------------------------------------
+            // ⭐ CRITICAL MODIFICATION: SUCCESSFUL LANGUAGE PAIR CONFIRMATION
+            // Send the definitive green 'Ready to translate' message here, after successful creation.
+            // This is the only place this green message is sent.
+            // ---------------------------------------------------------------------------------
+            const fullLangName = targetLang.toUpperCase(); // In this context, targetLang is the 2-letter code
+            const popupMessage = `Ready to translate to ${fullLangName}!`; 
+            // Send the message using the 'lang' route and a high progress (but <100)
+            sendStatusUpdate(popupMessage, 60, null, 'lang'); 
+
             // PROGRESS UPDATE: Model ready just before translation loop starts
             sendStatusUpdate("Translator model ready. Starting translation...", 60); 
 
         } catch (e) {
-            console.error("Native Translator API failed to create:", e);
-            sendStatusUpdate(`Translation failed during model setup: ${e.message}`, 0);
+            console.error("Native Translator API failed to create. Language pair likely unavailable:", e);
+            // ---------------------------------------------------------------------------------
+            // ⭐ CRITICAL MODIFICATION: FAILED LANGUAGE PAIR CONFIRMATION
+            // Send the definitive red 'Language pair not yet available' error here.
+            // ---------------------------------------------------------------------------------
+            // MODIFICATION: Send the new language error message with a 'lang' route
+            sendStatusUpdate(`Language pair not yet available, please retry with different inputs.`, 0, null, 'lang');
+            
             return "(Translation Failed - Model Setup Error)";
         }
     }
@@ -911,9 +930,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 
                 // FIX: Check if detectedLang is null (detection failed)
                 if (!subtitleLanguages.base) {
-                    // MODIFICATION: Send the new language error message with a 'lang' route
-                    sendStatusUpdate(`Language pair not yet available, please retry with different inputs.`, 30, url, 'lang');
-                    // Use a fallback language if detection fails for translation
+                    // If detection fails, send the specific language error and set a fallback language
+                    sendStatusUpdate(`Detected Base Language: (FAIL). Attempting translation with fallback 'en'...`, 30, url);
                     subtitleLanguages.base = 'en'; 
                 } else {
                     // UPDATE UI with detected language
