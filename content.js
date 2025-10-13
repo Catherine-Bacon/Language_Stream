@@ -569,9 +569,9 @@ function getSpanBackgroundColor(preference) {
 }
 // ---------------------------------------------------------------------------------
 
-function startSubtitleSync() {
-    const videoElement = getNetflixVideoElement();
-
+// MODIFIED: This function now receives the video element as a parameter.
+function startSubtitleSync(videoElement) {
+    
     if (syncInterval) {
         clearInterval(syncInterval);
     }
@@ -905,6 +905,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // 3. Async wrapper to handle the fetch/parse/translate sequence
         (async () => {
+            
+            // MODIFIED: Check for video element upfront
+            const videoElement = getNetflixVideoElement();
+            if (!videoElement) {
+                console.error("C2.1. Video player element not found on this page.");
+                sendStatusUpdate("Video player not found. Please start playback and try again.", 0);
+                isProcessing = false; // Reset processing flag
+                return;
+            }
+            
             const xmlContent = await fetchXmlContent(url);
             
             console.log("C3. XML Content fetch complete. Content size:", xmlContent ? xmlContent.length : '0');
@@ -951,9 +961,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 // -------------------------------------------------------------------------------------
                 // ⭐ CRITICAL CHANGE: Start the sync loop NOW, right after detection and before translation.
                 // This allows subtitles to appear as soon as they are translated concurrently.
+                // MODIFIED: Pass the found video element to the sync function.
                 // -------------------------------------------------------------------------------------
                 console.log("C5. Starting subtitle sync loop *early* while translation runs in background.");
-                startSubtitleSync();
+                startSubtitleSync(videoElement);
                 // -------------------------------------------------------------------------------------
 
 
