@@ -246,6 +246,11 @@ async function resetStatus(elements) {
     elements.urlStatusText.textContent = "Waiting for URL...";
     elements.urlStatusText.style.color = "#e50914";
 
+    // --- FIX START: Ensure status lines are visible on reset ---
+    elements.urlStatusText.classList.remove('hidden-no-space');
+    elements.langStatusText.classList.remove('hidden-no-space');
+    // --- FIX END ---
+
     console.log("Processing status reset completed. Fields cleared.");
 
     // MODIFIED: Call the language checker to set the correct initial "Waiting for URL..." message.
@@ -464,9 +469,10 @@ function loadSavedStatus(elements) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
-            // URL Status (Always clear URL status while running)
-            elements.urlStatusText.textContent = "";
-            elements.langStatusText.textContent = "";
+            // --- FIX START: Hide status lines during processing ---
+            elements.urlStatusText.classList.add('hidden-no-space');
+            elements.langStatusText.classList.add('hidden-no-space');
+            // --- FIX END ---
             
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
@@ -485,6 +491,7 @@ function loadSavedStatus(elements) {
                 
                 // SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
                 const finalLangName = currentBaseLangName ? currentBaseLangName : (detectedBaseLangName ? detectedBaseLangName : "Subtitle");
+                // The text is set here, but the element remains hidden as per the new logic
                 elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
                 elements.urlStatusText.style.color = "green";
                 
@@ -506,6 +513,11 @@ function loadSavedStatus(elements) {
 
         } else {
              // --- NEUTRAL or ERROR State (Progress == 0) ---
+             
+             // --- FIX START: Ensure status lines are visible in neutral/error state ---
+             elements.urlStatusText.classList.remove('hidden-no-space');
+             elements.langStatusText.classList.remove('hidden-no-space');
+             // --- FIX END ---
              
              // Language Status
              checkLanguagePairAvailability(elements);
@@ -620,8 +632,10 @@ async function handleConfirmClick(elements) {
     // 4. Input validation and UI update
     
     elements.statusText.textContent = "Generating subtitles...";
-    elements.urlStatusText.textContent = ""; // Clear URL status when starting
-    elements.langStatusText.textContent = ""; // Clear lang status when starting
+    // --- FIX START: Hide status lines when starting ---
+    elements.urlStatusText.classList.add('hidden-no-space');
+    elements.langStatusText.classList.add('hidden-no-space');
+    // --- FIX END ---
     elements.progressBar.style.width = '5%';
     
     if (!url || !url.startsWith('http')) {
@@ -631,6 +645,9 @@ async function handleConfirmClick(elements) {
         elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
         elements.progressBar.style.width = '0%';
         elements.confirmButton.disabled = false;
+        // --- FIX START: Make status line visible again on immediate error ---
+        elements.urlStatusText.classList.remove('hidden-no-space');
+        // --- FIX END ---
         return;
     }
 
@@ -911,7 +928,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // --- NEW MESSAGE ROUTING LOGIC ---
             
             // 1. URL Status (Only update on URL errors or if process is cancelled/finished)
-            if (request.route === 'url' || progress === 0 || progress === 100) {
+            if (request.route === 'url' || progress === 0) {
                  if (message.includes("Old subtitle URL used") ||
                      message.includes("Error fetching subtitles") ||
                      message.includes("Invalid URL retrieved")) {
@@ -919,14 +936,19 @@ document.addEventListener('DOMContentLoaded', () => {
                      elements.urlStatusText.textContent = message;
                      elements.urlStatusText.style.color = "#e50914"; // Error status
                      elements.statusText.textContent = ""; // Clear main status box for URL errors
+                     // --- FIX START: Make sure status line is visible for errors ---
+                     elements.urlStatusText.classList.remove('hidden-no-space');
+                     // --- FIX END ---
                  }
             } 
             
             // 2. Main Status Box (For all other progress/messages)
             if (progress > 0 && progress < 100) {
                  elements.statusText.textContent = message;
-                 elements.urlStatusText.textContent = ""; // Clear URL status while running
-                 elements.langStatusText.textContent = ""; // Clear language status while running
+                 // --- FIX START: Ensure status lines are hidden while running ---
+                 elements.urlStatusText.classList.add('hidden-no-space');
+                 elements.langStatusText.classList.add('hidden-no-space');
+                 // --- FIX END ---
             } else if (progress === 0) {
                 // If progress is 0, it's an error state
                 elements.statusText.textContent = message;
@@ -968,6 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const finalLangName = (baseLangCode) ? getLanguageName(baseLangCode) :
                                         (detectedBaseLangName ? detectedBaseLangName : "Subtitle");
                                         
+                    // Set the text for the URL status line, but keep it hidden
                     elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
                     elements.urlStatusText.style.color = "green";
                     
