@@ -208,19 +208,18 @@ const LANGUAGE_MAP = {
 async function resetStatus(elements) {
     // MODIFICATION: Removed colour_coding_pref from removal list as it's now part of subtitle_style_pref logic
     await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code']);
-
-    console.log("Before check");
+    
     if (!elements.confirmButton) return;
-    console.log("After check");
 
     elements.subtitleUrlInput.value = '';
+    // MODIFIED: Clear the language input on reset for a cleaner state
     elements.targetLanguageInput.value = '';
     
     // MODIFICATION: Reset subtitle mode and style to default 'dual' and 'netflix'
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
     
-    // MODIFIED: Renamed from customSettingsButton
+    // MODIFICATION: Renamed from customSettingsButton
     elements.editStyleSettingsButton.disabled = true; // Disable button on reset
 
     
@@ -239,7 +238,6 @@ async function resetStatus(elements) {
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
-    console.log("Main status box cleared.");
     
     // Set other status lines to default
     elements.urlStatusText.textContent = "Waiting for URL...";
