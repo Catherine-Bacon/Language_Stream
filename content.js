@@ -572,11 +572,11 @@ function getSpanBackgroundColor(preference) {
 function startSubtitleSync() {
     const videoElement = getNetflixVideoElement();
 
-    if (!videoElement) {
-        console.warn("Video element not found. Retrying sync setup in 1 second...");
-        setTimeout(startSubtitleSync, 1000);
-        return;
-    }
+    // if (!videoElement) {
+    //     console.warn("Video element not found. Retrying sync setup in 1 second...");
+    //     setTimeout(startSubtitleSync, 1000);
+    //     return;
+    // }
 
     if (syncInterval) {
         clearInterval(syncInterval);
