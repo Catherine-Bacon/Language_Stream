@@ -294,7 +294,7 @@ async function checkLanguagePairAvailability(elements) {
 
     // 1. Format validation
     if (targetLangCode.length !== 2) {
-        elements.langStatusText.textContent = "Please check language spelling (e.g., 'Spanish').";
+        elements.langStatusText.textContent = "Please check language spelling.";
         elements.langStatusText.style.color = "#e50914";
         return;
     }
