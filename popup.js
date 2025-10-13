@@ -938,9 +938,18 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (progress >= 100) {
                 // --- PROGRESS 100% STATE ---
-                // Using the Unicode code point for popcorn 🍿
                 const popcornEmoji = "\u{1F37F}";
-                elements.statusText.textContent = `Enjoy your show !${popcornEmoji}`; // Show completion message
+                const completionMessage = `Enjoy your show !${popcornEmoji}`;
+                elements.statusText.textContent = completionMessage;
+
+                // --- FIX START: Persist this friendly message to storage ---
+                const { ls_status } = await chrome.storage.local.get('ls_status');
+                if (ls_status) {
+                    ls_status.message = completionMessage;
+                    await chrome.storage.local.set({ ls_status });
+                }
+                // --- FIX END ---
+                
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageInput.disabled = false;
                 
@@ -949,7 +958,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 
                 // Re-enable settings button based on style selection
-                chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], async (data) => { // <-- Add async here
+                chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], async (data) => {
                     const savedStyle = data.subtitle_style_pref;
                     elements.editStyleSettingsButton.disabled = (savedStyle === 'netflix');
                     
@@ -962,14 +971,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
                     elements.urlStatusText.style.color = "green";
                     
-                    // The fix: Await the check to ensure it finishes before the next line runs.
                     await checkLanguagePairAvailability(elements);
 
-                    // Now, this will only run AFTER the check is complete.
                     chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                 });
                 elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
+                elements.cancelButton.textContent = "Clear Status & Reset";
                 
                 
             } else if (progress > 0) {
@@ -984,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.editStyleSettingsButton.disabled = true;
                 
                 elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
+                elements.cancelButton.textContent = "Cancel Subtitle Generation";
                 
             } else {
                 // --- PROGRESS 0% STATE (ERROR/NEUTRAL) ---
@@ -1004,7 +1011,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
                 elements.cancelButton.classList.add('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
+                elements.cancelButton.textContent = "Cancel Subtitle Generation";
                 
                 // Run language check in case an error cleared the message
                 checkLanguagePairAvailability(elements);
