@@ -415,6 +415,17 @@ function loadSavedStatus(elements) {
         const status = data.ls_status;
         const detectedBaseLangName = data.detected_base_lang_name;
         
+        // --- NEW IF STATEMENT START ---
+        // If the process is complete but the popup was closed, the message will be generic.
+        // This checks for that generic message and replaces it with the friendly one.
+        if (status && status.progress >= 100 && status.message && status.message.startsWith("Translation complete!")) {
+            const popcornEmoji = "\u{1F37F}";
+            status.message = `Enjoy your show !${popcornEmoji}`;
+            // Optional: Save the corrected message back to storage
+            chrome.storage.local.set({ 'ls_status': status });
+        }
+        // --- NEW IF STATEMENT END ---
+        
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
         elements.targetLanguageInput.disabled = false;
