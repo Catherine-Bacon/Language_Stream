@@ -938,8 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (progress >= 100) {
                 // --- PROGRESS 100% STATE ---
-                elements.statusText.textContent = message; // Show completion message
-                
+                elements.statusText.textContent = "Enjoy your show !🍿"; // Show completion message
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageInput.disabled = false;
                 
