@@ -238,10 +238,12 @@ async function resetStatus(elements) {
     elements.statusText.textContent = ""; 
     elements.urlStatusText.textContent = "Waiting for URL..."; // NEW
     elements.urlStatusText.style.color = "#e50914"; 
-    elements.langStatusText.textContent = ""; // NEW
 
     elements.progressBar.style.width = '0%';
     console.log("Processing status reset completed. Fields cleared.");
+
+    // MODIFIED: Call the language checker to set the correct initial "Waiting for URL..." message.
+    await checkLanguagePairAvailability(elements);
 }
 
 // Function to handle opening the custom settings window
@@ -276,20 +278,24 @@ function getLanguageName(langCode) {
 
 
 /**
- * NEW: Checks language pair availability in real-time.
- * This is called by the 'input' listener on the target language field.
+ * MODIFIED: Checks language pair availability with improved waiting messages.
  */
 async function checkLanguagePairAvailability(elements) {
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
+    
+    // NEW: If the language box is empty, show a waiting message.
+    if (inputLangName === '') {
+        elements.langStatusText.textContent = "Waiting for language...";
+        elements.langStatusText.style.color = "#777"; // Neutral color
+        return;
+    }
+
     const targetLangCode = LANGUAGE_MAP[inputLangName] || inputLangName;
 
     // 1. Format validation
-    if (targetLangCode.length !== 2 && inputLangName !== '') {
-        elements.langStatusText.textContent = "Please check language spelling.";
+    if (targetLangCode.length !== 2) {
+        elements.langStatusText.textContent = "Please check language spelling (e.g., 'Spanish').";
         elements.langStatusText.style.color = "#e50914";
-        return;
-    } else if (inputLangName === '') {
-        elements.langStatusText.textContent = ""; // Clear status if input is empty
         return;
     }
 
@@ -297,10 +303,10 @@ async function checkLanguagePairAvailability(elements) {
     const data = await chrome.storage.local.get(['detected_base_lang_code']);
     const baseLangCode = data.detected_base_lang_code;
 
+    // NEW: If language is valid but URL is missing, show a different waiting message.
     if (!baseLangCode) {
-        // Base language not detected yet, so we can't check the pair.
-        // The user needs to provide a valid URL first.
-        elements.langStatusText.textContent = "";
+        elements.langStatusText.textContent = "Waiting for URL to check translation compatibility...";
+        elements.langStatusText.style.color = "#777"; // Neutral color
         return;
     }
     
