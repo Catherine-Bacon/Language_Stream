@@ -207,9 +207,9 @@ const LANGUAGE_MAP = {
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // MODIFICATION: Removed colour_coding_pref from removal list as it's now part of subtitle_style_pref logic
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code']); 
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code']);
     
-    if (!elements.confirmButton) return; 
+    if (!elements.confirmButton) return;
 
     elements.subtitleUrlInput.value = '';
     // --- MODIFIED: Reset language input value ---
@@ -225,23 +225,23 @@ async function resetStatus(elements) {
     
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     // --- MODIFIED: Ensure new input is NOT disabled ---
-    elements.targetLanguageInput.disabled = false; 
+    elements.targetLanguageInput.disabled = false;
     
     // MODIFICATION: Enable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
-    elements.cancelButton.classList.add('hidden-no-space'); 
+    elements.cancelButton.classList.add('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Ensure text is reset
 
     // MODIFIED: Hide the status box on reset
-    elements.statusBox.classList.add('hidden-no-space'); 
-    elements.statusText.textContent = ""; 
+    elements.statusBox.classList.add('hidden-no-space');
+    elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
     
     // Set other status lines to default
-    elements.urlStatusText.textContent = "Waiting for URL..."; 
-    elements.urlStatusText.style.color = "#e50914"; 
+    elements.urlStatusText.textContent = "Waiting for URL...";
+    elements.urlStatusText.style.color = "#e50914";
 
     console.log("Processing status reset completed. Fields cleared.");
 
@@ -265,10 +265,10 @@ function openCustomSettingsWindow(selectedStyle) {
 
     chrome.windows.create({
         // MODIFIED: Use dynamic file based on selectedStyle
-        url: settingsFile, 
+        url: settingsFile,
         type: 'popup',
         width: 380,
-        height: windowHeight, 
+        height: windowHeight,
         focused: true
     });
 }
@@ -329,7 +329,7 @@ async function checkLanguagePairAvailability(elements) {
     } catch (e) {
         console.warn("Could not send language pair check message:", e);
         // If content script isn't ready, we can't check. Show an error.
-        elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab."; 
+        elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
         elements.langStatusText.style.color = "#e50914";
     }
 }
@@ -348,11 +348,11 @@ function checkUrlAndDetectLanguage(elements) {
         chrome.storage.local.get(['detected_base_lang_name'], (data) => {
             if (!data.detected_base_lang_name) {
                 elements.urlStatusText.textContent = `Detecting language...`;
-                elements.urlStatusText.style.color = "#e50914"; 
+                elements.urlStatusText.style.color = "#e50914";
             } else {
                 // If detected language is already saved, don't re-run detection, just display
                 elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
-                elements.urlStatusText.style.color = "green"; 
+                elements.urlStatusText.style.color = "green";
             }
         });
         
@@ -360,14 +360,14 @@ function checkUrlAndDetectLanguage(elements) {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "detect_language", 
+                    command: "detect_language",
                     url: url
                 }).catch(e => {
                    // Fallback for when content script might not be loaded yet
                     if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
                         elements.urlStatusText.textContent = `URL accepted. Ready to generate.`; // Fallback status
-                        elements.urlStatusText.style.color = "green"; 
+                        elements.urlStatusText.style.color = "green";
                     }
                 });
             }
@@ -376,9 +376,9 @@ function checkUrlAndDetectLanguage(elements) {
     } else {
          // Set to "Waiting" status
          elements.urlStatusText.textContent = "Waiting for URL...";
-         elements.urlStatusText.style.color = "#e50914"; 
+         elements.urlStatusText.style.color = "#e50914";
          // Clear saved detected language on clearing URL
-         chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']); 
+         chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
     }
     
     // Clear other status lines on input change and hide status box
@@ -394,24 +394,24 @@ function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     // MODIFICATION: subtitle_style_pref is the single preference that holds the style AND color coding
     chrome.storage.local.get([
-        'ls_status', 
-        'last_input', 
-        'translated_only_pref', 
+        'ls_status',
+        'last_input',
+        'translated_only_pref',
         'subtitle_style_pref', // Style preference now includes color coding options
-        'font_size_pref', 
-        'background_color_pref', 
-        'font_shadow_pref', 
+        'font_size_pref',
+        'background_color_pref',
+        'font_shadow_pref',
         'font_color_pref',
         'detected_base_lang_name'
     ], (data) => {
         const status = data.ls_status;
-        const detectedBaseLangName = data.detected_base_lang_name; 
+        const detectedBaseLangName = data.detected_base_lang_name;
         
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
-        elements.targetLanguageInput.disabled = false; 
-        elements.cancelButton.classList.add('hidden-no-space'); 
-        elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
+        elements.targetLanguageInput.disabled = false;
+        elements.cancelButton.classList.add('hidden-no-space');
+        elements.cancelButton.textContent = "Cancel Subtitle Generation";
         
         // MODIFIED: Hide status box by default
         elements.statusBox.classList.add('hidden-no-space');
@@ -421,7 +421,7 @@ function loadSavedStatus(elements) {
         if (isTranslatedOnlyPref === true) {
             elements.subtitleModeTranslatedOnly.checked = true;
         } else {
-            elements.subtitleModeDual.checked = true; 
+            elements.subtitleModeDual.checked = true;
         }
         
         // MODIFIED: Load Subtitle Style, default to 'netflix'
@@ -462,21 +462,21 @@ function loadSavedStatus(elements) {
             elements.progressBar.style.width = status.progress + '%';
             
             // URL Status (Always clear URL status while running)
-            elements.urlStatusText.textContent = ""; 
-            elements.langStatusText.textContent = ""; 
+            elements.urlStatusText.textContent = "";
+            elements.langStatusText.textContent = "";
             
             // Disable inputs while processing (progress > 0 and < 100)
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
-                elements.targetLanguageInput.disabled = true; 
+                elements.targetLanguageInput.disabled = true;
                 
                 // Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true; 
+                elements.editStyleSettingsButton.disabled = true;
 
                 elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
+                elements.cancelButton.textContent = "Cancel Subtitle Generation";
             } else {
                 // Process finished (progress == 100)
                 
@@ -486,7 +486,7 @@ function loadSavedStatus(elements) {
                 elements.urlStatusText.style.color = "green";
                 
                 elements.confirmButton.disabled = false; // Allow re-run
-                elements.targetLanguageInput.disabled = false; 
+                elements.targetLanguageInput.disabled = false;
                 
                 // Enable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -517,12 +517,12 @@ function loadSavedStatus(elements) {
                  // If there's a URL-related error message from a previous run, override the ready status
                  if (status && status.message) {
                      // Check for the URL-related errors in status.message
-                     if (status.message.includes("Old subtitle URL used") || 
-                         status.message.includes("Error fetching subtitles") || 
-                         status.message.includes("Invalid URL retrieved")) { 
+                     if (status.message.includes("Old subtitle URL used") ||
+                         status.message.includes("Error fetching subtitles") ||
+                         status.message.includes("Invalid URL retrieved")) {
                          
                          elements.urlStatusText.textContent = status.message;
-                         elements.urlStatusText.style.color = "#e50914"; 
+                         elements.urlStatusText.style.color = "#e50914";
                      }
                  }
                  
@@ -538,7 +538,7 @@ function loadSavedStatus(elements) {
              // Status Box (Main)
              if (status && status.message) {
                   // Only show non-URL/non-Lang error messages in the main box
-                  if (!status.message.includes("Old subtitle URL used") && 
+                  if (!status.message.includes("Old subtitle URL used") &&
                       !status.message.includes("Error fetching subtitles") &&
                       !status.message.includes("Invalid URL retrieved")) {
                       
@@ -575,11 +575,11 @@ async function handleConfirmClick(elements) {
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
     const url = elements.subtitleUrlInput.value.trim();
-    const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
+    const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
     
     // 1. Get Subtitle Mode (boolean)
     const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
-    const translatedOnly = (selectedSubtitleMode === 'translated_only'); 
+    const translatedOnly = (selectedSubtitleMode === 'translated_only');
 
     // 2. Get Subtitle Style Mode (which includes color coding modes)
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
@@ -599,12 +599,12 @@ async function handleConfirmClick(elements) {
     }
 
     // --- LOOKUP THE 2-LETTER CODE AND VALIDATE ---
-    const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
+    const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName;
     if (targetLang.length !== 2) {
          // MODIFICATION: Route language check error to lang status and NOT to main status
          elements.langStatusText.textContent = `Please check language spelling`;
-         elements.langStatusText.style.color = "#e50914"; 
-         elements.statusText.textContent = ""; 
+         elements.langStatusText.style.color = "#e50914";
+         elements.statusText.textContent = "";
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
          return;
@@ -621,28 +621,28 @@ async function handleConfirmClick(elements) {
     if (!url || !url.startsWith('http')) {
         // Use the new consolidated error message
         elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
-        elements.urlStatusText.style.color = "#e50914"; 
-        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL."; 
+        elements.urlStatusText.style.color = "#e50914";
+        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
         elements.progressBar.style.width = '0%';
-        elements.confirmButton.disabled = false; 
+        elements.confirmButton.disabled = false;
         return;
     }
 
 
     // 5. Save runtime preferences and clear old status
     await chrome.storage.local.remove(['ls_status']);
-    await chrome.storage.local.set({ 
+    await chrome.storage.local.set({
         last_input: { url, targetLang: targetLang },
-        translated_only_pref: translatedOnly, 
+        translated_only_pref: translatedOnly,
         // MODIFIED: selectedStyle now includes color coding options
-        subtitle_style_pref: selectedStyle, 
+        subtitle_style_pref: selectedStyle,
     });
 
     // 6. Update UI for start of process
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
-    elements.targetLanguageInput.disabled = true; 
+    elements.targetLanguageInput.disabled = true;
     
     // Disable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -650,8 +650,8 @@ async function handleConfirmClick(elements) {
     elements.editStyleSettingsButton.disabled = true;
 
     
-    elements.cancelButton.textContent = "Cancel Subtitle Generation"; 
-    elements.cancelButton.classList.remove('hidden-no-space'); 
+    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+    elements.cancelButton.classList.remove('hidden-no-space');
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         
@@ -666,14 +666,14 @@ async function handleConfirmClick(elements) {
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
         // 7. Pass all final style preferences and the style mode
-        const message = { 
-            command: "fetch_and_process_url", 
+        const message = {
+            command: "fetch_and_process_url",
             url: url,
-            targetLang: targetLang, 
-            translatedOnly: translatedOnly, 
-            fontSize: finalStylePrefs.font_size_pref, 
-            backgroundColor: finalStylePrefs.background_color_pref, 
-            fontShadow: finalStylePrefs.font_shadow_pref, 
+            targetLang: targetLang,
+            translatedOnly: translatedOnly,
+            fontSize: finalStylePrefs.font_size_pref,
+            backgroundColor: finalStylePrefs.background_color_pref,
+            fontShadow: finalStylePrefs.font_shadow_pref,
             fontColor: finalStylePrefs.font_color_pref,
             // MODIFIED: Pass the selected style as the colourCoding preference
             colourCoding: selectedStyle // Will be 'netflix', 'custom', 'vocabulary', or 'grammar'
@@ -700,20 +700,25 @@ async function handleConfirmClick(elements) {
     });
 }
 
+/**
+ * MODIFIED: This function now handles both 'Cancel' and 'Reset' actions in a single click.
+ */
 async function handleCancelClick(elements) {
     
-    // Check if the button is in 'Clear Status & Reset' mode
+    // If button text is 'Clear Status & Reset', it's for clearing a completed/errored state.
+    // If it's 'Cancel...', it's for stopping an active process. Both should now do a full reset.
     if (elements.cancelButton.textContent.includes("Clear Status & Reset")) {
-        // Execute reset logic instead of cancel message
-        resetStatus(elements);
+        await resetStatus(elements);
         return; 
     }
     
-    // 1. Send the cancel message to content.js 
+    // --- SINGLE-CLICK CANCEL LOGIC ---
+    
+    // 1. Send the cancel message to content.js to stop the background process.
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
             console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
-            return;
+            return; // Fail gracefully
         }
 
         const currentTabId = tabs[0].id;
@@ -735,27 +740,9 @@ async function handleCancelClick(elements) {
         });
     });
     
-    // 2. Immediately clear the saved status and reset UI elements
-    await chrome.storage.local.remove(['ls_status', 'detected_base_lang_name', 'detected_base_lang_code']); 
-    
-    // Set a neutral message when cancelled, keep status box visible for this message
-    elements.statusBox.classList.remove('hidden-no-space');
-    elements.statusText.textContent = "Processing stopped. Click 'Clear Status & Reset' to restart.";
-    elements.progressBar.style.width = '0%';
-    elements.confirmButton.disabled = false;
-    elements.targetLanguageInput.disabled = false; 
-    
-    // Re-enable main popup preference radio buttons
-    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    
-    elements.cancelButton.classList.remove('hidden-no-space'); 
-    elements.cancelButton.textContent = "Clear Status & Reset"; // Set to RESET text
-    
-    elements.urlStatusText.textContent = "";
-    elements.langStatusText.textContent = ""; 
-    
-    loadSavedStatus(elements); 
+    // 2. Immediately call resetStatus() to clear storage and reset the entire UI.
+    // This will hide the status box and restore the initial state.
+    await resetStatus(elements);
 }
 
 // -------------------------------------------------------------
@@ -765,8 +752,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Initialize DOM variables locally
     const elements = {
         confirmButton: document.getElementById('confirmButton'),
-        targetLanguageInput: document.getElementById('targetLanguage'), 
-        subtitleUrlInput: document.getElementById('subtitleUrlInput'), 
+        targetLanguageInput: document.getElementById('targetLanguage'),
+        subtitleUrlInput: document.getElementById('subtitleUrlInput'),
         // MODIFIED: Added statusBox element
         statusBox: document.getElementById('statusBox'),
         statusText: document.getElementById('statusText'),
@@ -774,13 +761,13 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelButton: document.getElementById('cancelButton'),
         
         // NEW: Status lines
-        urlStatusText: document.getElementById('urlStatusText'), 
-        langStatusText: document.getElementById('langStatusText'), 
+        urlStatusText: document.getElementById('urlStatusText'),
+        langStatusText: document.getElementById('langStatusText'),
         
         // Subtitle mode radio button elements
-        subtitleModeGroup: document.getElementById('subtitleModeGroup'), 
-        subtitleModeDual: document.getElementById('subtitleModeDual'), 
-        subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'), 
+        subtitleModeGroup: document.getElementById('subtitleModeGroup'),
+        subtitleModeDual: document.getElementById('subtitleModeDual'),
+        subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'),
         
         // NEW: Subtitle Style elements
         subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
@@ -794,9 +781,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // CRITICAL DEBUG CHECK
-    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) { 
+    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
         console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
-        return; 
+        return;
     } else {
         console.log("2. All DOM elements found. Attaching listeners.");
     }
@@ -828,8 +815,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Enable/Disable the settings button based on selection
                     elements.editStyleSettingsButton.disabled = (selectedStyle === 'netflix');
                     // Update the settings button title based on selection
-                    const buttonTitle = (selectedStyle === 'custom') ? 'Edit Custom Settings' : 
-                                        (selectedStyle === 'vocabulary') ? 'Edit Vocabulary Settings' : 
+                    const buttonTitle = (selectedStyle === 'custom') ? 'Edit Custom Settings' :
+                                        (selectedStyle === 'vocabulary') ? 'Edit Vocabulary Settings' :
                                         (selectedStyle === 'grammar') ? 'Edit Grammar Settings' : 'Edit Style Settings';
                     elements.editStyleSettingsButton.title = buttonTitle;
                 });
@@ -866,13 +853,13 @@ document.addEventListener('DOMContentLoaded', () => {
              const urlForDetection = elements.subtitleUrlInput.value.trim();
 
              // Only update if the URL in the box matches the URL we detected for
-             if (urlForDetection === request.url) { 
+             if (urlForDetection === request.url) {
                  if (baseLangCode) {
                      const statusMessage = `${baseLangName} subtitles ready to translate!`;
                      elements.urlStatusText.textContent = statusMessage;
-                     elements.urlStatusText.style.color = "green"; 
+                     elements.urlStatusText.style.color = "green";
                      // Save the name and code for the proactive language pair check
-                     await chrome.storage.local.set({ 
+                     await chrome.storage.local.set({
                          'detected_base_lang_name': baseLangName,
                          'detected_base_lang_code': baseLangCode
                      });
@@ -881,7 +868,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  } else {
                      // Detection failed or returned 'und'
                      elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
-                     elements.urlStatusText.style.color = "#e50914"; 
+                     elements.urlStatusText.style.color = "#e50914";
                      await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']); // Clear bad detection
                  }
              }
@@ -919,8 +906,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 1. URL Status (Only update on URL errors or if process is cancelled/finished)
             if (request.route === 'url' || progress === 0 || progress === 100) {
-                 if (message.includes("Old subtitle URL used") || 
-                     message.includes("Error fetching subtitles") || 
+                 if (message.includes("Old subtitle URL used") ||
+                     message.includes("Error fetching subtitles") ||
                      message.includes("Invalid URL retrieved")) {
                       
                      elements.urlStatusText.textContent = message;
@@ -948,7 +935,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.statusText.textContent = message; // Show completion message
                 
                 elements.confirmButton.disabled = false;
-                elements.targetLanguageInput.disabled = false; 
+                elements.targetLanguageInput.disabled = false;
                 
                 // Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -963,7 +950,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      const baseLangCode = data.ls_status?.baseLang;
                      const detectedBaseLangName = data.detected_base_lang_name;
                      
-                     const finalLangName = (baseLangCode) ? getLanguageName(baseLangCode) : 
+                     const finalLangName = (baseLangCode) ? getLanguageName(baseLangCode) :
                                            (detectedBaseLangName ? detectedBaseLangName : "Subtitle");
                                            
                      elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
@@ -984,12 +971,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- PROGRESS 0% < x < 100% STATE (RUNNING) ---
                 // Status text set above
                 elements.confirmButton.disabled = true;
-                elements.targetLanguageInput.disabled = true; 
+                elements.targetLanguageInput.disabled = true;
                 
                 // Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true; 
+                elements.editStyleSettingsButton.disabled = true;
                 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Set to CANCEL text
@@ -1005,7 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.urlStatusText.style.color = "#e50914";
                 }
                 
-                elements.targetLanguageInput.disabled = false; 
+                elements.targetLanguageInput.disabled = false;
                 
                 // Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -1018,6 +1005,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 checkLanguagePairAvailability(elements);
             }
         }
-    }); 
+    });
 
 }); // End DOMContentLoaded
