@@ -207,7 +207,7 @@ const LANGUAGE_MAP = {
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // MODIFICATION: Removed colour_coding_pref from removal list as it's now part of subtitle_style_pref logic
-    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name']); 
+    await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code']); 
     
     if (!elements.confirmButton) return; 
 
@@ -276,24 +276,53 @@ function getLanguageName(langCode) {
 
 
 /**
- * MODIFIED: Function to check the target language input against the LANGUAGE_MAP.
- * It now only verifies the input format (is it a known 2-letter code or full name) 
- * but does NOT display the 'Ready to translate' message, relying on content.js for that.
+ * NEW: Checks language pair availability in real-time.
+ * This is called by the 'input' listener on the target language field.
  */
-function checkTargetLanguage(elements) {
-     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
-     const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
-     
-     // Check if it's a valid 2-letter code (either from map or a manually entered code)
-     if (targetLang.length === 2) {
-          // Found a valid 2-letter code. Clear the status to signal waiting for process confirmation.
-          elements.langStatusText.textContent = ""; 
-          elements.langStatusText.style.color = "green"; // Keep color green in case of success later
-     } else {
-         // Invalid language name/code
-          elements.langStatusText.textContent = "Please check language spelling (e.g., 'Spanish').";
-          elements.langStatusText.style.color = "#e50914"; // Netflix Red for error
-     }
+async function checkLanguagePairAvailability(elements) {
+    const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
+    const targetLangCode = LANGUAGE_MAP[inputLangName] || inputLangName;
+
+    // 1. Format validation
+    if (targetLangCode.length !== 2 && inputLangName !== '') {
+        elements.langStatusText.textContent = "Please check language spelling (e.g., 'Spanish').";
+        elements.langStatusText.style.color = "#e50914";
+        return;
+    } else if (inputLangName === '') {
+        elements.langStatusText.textContent = ""; // Clear status if input is empty
+        return;
+    }
+
+    // 2. Get the detected base language from storage
+    const data = await chrome.storage.local.get(['detected_base_lang_code']);
+    const baseLangCode = data.detected_base_lang_code;
+
+    if (!baseLangCode) {
+        // Base language not detected yet, so we can't check the pair.
+        // The user needs to provide a valid URL first.
+        elements.langStatusText.textContent = "";
+        return;
+    }
+    
+    // 3. If both codes are valid and available, send a message to the content script to check the pair
+    elements.langStatusText.textContent = "Checking language pair availability...";
+    elements.langStatusText.style.color = "#777"; // A neutral "in-progress" color
+
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0] && tabs[0].id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                command: "check_language_pair",
+                baseLang: baseLangCode,
+                targetLang: targetLangCode
+            });
+        }
+    } catch (e) {
+        console.warn("Could not send language pair check message:", e);
+        // If content script isn't ready, we can't check. Show an error.
+        elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab."; 
+        elements.langStatusText.style.color = "#e50914";
+    }
 }
 
 
@@ -340,12 +369,11 @@ function checkUrlAndDetectLanguage(elements) {
          elements.urlStatusText.textContent = "Waiting for URL...";
          elements.urlStatusText.style.color = "#e50914"; 
          // Clear saved detected language on clearing URL
-         chrome.storage.local.remove(['detected_base_lang_name']); 
+         chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']); 
     }
     
     // Clear other status lines on input change
     elements.statusText.textContent = "";
-    // MODIFIED: Do not clear langStatusText, let it update based on its own input event
     elements.progressBar.style.width = '0%';
 }
 
@@ -451,36 +479,14 @@ function loadSavedStatus(elements) {
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Finished
-            }
-            
-            // NEW: After load, run the language check to ensure the language status line is accurate
-            if (status.progress < 100) {
-                 // Clear the language status message while running
-                 elements.langStatusText.textContent = "";
-            } else {
-                 // MODIFIED: Re-run language check, but now we must check for final successful status
-                 if (status.targetLang) {
-                     const fullLangName = getLanguageName(status.targetLang);
-                     elements.langStatusText.textContent = `Ready to translate to ${fullLangName}!`;
-                     elements.langStatusText.style.color = "green";
-                 } else {
-                     // If targetLang is missing (shouldn't happen on success), run the format check
-                     checkTargetLanguage(elements);
-                 }
+                checkLanguagePairAvailability(elements); // Re-run check on completion
             }
 
         } else {
              // --- NEUTRAL or ERROR State (Progress == 0) ---
              
              // Language Status
-             // MODIFICATION: Check for the language status message and route it
-             if (status && status.message && status.message.includes("Language pair not yet available")) {
-                 elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                 elements.langStatusText.style.color = "#e50914"; 
-             } else {
-                 // If not a specific error message, run the standard check (which now only checks format)
-                 checkTargetLanguage(elements); 
-             }
+             checkLanguagePairAvailability(elements);
              
              // URL Status & Confirmation Button Logic
              const urlValue = elements.subtitleUrlInput.value.trim();
@@ -511,7 +517,7 @@ function loadSavedStatus(elements) {
              }
              
              // Status Box (Main)
-             if (status && status.message && !status.message.includes("Language pair not yet available")) {
+             if (status && status.message) {
                   // Only show non-URL/non-Lang error messages in the main box
                   if (!status.message.includes("Old subtitle URL used") && 
                       !status.message.includes("Error fetching subtitles") &&
@@ -541,7 +547,7 @@ async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
     // NEW: Clear the temp detection status as the full process is starting
-    await chrome.storage.local.remove(['detected_base_lang_name']);
+    await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
     const url = elements.subtitleUrlInput.value.trim();
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase(); 
@@ -675,8 +681,6 @@ async function handleCancelClick(elements) {
     if (elements.cancelButton.textContent.includes("Clear Status & Reset")) {
         // Execute reset logic instead of cancel message
         resetStatus(elements);
-        // NEW: Re-run language check after reset to populate status
-        checkTargetLanguage(elements);
         return; 
     }
     
@@ -707,7 +711,7 @@ async function handleCancelClick(elements) {
     });
     
     // 2. Immediately clear the saved status and reset UI elements
-    await chrome.storage.local.remove(['ls_status', 'detected_base_lang_name']); 
+    await chrome.storage.local.remove(['ls_status', 'detected_base_lang_name', 'detected_base_lang_code']); 
     
     // Set a neutral message when cancelled
     elements.statusText.textContent = "Processing stopped. Click 'Clear Status & Reset' to restart.";
@@ -820,8 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // NEW: Listen to changes in the language input box
     elements.targetLanguageInput.addEventListener('input', () => {
-         // MODIFIED: Call the dedicated language check function
-         checkTargetLanguage(elements);
+         checkLanguagePairAvailability(elements);
     });
 
 
@@ -840,16 +843,40 @@ document.addEventListener('DOMContentLoaded', () => {
                      const statusMessage = `${baseLangName} subtitles ready to translate!`;
                      elements.urlStatusText.textContent = statusMessage;
                      elements.urlStatusText.style.color = "green"; 
-                     // Save the name for display on popup reload
-                     await chrome.storage.local.set({ 'detected_base_lang_name': baseLangName });
+                     // Save the name and code for the proactive language pair check
+                     await chrome.storage.local.set({ 
+                         'detected_base_lang_name': baseLangName,
+                         'detected_base_lang_code': baseLangCode
+                     });
+                     // Now that base language is known, trigger the pair check
+                     checkLanguagePairAvailability(elements);
                  } else {
                      // Detection failed or returned 'und'
                      elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
                      elements.urlStatusText.style.color = "#e50914"; 
-                     await chrome.storage.local.remove(['detected_base_lang_name']); // Clear bad detection
+                     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']); // Clear bad detection
                  }
              }
              return false; // Not an async response
+        }
+
+        // NEW HANDLER: For real-time language pair availability status
+        if (request.command === "language_pair_status") {
+            const currentInputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
+            const currentTargetLangCode = LANGUAGE_MAP[currentInputLangName] || currentInputLangName;
+
+            // Only update the UI if the result matches the currently typed language
+            if (currentTargetLangCode === request.targetLang) {
+                if (request.isAvailable) {
+                    const fullLangName = getLanguageName(request.targetLang);
+                    elements.langStatusText.textContent = `Ready to translate to ${fullLangName}!`;
+                    elements.langStatusText.style.color = "green";
+                } else {
+                    elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
+                    elements.langStatusText.style.color = "#e50914";
+                }
+            }
+            return false;
         }
         
         // EXISTING HANDLER: To update status from content script
@@ -859,25 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // --- NEW MESSAGE ROUTING LOGIC ---
             
-            // 1. Language Status (Always route language-related messages to langStatusText)
-            if (request.route === 'lang') {
-                 // This is where content.js confirms the language pair is good (green) or bad (red)
-                 elements.langStatusText.textContent = message;
-                 elements.langStatusText.style.color = message.includes("not yet available") ? "#e50914" : "green"; 
-                 elements.statusText.textContent = ""; // Clear main status box
-            } else if (message.includes("Detected Base Language: (FAIL)")) {
-                 // Route the language failure message to the language status box
-                 elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                 elements.langStatusText.style.color = "#e50914";
-                 elements.statusText.textContent = ""; // Keep main status box clear of this message
-            } else {
-                 // Clear lang status if another process step is running
-                 if (progress > 0 && progress < 100) {
-                     elements.langStatusText.textContent = ""; 
-                 }
-            }
-
-            // 2. URL Status (Only update on URL errors or if process is cancelled/finished)
+            // 1. URL Status (Only update on URL errors or if process is cancelled/finished)
             if (request.route === 'url' || progress === 0 || progress === 100) {
                  if (message.includes("Old subtitle URL used") || 
                      message.includes("Error fetching subtitles") || 
@@ -889,11 +898,11 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
             } 
             
-            // 3. Main Status Box (For all other progress/messages)
+            // 2. Main Status Box (For all other progress/messages)
             if (progress > 0 && progress < 100) {
                  elements.statusText.textContent = message;
                  elements.urlStatusText.textContent = ""; // Clear URL status while running
-                 // Lang status cleared above
+                 elements.langStatusText.textContent = ""; // Clear language status while running
             }
             
             elements.progressBar.style.width = progress + '%';
@@ -926,15 +935,11 @@ document.addEventListener('DOMContentLoaded', () => {
                      elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
                      elements.urlStatusText.style.color = "green";
                      
-                     // MODIFIED: Set the final successful green message here, relying on successful status data
-                     if (data.ls_status?.targetLang) {
-                         const fullLangName = getLanguageName(data.ls_status.targetLang);
-                         elements.langStatusText.textContent = `Ready to translate to ${fullLangName}!`;
-                         elements.langStatusText.style.color = "green";
-                     }
+                     // Re-run the availability check to restore the green language status message
+                     checkLanguagePairAvailability(elements);
 
                      // Clear the temp detection status as the full process is complete
-                     chrome.storage.local.remove(['detected_base_lang_name']);
+                     chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                 });
 
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -1002,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Reset to default text
                 
                 // Run language check in case an error cleared the message
-                checkTargetLanguage(elements);
+                checkLanguagePairAvailability(elements);
             }
         }
     }); 

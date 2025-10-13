@@ -337,7 +337,7 @@ var currentTranslator = currentTranslator || null;
 /**
  * Translates the given text using the native Chrome Translator API.
  * Handles Translator instance creation and model download monitoring.
- * MODIFIED: Now sends a final 'Ready to translate' status on successful creation.
+ * MODIFIED: No longer sends status updates, as this is now handled before generation starts.
  */
 async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     const cacheKey = `${sourceLang}-${targetLang}:${textToTranslate}`;
@@ -351,9 +351,9 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
         currentTranslator.targetLanguage !== targetLang) {
 
         if (!('Translator' in self)) {
-            // Feature detection check
-            // MODIFICATION: Route as 'lang' for language status line
-            sendStatusUpdate("ERROR: Chrome Translator API not supported in this browser version.", 0, null, 'lang'); 
+            // This error is now primarily for logging, as the popup should not proceed
+            // if the proactive check fails.
+            console.error("ERROR: Chrome Translator API not supported in this browser version.");
             return "(Translation Failed - API Missing)";
         }
         
@@ -372,28 +372,12 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
                 }
             });
             
-            // ---------------------------------------------------------------------------------
-            // ⭐ CRITICAL MODIFICATION: SUCCESSFUL LANGUAGE PAIR CONFIRMATION
-            // Send the definitive green 'Ready to translate' message here, after successful creation.
-            // This is the only place this green message is sent.
-            // ---------------------------------------------------------------------------------
-            const fullLangName = targetLang.toUpperCase(); // In this context, targetLang is the 2-letter code
-            const popupMessage = `Ready to translate to ${fullLangName}!`; 
-            // Send the message using the 'lang' route and a high progress (but <100)
-            sendStatusUpdate(popupMessage, 60, null, 'lang'); 
-
             // PROGRESS UPDATE: Model ready just before translation loop starts
             sendStatusUpdate("Translator model ready. Starting translation...", 60); 
 
         } catch (e) {
             console.error("Native Translator API failed to create. Language pair likely unavailable:", e);
-            // ---------------------------------------------------------------------------------
-            // ⭐ CRITICAL MODIFICATION: FAILED LANGUAGE PAIR CONFIRMATION
-            // Send the definitive red 'Language pair not yet available' error here.
-            // ---------------------------------------------------------------------------------
-            // MODIFICATION: Send the new language error message with a 'lang' route
-            sendStatusUpdate(`Language pair not yet available, please retry with different inputs.`, 0, null, 'lang');
-            
+            // The popup already showed the "not available" message; this is a fallback.
             return "(Translation Failed - Model Setup Error)";
         }
     }
@@ -743,6 +727,38 @@ function disableNetflixSubObserver() {
 // --- Message Listener for Popup Communication ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    
+    // NEW HANDLER: For proactive language pair availability check
+    if (request.command === "check_language_pair") {
+        const { baseLang, targetLang } = request;
+
+        (async () => {
+            let isAvailable = false;
+            if ('Translator' in self) {
+                try {
+                    // This "dry run" will throw an error if the pair is not supported.
+                    await Translator.create({
+                        sourceLanguage: baseLang,
+                        targetLanguage: targetLang
+                    });
+                    isAvailable = true;
+                } catch (e) {
+                    isAvailable = false; // Error indicates the pair is not available
+                }
+            }
+            // Send the result back to the popup
+            chrome.runtime.sendMessage({
+                command: "language_pair_status",
+                isAvailable: isAvailable,
+                targetLang: targetLang // Include targetLang to prevent race conditions in the UI
+            }).catch(e => {
+                if (!e.message.includes('Receiving end does not exist')) {
+                    console.warn("Could not send language pair status message:", e);
+                }
+            });
+        })();
+        return false;
+    }
     
     // NEW HANDLER: For language detection BEFORE GENERATION
     if (request.command === "detect_language" && request.url) {
