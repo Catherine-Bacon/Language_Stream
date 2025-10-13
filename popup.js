@@ -208,8 +208,10 @@ const LANGUAGE_MAP = {
 async function resetStatus(elements) {
     // MODIFICATION: Removed colour_coding_pref from removal list as it's now part of subtitle_style_pref logic
     await chrome.storage.local.remove(['ls_status', 'last_input', 'captured_subtitle_url', 'translated_only_pref', 'font_size_pref', 'background_color_pref', 'font_shadow_pref', 'font_color_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code']);
-    
+
+    console.log("Before check");
     if (!elements.confirmButton) return;
+    console.log("After check");
 
     elements.subtitleUrlInput.value = '';
     // --- MODIFIED: Reset language input value ---
