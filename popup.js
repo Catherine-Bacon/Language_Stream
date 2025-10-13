@@ -214,8 +214,7 @@ async function resetStatus(elements) {
     console.log("After check");
 
     elements.subtitleUrlInput.value = '';
-    // --- MODIFIED: Reset language input value ---
-    elements.targetLanguageInput.value = 'Spanish'; // Default language in full text
+    elements.targetLanguageInput.value = '';
     
     // MODIFICATION: Reset subtitle mode and style to default 'dual' and 'netflix'
     elements.subtitleModeDual.checked = true;
@@ -240,6 +239,7 @@ async function resetStatus(elements) {
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
+    console.log("Main status box cleared.");
     
     // Set other status lines to default
     elements.urlStatusText.textContent = "Waiting for URL...";
