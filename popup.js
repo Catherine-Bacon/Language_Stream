@@ -204,6 +204,24 @@ const LANGUAGE_MAP = {
     "zulu": "zu"
 };
 
+/**
+ * NEW: Function to toggle the visibility of the status box.
+ * It uses the 'hidden-no-space' class defined in main.html.
+ */
+function setStatusBoxVisibility(elements, isVisible) {
+    const statusBox = document.getElementById('statusBox');
+    if (statusBox) {
+        if (isVisible) {
+            statusBox.classList.remove('hidden-no-space');
+        } else {
+            statusBox.classList.add('hidden-no-space');
+            // When hiding, also clear the main status text and progress bar
+            elements.statusText.textContent = "";
+            elements.progressBar.style.width = '0%';
+        }
+    }
+}
+
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // MODIFICATION: Added colour_coding_pref to the removal list
@@ -240,6 +258,10 @@ async function resetStatus(elements) {
     elements.langStatusText.textContent = ""; // NEW
 
     elements.progressBar.style.width = '0%';
+    
+    // CRITICAL FIX: Hide the status box completely on reset
+    setStatusBoxVisibility(elements, false);
+    
     console.log("Processing status reset completed. Fields cleared.");
 }
 
@@ -272,26 +294,27 @@ function checkUrlAndDetectLanguage(elements) {
         // Only set status to 'Detecting...' if we haven't already finished detection successfully
         chrome.storage.local.get(['detected_base_lang_name'], (data) => {
             if (!data.detected_base_lang_name) {
-                elements.urlStatusText.textContent = `Detecting language...`;
+                // MODIFIED: Only set detecting message if URL is new and valid
+                elements.urlStatusText.textContent = `Detecting language...`; 
+                
+                // NEW: Send message to content script to fetch/parse/detect language
+                chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                    if (tabs[0] && tabs[0].id) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            command: "detect_language", 
+                            url: url
+                        }).catch(e => {
+                           // Fallback for when content script might not be loaded yet
+                            if (!e.message.includes('Receiving end does not exist')) {
+                                console.warn("Could not send detection message, content script not ready:", e);
+                                elements.urlStatusText.textContent = `URL accepted. Ready to generate.`; // Fallback status
+                            }
+                        });
+                    }
+                });
             } else {
                 // If detected language is already saved, don't re-run detection, just display
                 elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
-            }
-        });
-        
-        // NEW: Send message to content script to fetch/parse/detect language
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0] && tabs[0].id) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "detect_language", 
-                    url: url
-                }).catch(e => {
-                   // Fallback for when content script might not be loaded yet
-                    if (!e.message.includes('Receiving end does not exist')) {
-                        console.warn("Could not send detection message, content script not ready:", e);
-                        elements.urlStatusText.textContent = `URL accepted. Ready to generate.`; // Fallback status
-                    }
-                });
             }
         });
         
@@ -306,6 +329,9 @@ function checkUrlAndDetectLanguage(elements) {
     elements.statusText.textContent = "";
     elements.langStatusText.textContent = "";
     elements.progressBar.style.width = '0%';
+    
+    // CRITICAL FIX: Hide the main status box when inputs are edited/idle
+    setStatusBoxVisibility(elements, false);
 }
 
 function loadSavedStatus(elements) {
@@ -374,6 +400,9 @@ function loadSavedStatus(elements) {
         if (status && status.progress > 0) {
             // --- RUNNING STATE ---
             
+            // CRITICAL FIX: Show the status box only when progress is > 0
+            setStatusBoxVisibility(elements, true);
+            
             // Status Box
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
@@ -425,6 +454,9 @@ function loadSavedStatus(elements) {
         } else {
              // --- NEUTRAL or ERROR State (Progress == 0) ---
              
+             // CRITICAL FIX: Hide the status box completely on load if status is 0
+             setStatusBoxVisibility(elements, false);
+             
              // Language Status
              // MODIFICATION: Check for the language status message and route it
              if (status && status.message && status.message.includes("Language pair not yet available")) {
@@ -446,7 +478,8 @@ function loadSavedStatus(elements) {
                      // NEW: Check for the URL-related errors in status.message
                      if (status.message.includes("Old subtitle URL used") || 
                          status.message.includes("Error fetching subtitles") || 
-                         status.message.includes("Invalid URL retrieved")) { // New consolidated error
+                         status.message.includes("Invalid URL retrieved") ||
+                         status.message.includes("Fatal Processing Error")) { // Include fatal error reset
                          
                          elements.urlStatusText.textContent = status.message;
                      }
@@ -465,8 +498,11 @@ function loadSavedStatus(elements) {
                   // Only show non-URL/non-Lang error messages in the main box
                   if (!status.message.includes("Old subtitle URL used") && 
                       !status.message.includes("Error fetching subtitles") &&
-                      !status.message.includes("Invalid URL retrieved")) {
+                      !status.message.includes("Invalid URL retrieved") &&
+                      !status.message.includes("Fatal Processing Error")) {
                       elements.statusText.textContent = status.message;
+                      // CRITICAL: Re-show status box only for non-input errors
+                      setStatusBoxVisibility(elements, true);
                   } else {
                        elements.statusText.textContent = "";
                   }
@@ -525,11 +561,16 @@ async function handleConfirmClick(elements) {
     // --- LOOKUP THE 2-LETTER CODE AND VALIDATE ---
     const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName; 
     if (targetLang.length !== 2) {
-         // MODIFICATION: Route language check error to lang status and NOT to main status
+         // CRITICAL FIX: Cancel processing and reset state on language error
+         console.error("[POPUP] Invalid target language input. Resetting state.");
          elements.langStatusText.textContent = `Please check language spelling`;
-         elements.statusText.textContent = ""; // REMOVED redundant message
+         elements.statusText.textContent = "Error: Invalid target language. Please use a valid full name.";
          elements.progressBar.style.width = '0%';
          elements.confirmButton.disabled = false;
+         
+         // CRITICAL FIX: Remove status and hide box on setup error
+         await chrome.storage.local.remove(['ls_status']);
+         setStatusBoxVisibility(elements, false);
          return;
     }
     // ---------------------------------------------
@@ -541,12 +582,20 @@ async function handleConfirmClick(elements) {
     elements.langStatusText.textContent = ""; // Clear lang status when starting
     elements.progressBar.style.width = '5%';
     
+    // CRITICAL FIX: Show the status box on processing start
+    setStatusBoxVisibility(elements, true);
+    
     if (!url || !url.startsWith('http')) {
-        // MODIFICATION: Use the new consolidated error message
+        // CRITICAL FIX: Cancel processing and reset state on URL error
+        console.error("[POPUP] Invalid URL input. Resetting state.");
         elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
         elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL."; // Keep main error for context
         elements.progressBar.style.width = '0%';
         elements.confirmButton.disabled = false; 
+        
+        // CRITICAL FIX: Remove status and hide box on setup error
+        await chrome.storage.local.remove(['ls_status']);
+        setStatusBoxVisibility(elements, false);
         return;
     }
 
@@ -582,6 +631,10 @@ async function handleConfirmClick(elements) {
             elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
             console.error("[POPUP] Failed to retrieve active tab information.");
             elements.progressBar.style.width = '0%';
+            
+            // CRITICAL FIX: Remove status and hide box on fatal error
+            chrome.storage.local.remove(['ls_status']);
+            setStatusBoxVisibility(elements, false);
             return;
         }
         
@@ -610,6 +663,10 @@ async function handleConfirmClick(elements) {
                 elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
                 console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
                 elements.progressBar.style.width = '0%';
+                
+                // CRITICAL FIX: Remove status and hide box on fatal error
+                chrome.storage.local.remove(['ls_status']);
+                setStatusBoxVisibility(elements, false);
                 return;
             }
             
@@ -670,6 +727,9 @@ async function handleCancelClick(elements) {
     
     elements.urlStatusText.textContent = "";
     elements.langStatusText.textContent = ""; 
+    
+    // CRITICAL FIX: Hide status box after cancel/reset
+    setStatusBoxVisibility(elements, false);
     
     loadSavedStatus(elements); 
 }
@@ -853,6 +913,11 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // --- UI STATE MANAGEMENT ---
             
+            if (progress > 0) {
+                 // CRITICAL FIX: Show the status box whenever progress is > 0
+                 setStatusBoxVisibility(elements, true);
+            }
+            
             if (progress >= 100) {
                 // --- PROGRESS 100% STATE ---
                 elements.statusText.textContent = message; // Show completion message
@@ -909,18 +974,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
                 
                 elements.confirmButton.disabled = !isUrlValid;
+                
+                // CRITICAL FIX: Hide status box if all three status texts are empty/not error messages
+                const mainStatusText = elements.statusText.textContent.trim();
+                const urlStatusText = elements.urlStatusText.textContent.trim();
+                const langStatusText = elements.langStatusText.textContent.trim();
+                
+                // Only keep status box visible if one of the statuses is an error/message
+                const isErrorMessage = urlStatusText.includes("Error") || urlStatusText.includes("Invalid") || urlStatusText.includes("Old subtitle URL used") ||
+                                       langStatusText.includes("Language pair not yet available") ||
+                                       mainStatusText.includes("Processing stopped") || mainStatusText.includes("Error") || mainStatusText.includes("FATAL");
+                
+                if (!isErrorMessage) {
+                    // This is an idle state, hide the box.
+                    setStatusBoxVisibility(elements, false);
+                } else {
+                     // This is an error state, keep the box visible for the message.
+                     setStatusBoxVisibility(elements, true);
+                }
+
 
                 if (isUrlValid) {
-                     // If it's a URL/Lang error, the status text is set by the routing logic above.
+                     // If it's a clean neutral state, check storage for pre-detection
                      if (!elements.urlStatusText.textContent && !elements.langStatusText.textContent && !elements.statusText.textContent) {
-                         // If it's a clean neutral state, check storage for pre-detection
                          chrome.storage.local.get(['subtitle_style_pref', 'detected_base_lang_name'], (data) => {
                              if (data.detected_base_lang_name) {
                                  elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
                              } else {
                                  // Fallback to "Detecting" if URL is present but detection failed or not started
-                                 // NOTE: This will be covered by loadSavedStatus calling checkUrlAndDetectLanguage
-                                 // We only set it to "Detecting" here if it was cleared by an error, but no new input occurred.
                                  if (elements.subtitleUrlInput.value.trim()) {
                                       elements.urlStatusText.textContent = "Detecting language..."; 
                                  } else {
@@ -930,6 +1011,11 @@ document.addEventListener('DOMContentLoaded', () => {
                              // Also re-enable settings button based on style selection
                              elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
                          });
+                     } else {
+                          // The message was an error, re-enable buttons
+                          chrome.storage.local.get(['subtitle_style_pref'], (data) => {
+                             elements.customSettingsButton.disabled = (data.subtitle_style_pref !== 'custom');
+                          });
                      }
                 } else {
                     elements.urlStatusText.textContent = "Waiting for URL...";
