@@ -701,20 +701,13 @@ async function handleConfirmClick(elements) {
 }
 
 /**
- * MODIFIED: This function now handles both 'Cancel' and 'Reset' actions in a single click.
+ * FIXED: This function now handles both 'Cancel' and 'Reset' actions in a single click.
  */
 async function handleCancelClick(elements) {
     
-    // If button text is 'Clear Status & Reset', it's for clearing a completed/errored state.
-    // If it's 'Cancel...', it's for stopping an active process. Both should now do a full reset.
-    if (elements.cancelButton.textContent.includes("Clear Status & Reset")) {
-        await resetStatus(elements);
-        return; 
-    }
+    // This function now performs a full reset regardless of the button's text.
     
-    // --- SINGLE-CLICK CANCEL LOGIC ---
-    
-    // 1. Send the cancel message to content.js to stop the background process.
+    // 1. Send the cancel message to content.js to stop any background process.
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
             console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
