@@ -204,6 +204,9 @@ const LANGUAGE_MAP = {
     "zulu": "zu"
 };
 
+// NEW: Flag to prevent race conditions on cancellation
+let isCancelledByPopup = false;
+
 // Define functions outside DOMContentLoaded but ensure they use initialized elements
 async function resetStatus(elements) {
     // MODIFICATION: Removed colour_coding_pref from removal list as it's now part of subtitle_style_pref logic
@@ -219,7 +222,7 @@ async function resetStatus(elements) {
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
     
-    // MODIFICATION: Renamed from customSettingsButton
+    // MODIFIED: Renamed from customSettingsButton
     elements.editStyleSettingsButton.disabled = true; // Disable button on reset
 
     
@@ -568,6 +571,9 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
+    // MODIFIED: Reset the cancellation flag for a new run
+    isCancelledByPopup = false;
+    
     // MODIFIED: Show the status box
     elements.statusBox.classList.remove('hidden-no-space');
     
@@ -705,7 +711,8 @@ async function handleConfirmClick(elements) {
  */
 async function handleCancelClick(elements) {
     
-    // This function now performs a full reset regardless of the button's text.
+    // MODIFIED: Set the cancellation flag to true to ignore any late messages.
+    isCancelledByPopup = true;
     
     // 1. Send the cancel message to content.js to stop any background process.
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -889,6 +896,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // EXISTING HANDLER: To update status from content script
         if (request.command === "update_status") {
+            // MODIFIED: Check cancellation flag before processing the message
+            if (isCancelledByPopup) {
+                console.log("Popup is in cancelled state. Ignoring status update.");
+                return;
+            }
+            
             const progress = request.progress;
             const message = request.message;
             
