@@ -949,27 +949,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 
                 // Re-enable settings button based on style selection
-                chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], (data) => {
-                     const savedStyle = data.subtitle_style_pref;
-                     elements.editStyleSettingsButton.disabled = (savedStyle === 'netflix');
-                     
-                     // SET NEW BASE LANGUAGE READY MESSAGE ON COMPLETION
-                     const baseLangCode = data.ls_status?.baseLang;
-                     const detectedBaseLangName = data.detected_base_lang_name;
-                     
-                     const finalLangName = (baseLangCode) ? getLanguageName(baseLangCode) :
-                                           (detectedBaseLangName ? detectedBaseLangName : "Subtitle");
-                                           
-                     elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
-                     elements.urlStatusText.style.color = "green";
-                     
-                     // Re-run the availability check to restore the green language status message
-                     checkLanguagePairAvailability(elements);
+                chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], async (data) => { // <-- Add async here
+                    const savedStyle = data.subtitle_style_pref;
+                    elements.editStyleSettingsButton.disabled = (savedStyle === 'netflix');
+                    
+                    const baseLangCode = data.ls_status?.baseLang;
+                    const detectedBaseLangName = data.detected_base_lang_name;
+                    
+                    const finalLangName = (baseLangCode) ? getLanguageName(baseLangCode) :
+                                        (detectedBaseLangName ? detectedBaseLangName : "Subtitle");
+                                        
+                    elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
+                    elements.urlStatusText.style.color = "green";
+                    
+                    // The fix: Await the check to ensure it finishes before the next line runs.
+                    await checkLanguagePairAvailability(elements);
 
-                     // Clear the temp detection status as the full process is complete
-                     chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                    // Now, this will only run AFTER the check is complete.
+                    chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                 });
-
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Status & Reset"; // Set to CLEAR text
                 
