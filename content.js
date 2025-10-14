@@ -366,16 +366,31 @@ function disableNetflixSubObserver() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "check_language_pair") {
+        // <<< MODIFICATION START: Added console logs for debugging >>>
+        console.log(`[DEBUG] Received check_language_pair. Base: ${request.baseLang}, Target: ${request.targetLang}`);
+        // <<< MODIFICATION END >>>
+
         if ('Translator' in self && typeof Translator.isLanguagePairAvailable === 'function') {
             (async () => {
-                const isAvailable = await Translator.isLanguagePairAvailable(request.baseLang, request.targetLang);
-                sendResponse({
-                    isAvailable: isAvailable,
-                    baseLang: request.baseLang,
-                    targetLang: request.targetLang
-                });
+                try {
+                    const isAvailable = await Translator.isLanguagePairAvailable(request.baseLang, request.targetLang);
+                    // <<< MODIFICATION START: Added console log for the result >>>
+                    console.log(`[DEBUG] isLanguagePairAvailable returned: ${isAvailable}`);
+                    // <<< MODIFICATION END >>>
+                    sendResponse({
+                        isAvailable: isAvailable,
+                        baseLang: request.baseLang,
+                        targetLang: request.targetLang
+                    });
+                } catch (e) {
+                    // <<< MODIFICATION START: Added console log for any errors >>>
+                    console.error("[DEBUG] Error during isLanguagePairAvailable check:", e);
+                    // <<< MODIFICATION END >>>
+                    sendResponse({ isAvailable: false });
+                }
             })();
         } else {
+            console.warn("Translator API is not available in this context.");
             sendResponse({ isAvailable: false });
         }
         return true;
