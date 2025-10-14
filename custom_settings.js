@@ -1,16 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- MODIFICATION START: Renamed elements for clarity ---
     const elements = {
         title: document.getElementById('settingsTitle'),
         fontColorAlphaSlider: document.getElementById('fontColorAlphaSlider'),
         fontColorAlphaValue: document.getElementById('fontColorAlphaValue'),
         backgroundAlphaSlider: document.getElementById('backgroundAlphaSlider'),
         backgroundAlphaValue: document.getElementById('backgroundAlphaValue'),
-        statusMessage: document.getElementById('saveStatus') // Renamed for clarity
+        statusMessage: document.getElementById('saveStatus')
     };
-    // --- MODIFICATION END ---
 
-    // Define presets and storage keys
     const NETFLIX_PRESET = {
         font_size: 'medium',
         background_color: 'none',
@@ -27,17 +24,17 @@ document.addEventListener('DOMContentLoaded', () => {
         font_color: 'white',
         font_color_alpha: 1.0
     };
-    // --- MODIFICATION START: Use a single list of base keys ---
     const PREF_KEYS = Object.keys(CUSTOM_DEFAULTS);
-    let settingsPrefix = 'custom_'; // Default context prefix
-    // --- MODIFICATION END ---
+    let settingsPrefix = 'custom_';
 
     // Function to update the UI from a settings object
     function applySettingsToUI(settings) {
-        document.querySelector(`input[name="fontSize"][value="${settings.font_size}"]`).checked = true;
-        document.querySelector(`input[name="backgroundColor"][value="${settings.background_color}"]`).checked = true;
-        document.querySelector(`input[name="fontShadow"][value="${settings.font_shadow}"]`).checked = true;
-        document.querySelector(`input[name="fontColor"][value="${settings.font_color}"]`).checked = true;
+        // --- MODIFICATION START: Corrected camelCase to snake_case to match HTML names ---
+        document.querySelector(`input[name="font_size"][value="${settings.font_size}"]`).checked = true;
+        document.querySelector(`input[name="background_color"][value="${settings.background_color}"]`).checked = true;
+        document.querySelector(`input[name="font_shadow"][value="${settings.font_shadow}"]`).checked = true;
+        document.querySelector(`input[name="font_color"][value="${settings.font_color}"]`).checked = true;
+        // --- MODIFICATION END ---
         
         elements.fontColorAlphaSlider.value = settings.font_color_alpha;
         elements.fontColorAlphaValue.textContent = `${Math.round(settings.font_color_alpha * 100)}%`;
@@ -45,9 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.backgroundAlphaValue.textContent = `${Math.round(settings.background_alpha * 100)}%`;
     }
 
-    // --- MODIFICATION START: Simplified save function using the prefix ---
     function savePreference(key, value) {
-        // Always save using the determined prefix. No more context checks needed here.
         chrome.storage.local.set({ [`${settingsPrefix}${key}`]: value }, () => {
             elements.statusMessage.textContent = "Saved!";
             setTimeout(() => {
@@ -55,9 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1500);
         });
     }
-    // --- MODIFICATION END ---
 
-    // --- MODIFICATION START: Overhauled loading logic to use prefixes ---
     chrome.storage.local.get('settings_context', (data) => {
         const settingsContext = data.settings_context || 'custom';
         settingsPrefix = `${settingsContext}_`;
@@ -68,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const settings = {};
             const defaults = (settingsContext === 'netflix') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
 
-            // Populate settings from storage, falling back to the correct defaults
             for (const key of PREF_KEYS) {
                 const storedKey = `${settingsPrefix}${key}`;
                 settings[key] = storedData[storedKey] ?? defaults[key];
@@ -83,13 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
             applySettingsToUI(settings);
         });
     });
-    // --- MODIFICATION END ---
 
-    // Attach event listeners
     document.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             if (e.target.checked) {
-                // The key is now just the base name (e.g., 'font_size')
                 savePreference(e.target.name, e.target.value);
             }
         });
