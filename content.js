@@ -133,9 +133,25 @@ function startSubtitleSync(videoElement) {
 // ... (disableNetflixSubObserver and the main chrome.runtime.onMessage listener) ...
 function disableNetflixSubObserver() { if (typeof subtitleObserver !== 'undefined' && subtitleObserver) { subtitleObserver.disconnect(); console.log("Netflix native subtitle observer disconnected."); } }
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.command === "check_language_pair") { /* ... logic ... */ return false; }
+    // <<< BUG FIX: Replaced placeholder with full implementation >>>
+    if (request.command === "check_language_pair") {
+        if ('Translator' in self && typeof Translator.isLanguagePairAvailable === 'function') {
+            (async () => {
+                const isAvailable = await Translator.isLanguagePairAvailable(request.baseLang, request.targetLang);
+                chrome.runtime.sendMessage({
+                    command: "language_pair_status",
+                    isAvailable: isAvailable,
+                    baseLang: request.baseLang,
+                    targetLang: request.targetLang
+                });
+            })();
+        } else {
+            // Fallback if the API isn't available for some reason
+            chrome.runtime.sendMessage({ command: "language_pair_status", isAvailable: false });
+        }
+        return true; // Indicates an asynchronous response will be sent
+    }
     
-    // <<< MODIFICATION START: Replaced placeholder with full implementation >>>
     if (request.command === "detect_language") {
         (async () => {
             parsedSubtitles = []; // Clear previous results
@@ -160,7 +176,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         return true; // Indicates that the response will be sent asynchronously.
     }
-    // <<< MODIFICATION END >>>
 
     if (request.command === "fetch_and_process_url" && request.url) {
         if (isProcessing) return false;
