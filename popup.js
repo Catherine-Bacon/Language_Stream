@@ -165,8 +165,7 @@ function checkUrlAndDetectLanguage(elements) {
                 }).catch(e => {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
-                        elements.urlStatusText.textContent = `URL accepted. Ready to generate.`;
-                        elements.urlStatusText.style.color = "green";
+                        // <<< BUG FIX: Removed the two lines here that overwrote the status text >>>
                     }
                 });
             }
