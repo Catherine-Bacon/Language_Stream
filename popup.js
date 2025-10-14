@@ -1,6 +1,5 @@
 console.log("1. popup.js script file loaded.");
 
-// --- MODIFICATION START: Added CUSTOM_DEFAULTS for fallback values ---
 const NETFLIX_PRESET = {
     font_size: 'medium',
     background_color: 'none',
@@ -18,7 +17,6 @@ const CUSTOM_DEFAULTS = {
     font_color_alpha: 1.0
 };
 const PREF_KEYS = Object.keys(NETFLIX_PRESET);
-// --- MODIFICATION END ---
 
 
 const LANGUAGE_MAP = {
@@ -87,6 +85,34 @@ async function resetStatus(elements) {
 
     console.log("Processing status reset completed. Fields cleared.");
     await checkLanguagePairAvailability(elements);
+}
+
+async function stopProcessingUI(elements) {
+    await chrome.storage.local.remove(['ls_status']);
+
+    const isUrlValid = elements.subtitleUrlInput.value.trim().startsWith('http');
+    elements.confirmButton.disabled = !isUrlValid;
+    elements.targetLanguageInput.disabled = false;
+    elements.subtitleUrlInput.disabled = false;
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+
+    const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
+    const hasSettings = (selectedStyle === 'netflix' || selectedStyle === 'custom');
+    elements.editStyleSettingsButton.disabled = !hasSettings;
+
+    elements.cancelButton.classList.add('hidden-no-space');
+    elements.statusBox.classList.add('hidden-no-space');
+    elements.statusText.textContent = "";
+    elements.progressBar.style.width = '0%';
+
+    elements.urlStatusText.classList.remove('hidden-no-space');
+    elements.langStatusText.classList.remove('hidden-no-space');
+    
+    checkUrlAndDetectLanguage(elements);
+    checkLanguagePairAvailability(elements);
+
+    console.log("Processing stopped. UI reset without clearing inputs.");
 }
 
 async function openCustomSettingsWindow(selectedStyle) {
@@ -335,8 +361,12 @@ function loadSavedStatus(elements) {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.editStyleSettingsButton.disabled = !hasSettings;
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Status & Reset";
+                
+                // --- MODIFICATION START: On completion, hide the cancel button. ---
+                // This replaces the logic that showed the "Clear Status" button.
+                elements.cancelButton.classList.add('hidden-no-space');
+                // --- MODIFICATION END ---
+                
                 checkLanguagePairAvailability(elements);
             }
         } else {
@@ -386,7 +416,6 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    // --- MODIFICATION START: Added default fallbacks to ensure settings are always applied ---
     let stylePrefix = 'custom_';
     let defaults = CUSTOM_DEFAULTS;
     if (selectedStyle === 'netflix') {
@@ -400,10 +429,8 @@ async function handleConfirmClick(elements) {
     const finalStylePrefs = {};
     for (const key of PREF_KEYS) {
         const storedKey = `${stylePrefix}${key}`;
-        // Use the saved value, or fall back to the style's default if nothing is saved
         finalStylePrefs[key] = storedData[storedKey] ?? defaults[key];
     }
-    // --- MODIFICATION END ---
 
     let targetLang = null;
     if (inputLangName.length === 2) {
@@ -501,8 +528,12 @@ async function handleConfirmClick(elements) {
     });
 }
 
+// --- MODIFICATION START: Simplified cancel logic ---
+// The function now only ever performs a "soft" reset (stopping the process
+// while preserving user inputs), as there is no "Clear" state anymore.
 async function handleCancelClick(elements) {
     isCancelledByPopup = true;
+
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
             console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
@@ -519,8 +550,12 @@ async function handleCancelClick(elements) {
             });
         });
     });
-    await resetStatus(elements);
+
+    // Always perform a soft reset (stop processing, preserve inputs).
+    await stopProcessingUI(elements);
 }
+// --- MODIFICATION END ---
+
 
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
@@ -655,8 +690,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     await checkLanguagePairAvailability(elements);
                     chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                 });
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Status & Reset";
+                
+                // --- MODIFICATION START: Revert to idle UI state on completion ---
+                // Hide the cancel button, making the "Generate" button visible again.
+                // This removes the "Clear Status & Reset" state entirely.
+                elements.cancelButton.classList.add('hidden-no-space');
+                // --- MODIFICATION END ---
+                
             } else if (progress > 0) {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
