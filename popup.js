@@ -1,6 +1,6 @@
 console.log("1. popup.js script file loaded.");
 
-// --- MODIFICATION START: Style presets now use unprefixed keys ---
+// --- MODIFICATION START: Added CUSTOM_DEFAULTS for fallback values ---
 const NETFLIX_PRESET = {
     font_size: 'medium',
     background_color: 'none',
@@ -9,8 +9,17 @@ const NETFLIX_PRESET = {
     font_color: 'white',
     font_color_alpha: 1.0
 };
+const CUSTOM_DEFAULTS = {
+    font_size: 'medium',
+    background_color: 'black',
+    background_alpha: 0.8,
+    font_shadow: 'black_shadow',
+    font_color: 'white',
+    font_color_alpha: 1.0
+};
 const PREF_KEYS = Object.keys(NETFLIX_PRESET);
 // --- MODIFICATION END ---
+
 
 const LANGUAGE_MAP = {
     "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
@@ -36,15 +45,11 @@ async function resetStatus(elements) {
         'ui_temp_state'
     ]);
 
-    // --- MODIFICATION START: Restore default Netflix settings on reset ---
-    // This resets any temporary changes made to the Netflix style without
-    // touching the user's saved custom settings.
     const netflixSettingsToSave = {};
     for (const key of PREF_KEYS) {
         netflixSettingsToSave[`netflix_${key}`] = NETFLIX_PRESET[key];
     }
     await chrome.storage.local.set(netflixSettingsToSave);
-    // --- MODIFICATION END ---
 
     if (!elements.confirmButton) return;
 
@@ -58,7 +63,7 @@ async function resetStatus(elements) {
 
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
-    elements.editStyleSettingsButton.disabled = false; // Netflix is default, so enable button
+    elements.editStyleSettingsButton.disabled = false;
 
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = false;
@@ -381,12 +386,12 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    // --- MODIFICATION START: Overhauled style preference loading ---
-    // This new logic correctly loads the namespaced settings based on the selected style.
-    // 'vocabulary' and 'grammar' will use the 'custom' settings as a fallback.
+    // --- MODIFICATION START: Added default fallbacks to ensure settings are always applied ---
     let stylePrefix = 'custom_';
+    let defaults = CUSTOM_DEFAULTS;
     if (selectedStyle === 'netflix') {
         stylePrefix = 'netflix_';
+        defaults = NETFLIX_PRESET;
     }
     
     const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
@@ -394,9 +399,9 @@ async function handleConfirmClick(elements) {
     
     const finalStylePrefs = {};
     for (const key of PREF_KEYS) {
-        // Map from prefixed key (e.g., 'custom_font_size') to the key content.js expects ('fontSize')
         const storedKey = `${stylePrefix}${key}`;
-        finalStylePrefs[key] = storedData[storedKey]; // Use saved value, will be undefined if not set
+        // Use the saved value, or fall back to the style's default if nothing is saved
+        finalStylePrefs[key] = storedData[storedKey] ?? defaults[key];
     }
     // --- MODIFICATION END ---
 
@@ -466,8 +471,6 @@ async function handleConfirmClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
         
-        // --- MODIFICATION START: Map finalStylePrefs to the message payload ---
-        // The keys in finalStylePrefs are now unprefixed and match what content.js expects.
         const message = {
             command: "fetch_and_process_url",
             url: url,
@@ -481,7 +484,6 @@ async function handleConfirmClick(elements) {
             fontColorAlpha: finalStylePrefs.font_color_alpha,
             colourCoding: selectedStyle
         };
-        // --- MODIFICATION END ---
 
         chrome.scripting.executeScript({
             target: { tabId: currentTabId },

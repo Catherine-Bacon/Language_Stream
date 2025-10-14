@@ -274,33 +274,35 @@ function colorNameToRgba(name, alpha) {
     return `rgba(${rgb}, ${alpha})`;
 }
 
+// --- MODIFICATION START: Refactored subtitle sync logic for flexible styling ---
 function startSubtitleSync(videoElement) {
     if (syncInterval) clearInterval(syncInterval);
     let currentSubtitleIndex = -1;
     let lastTime = 0;
     if (floatingWindow) floatingWindow.style.display = 'block';
 
+    // Get the base style properties from the global variables set by the message
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
     const currentFontShadow = getFontShadowCss(fontShadowPref);
-    const currentFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
+    const baseFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
     let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
     const fontWeight = (subtitleStylePref === 'netflix') ? 'bold' : 'normal';
 
     if (subtitleStylePref === 'netflix') {
         currentSpanBgColor = 'transparent';
     }
+
+    // Apply container-level styles like shadow
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
-        floatingWindow.style.color = currentFontColor;
+        floatingWindow.style.color = baseFontColor; // Default color
     }
-
-    const spanBaseCss = `
-        display: inline-block; padding: 0 0.5em; border-radius: 0.2em;
-        background-color: ${currentSpanBgColor};
-        font-size: ${currentFontSizeEm};
-        color: ${currentFontColor};
-        font-weight: ${fontWeight};
-        pointer-events: auto;`;
+    
+    // Helper function to generate the CSS for a subtitle span
+    const getSpanStyle = (colorOverride = null) => {
+        const finalColor = colorOverride || baseFontColor;
+        return `display: inline-block; padding: 0 0.5em; border-radius: 0.2em; background-color: ${currentSpanBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
+    };
 
     const syncLoop = () => {
         const currentTime = videoElement.currentTime;
@@ -310,6 +312,7 @@ function startSubtitleSync(videoElement) {
         let newIndex = -1;
         let subtitleFound = false;
 
+        // Optimized search for the current subtitle
         for (let i = Math.max(0, currentSubtitleIndex - 5); i < Math.min(currentSubtitleIndex + 5, parsedSubtitles.length); i++) {
             const sub = parsedSubtitles[i];
             if (sub && currentTime >= sub.begin && currentTime < sub.end) {
@@ -335,16 +338,32 @@ function startSubtitleSync(videoElement) {
         if (subtitleFound) {
             if (newIndex !== currentSubtitleIndex) {
                 const { text, translatedText } = newSubtitle;
+                
+                // Determine styles based on the selected mode
+                let originalStyle = getSpanStyle(); // Uses the base color from settings
+                let translatedStyle = originalStyle;
+
+                if (subtitleStylePref === 'vocabulary') {
+                    // In Vocab mode, translated text is yellow
+                    translatedStyle = getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
+                } else if (subtitleStylePref === 'grammar') {
+                    // In Grammar mode, translated text is cyan
+                    translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
+                }
+
                 let innerHTML = '';
                 if (translatedText) {
                     if (isTranslatedOnly) {
-                        innerHTML = `<span style="${spanBaseCss}">${translatedText}</span>`;
+                        innerHTML = `<span style="${translatedStyle}">${translatedText}</span>`;
                     } else {
-                        innerHTML = `<span style="${spanBaseCss}">${text}</span><br><span style="${spanBaseCss}">${translatedText}</span>`;
+                        innerHTML = `<span style="${originalStyle}">${text}</span><br><span style="${translatedStyle}">${translatedText}</span>`;
                     }
                 } else if (!isTranslatedOnly) {
-                    innerHTML = `<span style="${spanBaseCss}">${text}</span><br><span style="opacity:0.6; ${spanBaseCss}">(Translating...)</span>`;
+                    // Show a placeholder for text that is still being translated
+                    const placeholderStyle = `opacity:0.6; ${originalStyle}`;
+                    innerHTML = `<span style="${originalStyle}">${text}</span><br><span style="${placeholderStyle}">(Translating...)</span>`;
                 }
+                
                 floatingWindow.innerHTML = innerHTML;
                 currentSubtitleIndex = newIndex;
             }
@@ -356,6 +375,7 @@ function startSubtitleSync(videoElement) {
     syncInterval = setInterval(syncLoop, 50);
     console.log("Subtitle sync loop started.");
 }
+// --- MODIFICATION END ---
 
 function disableNetflixSubObserver() {
     if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
@@ -368,19 +388,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "check_language_pair") {
         console.log(`[DEBUG] Received check_language_pair. Base: ${request.baseLang}, Target: ${request.targetLang}`);
         
-        // <<< MODIFICATION START: Replaced 'isLanguagePairAvailable' with 'availability' >>>
         if ('Translator' in self && typeof Translator.availability === 'function') {
             (async () => {
                 try {
-                    // Use the method from the new documentation
                     const availabilityResult = await Translator.availability({
                         sourceLanguage: request.baseLang,
                         targetLanguage: request.targetLang
                     });
 
                     console.log(`[DEBUG] Translator.availability() returned: '${availabilityResult}'`);
-
-                    // Treat 'available' or 'downloadable' as a success
                     const isAvailable = (availabilityResult === 'available' || availabilityResult === 'downloadable');
 
                     sendResponse({
@@ -390,15 +406,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     });
                 } catch (e) {
                     console.error("[DEBUG] Error during Translator.availability() check:", e);
-                    sendResponse({ isAvailable: false }); // Always send a response back on error
+                    sendResponse({ isAvailable: false });
                 }
             })();
         } else {
             console.warn("Translator API (or availability function) is not available in this context.");
             sendResponse({ isAvailable: false });
         }
-        // <<< MODIFICATION END >>>
-        return true; // Keep the message channel open for the async response
+        return true;
     }
 
     if (request.command === "detect_language") {
