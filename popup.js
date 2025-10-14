@@ -18,13 +18,24 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
+// --- MODIFICATION START: Added helper function to save current input values ---
+function saveCurrentInputs(elements) {
+    const currentState = {
+        url: elements.subtitleUrlInput.value.trim(),
+        targetLang: elements.targetLanguageInput.value.trim()
+    };
+    chrome.storage.local.set({ 'ui_temp_state': currentState });
+}
+// --- MODIFICATION END ---
+
 async function resetStatus(elements) {
     await chrome.storage.local.remove([
         'ls_status',
         'last_input',
         'captured_subtitle_url',
         'detected_base_lang_name',
-        'detected_base_lang_code'
+        'detected_base_lang_code',
+        'ui_temp_state' // --- MODIFICATION: Clear temporary state on reset ---
     ]);
 
     if (!elements.confirmButton) return;
@@ -223,7 +234,7 @@ function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     chrome.storage.local.get([
         'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
-        'detected_base_lang_name'
+        'detected_base_lang_name', 'ui_temp_state' // --- MODIFICATION: Load temporary state ---
     ], (data) => {
         const status = data.ls_status;
         const detectedBaseLangName = data.detected_base_lang_name;
@@ -254,12 +265,26 @@ function loadSavedStatus(elements) {
         const hasSettings = (savedStyle === 'netflix' || savedStyle === 'custom');
         elements.editStyleSettingsButton.disabled = !hasSettings;
 
-        let currentBaseLangName = null;
-        if (data.last_input) {
-             const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
-             elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
-             elements.subtitleUrlInput.value = data.last_input.url || '';
+        // --- MODIFICATION START: Prioritize restoring unsaved inputs over last successful inputs ---
+        const isProcessing = status && status.progress > 0 && status.progress < 100;
+        if (!isProcessing) {
+            // If there's a temporary state, use it first
+            if (data.ui_temp_state) {
+                elements.targetLanguageInput.value = data.ui_temp_state.targetLang || '';
+                elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
+            } else if (data.last_input) { // Otherwise, fall back to the last generated input
+                const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
+                elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
+                elements.subtitleUrlInput.value = data.last_input.url || '';
+            }
+        } else if (data.last_input) { // If processing, always show the inputs for the current job
+            const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
+            elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
+            elements.subtitleUrlInput.value = data.last_input.url || '';
         }
+        // --- MODIFICATION END ---
+
+        let currentBaseLangName = null;
         if (status && status.baseLang) {
              currentBaseLangName = getLanguageName(status.baseLang);
         }
@@ -388,6 +413,8 @@ async function handleConfirmClick(elements) {
         translated_only_pref: translatedOnly,
         subtitle_style_pref: selectedStyle,
     });
+    // --- MODIFICATION: Clear temporary state now that generation has started ---
+    await chrome.storage.local.remove(['ui_temp_state']);
 
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
@@ -522,8 +549,16 @@ document.addEventListener('DOMContentLoaded', () => {
         openCustomSettingsWindow(selectedStyle);
     });
 
-    elements.subtitleUrlInput.addEventListener('input', () => checkUrlAndDetectLanguage(elements));
-    elements.targetLanguageInput.addEventListener('input', () => checkLanguagePairAvailability(elements));
+    // --- MODIFICATION START: Save inputs on change ---
+    elements.subtitleUrlInput.addEventListener('input', () => {
+        checkUrlAndDetectLanguage(elements);
+        saveCurrentInputs(elements);
+    });
+    elements.targetLanguageInput.addEventListener('input', () => {
+        checkLanguagePairAvailability(elements);
+        saveCurrentInputs(elements);
+    });
+    // --- MODIFICATION END ---
 
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (request.command === "update_status") {
