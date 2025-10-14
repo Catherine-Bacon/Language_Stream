@@ -89,7 +89,19 @@ async function checkLanguagePairAvailability(elements) {
         return;
     }
 
-    const targetLangCode = LANGUAGE_MAP[inputLangName] || inputLangName;
+    // <<< MODIFICATION START: Replaced direct lookup with a more flexible search >>>
+    let targetLangCode = LANGUAGE_MAP[inputLangName]; // First, try a direct match (e.g., for 'english')
+    if (!targetLangCode) {
+        // If no direct match, try finding a key that *includes* the user's input
+        const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.includes(inputLangName));
+        if (matchingKey) {
+            targetLangCode = LANGUAGE_MAP[matchingKey];
+        }
+    }
+    // If still no code found, assume the user typed a 2-letter code directly (e.g., 'es')
+    targetLangCode = targetLangCode || inputLangName;
+    // <<< MODIFICATION END >>>
+
     if (targetLangCode.length !== 2) {
         elements.langStatusText.textContent = "Please check language spelling.";
         elements.langStatusText.style.color = "#e50914";
@@ -122,7 +134,7 @@ async function checkLanguagePairAvailability(elements) {
                     return;
                 }
                 const currentInputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
-                const currentTargetLangCode = LANGUAGE_MAP[currentInputLangName] || currentInputLangName;
+                const currentTargetLangCode = LANGUAGE_MAP[currentInputLangName] || targetLangCode; // Use the found code
                 if (currentTargetLangCode === response.targetLang) {
                     if (response.isAvailable) {
                         elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
