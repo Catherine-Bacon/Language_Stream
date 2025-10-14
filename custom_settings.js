@@ -1,98 +1,99 @@
-// custom_settings.js (Modified)
-
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Define preference keys used for custom settings
-    const PREF_KEYS = [
-        'font_size_pref', 
-        'background_color_pref', 
-        'font_shadow_pref', 
-        'font_color_pref'
-    ];
-
-    // 2. Map group names to default values
-    const PREF_DEFAULTS = {
-        'fontSize': 'medium',
-        'backgroundColor': 'black',
-        'fontShadow': 'black_shadow',
-        'fontColor': 'white'
+    // Define UI elements
+    const elements = {
+        title: document.getElementById('settingsTitle'),
+        fontColorAlphaSlider: document.getElementById('fontColorAlphaSlider'),
+        fontColorAlphaValue: document.getElementById('fontColorAlphaValue'),
+        backgroundAlphaSlider: document.getElementById('backgroundAlphaSlider'),
+        backgroundAlphaValue: document.getElementById('backgroundAlphaValue'),
+        saveStatus: document.getElementById('saveStatus')
     };
-    
-    const saveStatusElement = document.getElementById('saveStatus');
-    
-    // NEW: Get the label elements to manipulate size
-    const labelSmall = document.getElementById('labelFontSizeSmall');
-    const labelMedium = document.getElementById('labelFontSizeMedium');
-    const labelLarge = document.getElementById('labelFontSizeLarge');
-    
-    // 3. Function to get the actual CSS 'em' size value (using the content.js definitions)
-    function getFontSizeEm(preference) {
-        switch (preference) {
-            case 'small':
-                return '0.75em'; 
-            case 'large':
-                return '1.1em'; 
-            case 'medium':
-            default:
-                return '0.9em'; 
+
+    // Define presets and storage keys
+    const NETFLIX_PRESET = {
+        font_size_pref: 'medium',
+        background_color_pref: 'none',
+        background_alpha_pref: 1.0,
+        font_shadow_pref: 'black_shadow',
+        font_color_pref: 'white',
+        font_color_alpha_pref: 1.0
+    };
+    const CUSTOM_DEFAULTS = {
+        font_size_pref: 'medium',
+        background_color_pref: 'black',
+        background_alpha_pref: 0.8,
+        font_shadow_pref: 'black_shadow',
+        font_color_pref: 'white',
+        font_color_alpha_pref: 1.0
+    };
+    const ALL_PREF_KEYS = Object.keys(CUSTOM_DEFAULTS);
+
+    let settingsContext = 'custom'; // Default context
+
+    // Function to update the UI from a settings object
+    function applySettingsToUI(settings) {
+        // Radios
+        document.querySelector(`input[name="fontSize"][value="${settings.font_size_pref}"]`).checked = true;
+        document.querySelector(`input[name="backgroundColor"][value="${settings.background_color_pref}"]`).checked = true;
+        document.querySelector(`input[name="fontShadow"][value="${settings.font_shadow_pref}"]`).checked = true;
+        document.querySelector(`input[name="fontColor"][value="${settings.font_color_pref}"]`).checked = true;
+        
+        // Sliders
+        elements.fontColorAlphaSlider.value = settings.font_color_alpha_pref;
+        elements.fontColorAlphaValue.textContent = `${Math.round(settings.font_color_alpha_pref * 100)}%`;
+        elements.backgroundAlphaSlider.value = settings.background_alpha_pref;
+        elements.backgroundAlphaValue.textContent = `${Math.round(settings.background_alpha_pref * 100)}%`;
+    }
+
+    // Function to save a preference if in 'custom' context
+    function savePreference(key, value) {
+        if (settingsContext === 'custom') {
+            chrome.storage.local.set({ [key]: value }, () => {
+                elements.saveStatus.textContent = "Saved!";
+                setTimeout(() => {
+                    elements.saveStatus.textContent = "Settings are saved automatically.";
+                }, 1500);
+            });
         }
     }
 
-    // 4. NEW: Function to apply ALL font sizes to their respective labels
-    function applySizeToLabels() {
-        // Apply the correct size to each label directly
-        if (labelSmall) labelSmall.style.fontSize = getFontSizeEm('small');
-        if (labelMedium) labelMedium.style.fontSize = getFontSizeEm('medium');
-        if (labelLarge) labelLarge.style.fontSize = getFontSizeEm('large');
-    }
+    // Main logic on load
+    chrome.storage.local.get(['settings_context', ...ALL_PREF_KEYS], (data) => {
+        settingsContext = data.settings_context || 'custom';
 
-
-    // 5. Load saved custom preferences
-    chrome.storage.local.get(PREF_KEYS, (data) => {
-        
-        // CRITICAL: Apply all sizes to the labels immediately upon load
-        applySizeToLabels();
-
-        // Load Font Size
-        const savedFontSize = data.font_size_pref || PREF_DEFAULTS.fontSize;
-        const fontSizeElement = document.getElementById(`fontSize${savedFontSize.charAt(0).toUpperCase() + savedFontSize.slice(1)}`);
-        if (fontSizeElement) fontSizeElement.checked = true;
-        
-        // Load Background Color
-        const savedBgColor = data.background_color_pref || PREF_DEFAULTS.backgroundColor;
-        const bgColorElement = document.getElementById(`backgroundColor${savedBgColor.charAt(0).toUpperCase() + savedBgColor.slice(1)}`);
-        if (bgColorElement) bgColorElement.checked = true;
-
-        // Load Font Shadow
-        const savedFontShadow = data.font_shadow_pref || PREF_DEFAULTS.fontShadow;
-        const fontShadowElement = document.getElementById(`fontShadow${savedFontShadow.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('')}`);
-        if (fontShadowElement) fontShadowElement.checked = true;
-
-        // Load Font Color
-        const savedFontColor = data.font_color_pref || PREF_DEFAULTS.fontColor;
-        const fontColorElement = document.getElementById(`fontColor${savedFontColor.charAt(0).toUpperCase() + savedFontColor.slice(1)}`);
-        if (fontColorElement) fontColorElement.checked = true;
+        if (settingsContext === 'netflix') {
+            elements.title.textContent = 'Settings - Netflix';
+            elements.saveStatus.textContent = 'Changes are temporary and will not be saved.';
+            applySettingsToUI(NETFLIX_PRESET);
+        } else {
+            elements.title.textContent = 'Settings - Custom';
+            // Build settings from storage, falling back to defaults
+            const customSettings = {};
+            for (const key of ALL_PREF_KEYS) {
+                customSettings[key] = data[key] ?? CUSTOM_DEFAULTS[key];
+            }
+            applySettingsToUI(customSettings);
+        }
     });
 
-    // 6. Attach event listeners to all radio buttons for saving
-    const radioGroups = document.querySelectorAll('.radio-group');
-    radioGroups.forEach(group => {
-        group.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    const prefKey = e.target.name + '_pref'; // e.g., 'fontSize_pref'
-                    
-                    // Save the new value
-                    chrome.storage.local.set({ [prefKey]: e.target.value }, () => {
-                        // Display save confirmation message briefly
-                        saveStatusElement.textContent = "Settings saved!";
-                        saveStatusElement.style.color = "green";
-                        setTimeout(() => {
-                            saveStatusElement.textContent = "Settings saved automatically.";
-                            saveStatusElement.style.color = "green"; // Keep color green
-                        }, 1500);
-                    });
-                }
-            });
+    // Attach event listeners
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                savePreference(`${e.target.name}_pref`, e.target.value);
+            }
         });
+    });
+
+    elements.fontColorAlphaSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        elements.fontColorAlphaValue.textContent = `${Math.round(value * 100)}%`;
+        savePreference('font_color_alpha_pref', value);
+    });
+
+    elements.backgroundAlphaSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        elements.backgroundAlphaValue.textContent = `${Math.round(value * 100)}%`;
+        savePreference('background_alpha_pref', value);
     });
 });

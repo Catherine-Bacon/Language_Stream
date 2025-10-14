@@ -138,19 +138,19 @@
         margin-right: 5px;
       }
       
-      /* New style for the Custom Settings Button */
-      /* MODIFIED: Renamed to editStyleSettingsButton and placed within the flex container */
+      /* <<< MODIFICATION START: Settings cog smaller and centered */
       #editStyleSettingsButton {
-          width: 30px; 
-          height: 30px; 
+          width: 28px; 
+          height: 28px; 
           padding: 0; 
           margin-left: 10px;
           background-color: #555;
           line-height: 1; 
-          font-size: 1.1em;
+          font-size: 1em; /* Smaller font for the cog symbol */
           border: none; 
           flex-shrink: 0;
       }
+      /* <<< MODIFICATION END */
       #editStyleSettingsButton:hover {
           background-color: #777;
       }
@@ -172,7 +172,6 @@
           flex-grow: 1; 
           justify-content: center; /* Center the radio options */
           align-items: center; /* Center vertically */
-          /* No min-height needed due to parent's fixed height */
       }
       .style-radio-group label {
           display: flex;

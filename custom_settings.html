@@ -14,43 +14,53 @@
             margin-top: 0;
             margin-bottom: 10px;
         }
-        /* Styles copied from main.html to ensure consistency */
         .preference-row {
             display: flex;
             align-items: center;
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
         .preference-row p {
             flex-shrink: 0;
             margin: 0;
             font-size: 0.9em;
             color: #333;
+            width: 120px; /* Aligns the controls */
         }
-        /* MODIFIED: Centering for radio groups in the custom settings window */
         .radio-group {
             display: flex;
-            justify-content: center; /* Center horizontally */
-            align-items: center;     /* Center vertically */
+            justify-content: center;
+            align-items: center;
             gap: 10px;
-            margin-bottom: 0;
             padding: 5px;
             border: 1px solid #ddd;
             border-radius: 4px;
             flex-grow: 1;
-            flex-wrap: wrap;
-            min-height: 30px; /* Added min-height for consistent size */
         }
         .radio-group label {
             display: flex;
             align-items: center;
-            /* REMOVED: font-size: 0.9em; This will be set dynamically now */
             cursor: pointer;
-            padding: 2px 5px;
         }
         .radio-group input[type="radio"] {
             width: auto;
             margin-right: 5px;
+        }
+        /* Style for the new sliders */
+        .slider-group {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            gap: 10px;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            cursor: pointer;
+        }
+        .slider-group span {
+            font-size: 0.8em;
+            width: 30px; /* Fixed width for the percentage display */
+            text-align: right;
         }
         #saveStatus {
             margin-top: 15px;
@@ -61,81 +71,61 @@
     </style>
 </head>
 <body>
-    <h2>Custom Subtitle Settings</h2>
+    <h2 id="settingsTitle">Custom Settings</h2>
 
     <div class="preference-row">
         <p>Font Size:</p>
         <div id="fontSizeGroup" class="radio-group">
-            <label id="labelFontSizeSmall">
-                <input type="radio" name="fontSize" value="small" id="fontSizeSmall">
-                Small
-            </label>
-            <label id="labelFontSizeMedium">
-                <input type="radio" name="fontSize" value="medium" id="fontSizeMedium" checked>
-                Medium
-            </label>
-            <label id="labelFontSizeLarge">
-                <input type="radio" name="fontSize" value="large" id="fontSizeLarge">
-                Large
-            </label>
-        </div>
-    </div>
-
-    <div class="preference-row">
-        <p>Background Color:</p>
-        <div id="backgroundColorGroup" class="radio-group">
-            <label>
-                <input type="radio" name="backgroundColor" value="none" id="backgroundColorNone">
-                None
-            </label>
-            <label>
-                <input type="radio" name="backgroundColor" value="black" id="backgroundColorBlack" checked>
-                Black
-            </label>
-            <label>
-                <input type="radio" name="backgroundColor" value="gray" id="backgroundColorGray">
-                Gray
-            </label>
-        </div>
-    </div>
-
-    <div class="preference-row">
-        <p>Font Shadow:</p>
-        <div id="fontShadowGroup" class="radio-group">
-            <label>
-                <input type="radio" name="fontShadow" value="none" id="fontShadowNone">
-                None
-            </label>
-            <label>
-                <input type="radio" name="fontShadow" value="black_shadow" id="fontShadowBlack" checked>
-                Black
-            </label>
-            <label>
-                <input type="radio" name="fontShadow" value="white_shadow" id="fontShadowWhite">
-                White
-            </label>
+            <label><input type="radio" name="fontSize" value="small">S</label>
+            <label><input type="radio" name="fontSize" value="medium" checked>M</label>
+            <label><input type="radio" name="fontSize" value="large">L</label>
         </div>
     </div>
 
     <div class="preference-row">
         <p>Font Color:</p>
         <div id="fontColorGroup" class="radio-group">
-            <label>
-                <input type="radio" name="fontColor" value="white" id="fontColorWhite" checked>
-                White
-            </label>
-            <label>
-                <input type="radio" name="fontColor" value="yellow" id="fontColorYellow">
-                Yellow
-            </label>
-            <label>
-                <input type="radio" name="fontColor" value="cyan" id="fontColorCyan">
-                Cyan
-            </label>
+            <label><input type="radio" name="fontColor" value="white" checked>White</label>
+            <label><input type="radio" name="fontColor" value="yellow">Yellow</label>
+            <label><input type="radio" name="fontColor" value="cyan">Cyan</label>
         </div>
     </div>
     
-    <div id="saveStatus">Settings saved automatically.</div>
+    <div class="preference-row">
+        <p>Font Transparency:</p>
+        <div class="slider-group">
+            <input type="range" id="fontColorAlphaSlider" name="fontColorAlpha" min="0.1" max="1.0" step="0.1" value="1.0">
+            <span id="fontColorAlphaValue">100%</span>
+        </div>
+    </div>
+
+    <div class="preference-row">
+        <p>Font Shadow:</p>
+        <div id="fontShadowGroup" class="radio-group">
+            <label><input type="radio" name="fontShadow" value="none">None</label>
+            <label><input type="radio" name="fontShadow" value="black_shadow" checked>Black</label>
+            <label><input type="radio" name="fontShadow" value="white_shadow">White</label>
+        </div>
+    </div>
+
+    <div class="preference-row">
+        <p>Background Color:</p>
+        <div id="backgroundColorGroup" class="radio-group">
+            <label><input type="radio" name="backgroundColor" value="none">None</label>
+            <label><input type="radio" name="backgroundColor" value="black" checked>Black</label>
+            <label><input type="radio" name="backgroundColor" value="gray">Gray</label>
+        </div>
+    </div>
+    
+    <div class="preference-row">
+        <p>Background Transp.:</p>
+        <div class="slider-group">
+            <input type="range" id="backgroundAlphaSlider" name="backgroundAlpha" min="0.1" max="1.0" step="0.1" value="1.0">
+            <span id="backgroundAlphaValue">100%</span>
+        </div>
+    </div>
+    
+    <div id="saveStatus">Settings are saved automatically.</div>
 
     <script src="custom_settings.js"></script>
 </body>
