@@ -229,6 +229,7 @@ async function resetStatus(elements) {
     elements.confirmButton.disabled = true; // Button disabled until URL is pasted
     // --- MODIFIED: Ensure new input is NOT disabled ---
     elements.targetLanguageInput.disabled = false;
+    elements.subtitleUrlInput.disabled = false; // <<< RE-ENABLE ON RESET
     
     // MODIFICATION: Enable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -429,6 +430,7 @@ function loadSavedStatus(elements) {
         // Always set the defaults first
         elements.progressBar.style.width = '0%';
         elements.targetLanguageInput.disabled = false;
+        elements.subtitleUrlInput.disabled = false; // <<< ENABLE BY DEFAULT
         elements.cancelButton.classList.add('hidden-no-space');
         elements.cancelButton.textContent = "Cancel Subtitle Generation";
         
@@ -489,6 +491,7 @@ function loadSavedStatus(elements) {
             if (status.progress < 100) {
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
+                elements.subtitleUrlInput.disabled = true; // <<< DISABLE URL INPUT
                 
                 // Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -508,6 +511,7 @@ function loadSavedStatus(elements) {
                 
                 elements.confirmButton.disabled = false; // Allow re-run
                 elements.targetLanguageInput.disabled = false;
+                elements.subtitleUrlInput.disabled = false; // <<< RE-ENABLE URL INPUT
                 
                 // Enable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -581,6 +585,7 @@ function loadSavedStatus(elements) {
              // Final UI fixes for neutral/error state
              elements.cancelButton.classList.add('hidden-no-space');
              elements.targetLanguageInput.disabled = false;
+             elements.subtitleUrlInput.disabled = false; // <<< ENSURE ENABLED IN NEUTRAL STATE
              
              // Ensure main popup preferences are enabled
              elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -677,6 +682,7 @@ async function handleConfirmClick(elements) {
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = true;
+    elements.subtitleUrlInput.disabled = true; // <<< DISABLE URL INPUT ON START
     
     // Disable all main popup preference radio buttons
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -985,6 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 elements.confirmButton.disabled = false;
                 elements.targetLanguageInput.disabled = false;
+                elements.subtitleUrlInput.disabled = false; // <<< RE-ENABLE ON COMPLETE
                 
                 // Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -1018,6 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Status text set above
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
+                elements.subtitleUrlInput.disabled = true; // <<< DISABLE WHILE RUNNING
                 
                 // Disable all main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -1039,6 +1047,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 elements.targetLanguageInput.disabled = false;
+                elements.subtitleUrlInput.disabled = false; // <<< ENSURE ENABLED IN ERROR/NEUTRAL
                 
                 // Re-enable main popup preference radio buttons
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
