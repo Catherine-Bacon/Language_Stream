@@ -1,10 +1,9 @@
 console.log("1. popup.js script file loaded.");
 
 // --- NETFLIX STYLE PRESET ---
-// <<< MODIFIED: Added all style properties for a complete preset
 const NETFLIX_PRESET = {
     font_size_pref: 'medium',
-    background_color_pref: 'none', // <<< Netflix style has no background
+    background_color_pref: 'none',
     background_alpha_pref: 1.0,
     font_shadow_pref: 'black_shadow',
     font_color_pref: 'white',
@@ -14,33 +13,30 @@ const NETFLIX_PRESET = {
 
 // --- NEW GLOBAL LANGUAGE MAP ---
 const LANGUAGE_MAP = {
-// ... (LANGUAGE_MAP remains unchanged) ...
-    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "indonesian (deprecated: use id)": "in", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "yiddish (deprecated: use yi)": "ji", "javanese": "jv", "javanese (deprecated: use jv)": "jw", "georgian": "ka", "kong": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "ko": "korean", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "moldavian / moldovan (deprecated: use ro)": "mo", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "serbo-croatian": "sh", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
+    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "indonesian (deprecated: use id)": "in", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "hebrew (deprecated: use he)": "iw", "japanese": "ja", "yiddish (deprecated: use yi)": "ji", "javanese": "jv", "javanese (deprecated: use jv)": "jw", "georgian": "ka", "kong": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "moldavian / moldovan (deprecated: use ro)": "mo", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "serbo-croatian": "sh", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
 };
 
 let isCancelledByPopup = false;
 
 async function resetStatus(elements) {
-    // <<< MODIFICATION: Only remove process-specific data. Custom styles will persist.
     await chrome.storage.local.remove([
-        'ls_status', 
-        'last_input', 
+        'ls_status',
+        'last_input',
         'captured_subtitle_url',
-        'detected_base_lang_name', 
+        'detected_base_lang_name',
         'detected_base_lang_code'
     ]);
-    
+
     if (!elements.confirmButton) return;
 
     elements.subtitleUrlInput.value = '';
     elements.targetLanguageInput.value = '';
-    
-    // Also reset the main mode/style selections in storage for a clean slate
+
     await chrome.storage.local.set({
-        'translated_only_pref': false, // Default to dual
-        'subtitle_style_pref': 'netflix' // Default to netflix
+        'translated_only_pref': false,
+        'subtitle_style_pref': 'netflix'
     });
-    
+
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
     elements.editStyleSettingsButton.disabled = true;
@@ -48,7 +44,7 @@ async function resetStatus(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
-    
+
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
@@ -58,7 +54,7 @@ async function resetStatus(elements) {
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
-    
+
     elements.urlStatusText.textContent = "Waiting for URL...";
     elements.urlStatusText.style.color = "#e50914";
 
@@ -69,24 +65,13 @@ async function resetStatus(elements) {
     await checkLanguagePairAvailability(elements);
 }
 
-// <<< MODIFIED: Function now saves the style context before opening the window
 async function openCustomSettingsWindow(selectedStyle) {
-    // Save the context ('netflix', 'custom', etc.) so the settings window knows how to behave
     await chrome.storage.local.set({ 'settings_context': selectedStyle });
-
-    let settingsFile = 'custom_settings.html';
-    let windowHeight = 450; // Increased height for new options
-
-    if (selectedStyle === 'vocabulary' || selectedStyle === 'grammar') {
-        // Future settings files can be added here
-        // For now, they will open the main custom settings as a fallback
-    }
-
     chrome.windows.create({
-        url: settingsFile,
+        url: 'custom_settings.html',
         type: 'popup',
         width: 380,
-        height: windowHeight,
+        height: 450,
         focused: true
     });
 }
@@ -98,15 +83,13 @@ function getLanguageName(langCode) {
 
 async function checkLanguagePairAvailability(elements) {
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
-    
     if (inputLangName === '') {
         elements.langStatusText.textContent = "Waiting for language...";
-        elements.langStatusText.style.color = "#e50914"; 
+        elements.langStatusText.style.color = "#e50914";
         return;
     }
 
     const targetLangCode = LANGUAGE_MAP[inputLangName] || inputLangName;
-
     if (targetLangCode.length !== 2) {
         elements.langStatusText.textContent = "Please check language spelling.";
         elements.langStatusText.style.color = "#e50914";
@@ -115,13 +98,12 @@ async function checkLanguagePairAvailability(elements) {
 
     const data = await chrome.storage.local.get(['detected_base_lang_code']);
     const baseLangCode = data.detected_base_lang_code;
-
     if (!baseLangCode) {
         elements.langStatusText.textContent = "Waiting for URL to check translation compatibility...";
         elements.langStatusText.style.color = "#777";
         return;
     }
-    
+
     elements.langStatusText.textContent = "Checking language pair availability...";
     elements.langStatusText.style.color = "#777";
 
@@ -132,10 +114,32 @@ async function checkLanguagePairAvailability(elements) {
                 command: "check_language_pair",
                 baseLang: baseLangCode,
                 targetLang: targetLangCode
+            }).then(response => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Language check error:", chrome.runtime.lastError.message);
+                    elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
+                    elements.langStatusText.style.color = "#e50914";
+                    return;
+                }
+                const currentInputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
+                const currentTargetLangCode = LANGUAGE_MAP[currentInputLangName] || currentInputLangName;
+                if (currentTargetLangCode === response.targetLang) {
+                    if (response.isAvailable) {
+                        elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
+                        elements.langStatusText.style.color = "green";
+                    } else {
+                        elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
+                        elements.langStatusText.style.color = "#e50914";
+                    }
+                }
+            }).catch(e => {
+                console.warn("Could not send language pair check message:", e);
+                elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
+                elements.langStatusText.style.color = "#e50914";
             });
         }
     } catch (e) {
-        console.warn("Could not send language pair check message:", e);
+        console.warn("Could not query tabs for language pair check:", e);
         elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
         elements.langStatusText.style.color = "#e50914";
     }
@@ -162,10 +166,30 @@ function checkUrlAndDetectLanguage(elements) {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     command: "detect_language",
                     url: url
+                }).then(async (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn("Detection error:", chrome.runtime.lastError.message);
+                        return;
+                    }
+                    if (response && elements.subtitleUrlInput.value.trim() === response.url) {
+                        if (response.baseLangCode) {
+                            const baseLangName = getLanguageName(response.baseLangCode);
+                            elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
+                            elements.urlStatusText.style.color = "green";
+                            await chrome.storage.local.set({
+                                'detected_base_lang_name': baseLangName,
+                                'detected_base_lang_code': response.baseLangCode
+                            });
+                            checkLanguagePairAvailability(elements);
+                        } else {
+                            elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
+                            elements.urlStatusText.style.color = "#e50914";
+                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                        }
+                    }
                 }).catch(e => {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
-                        // <<< BUG FIX: Removed the two lines here that overwrote the status text >>>
                     }
                 });
             }
@@ -215,10 +239,8 @@ function loadSavedStatus(elements) {
         const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
         if (styleElement) styleElement.checked = true;
 
-        // <<< MODIFICATION: Settings button is enabled for ALL styles except vocab/grammar for now
         const hasSettings = (savedStyle === 'netflix' || savedStyle === 'custom');
         elements.editStyleSettingsButton.disabled = !hasSettings;
-
 
         let currentBaseLangName = null;
         if (data.last_input) {
@@ -307,7 +329,6 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    // <<< MODIFICATION: Get all style prefs, including new alpha values
     let finalStylePrefs = {};
     if (selectedStyle === 'netflix') {
         finalStylePrefs = NETFLIX_PRESET;
@@ -379,7 +400,6 @@ async function handleConfirmClick(elements) {
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
 
-        // <<< MODIFICATION: Pass all style prefs, including new alpha values
         const message = {
             command: "fetch_and_process_url",
             url: url,
@@ -418,7 +438,6 @@ async function handleCancelClick(elements) {
             return;
         }
         const currentTabId = tabs[0].id;
-        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing cancel command.`);
         chrome.scripting.executeScript({
             target: { tabId: currentTabId },
             files: ['content.js']
@@ -495,43 +514,6 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.targetLanguageInput.addEventListener('input', () => checkLanguagePairAvailability(elements));
 
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-        // <<< MODIFICATION START: Handler now looks up language name itself >>>
-        if (request.command === "language_detected") {
-             if (elements.subtitleUrlInput.value.trim() === request.url) {
-                 if (request.baseLangCode) {
-                     const baseLangName = getLanguageName(request.baseLangCode); // Use helper to get name
-                     elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
-                     elements.urlStatusText.style.color = "green";
-                     await chrome.storage.local.set({
-                         'detected_base_lang_name': baseLangName,
-                         'detected_base_lang_code': request.baseLangCode
-                     });
-                     checkLanguagePairAvailability(elements);
-                 } else {
-                     elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
-                     elements.urlStatusText.style.color = "#e50914";
-                     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                 }
-             }
-             return false; // Return false as we are not using sendResponse
-        }
-        // <<< MODIFICATION END >>>
-
-        if (request.command === "language_pair_status") {
-            const currentInputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
-            const currentTargetLangCode = LANGUAGE_MAP[currentInputLangName] || currentInputLangName;
-            if (currentTargetLangCode === request.targetLang) {
-                if (request.isAvailable) {
-                    elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(request.targetLang)}!`;
-                    elements.langStatusText.style.color = "green";
-                } else {
-                    elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                    elements.langStatusText.style.color = "#e50914";
-                }
-            }
-            return false;
-        }
-        
         if (request.command === "update_status") {
             if (isCancelledByPopup) {
                 console.log("Popup is in cancelled state. Ignoring status update.");
