@@ -496,13 +496,15 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.targetLanguageInput.addEventListener('input', () => checkLanguagePairAvailability(elements));
 
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+        // <<< MODIFICATION START: Handler now looks up language name itself >>>
         if (request.command === "language_detected") {
              if (elements.subtitleUrlInput.value.trim() === request.url) {
                  if (request.baseLangCode) {
-                     elements.urlStatusText.textContent = `${request.baseLangName} subtitles ready to translate!`;
+                     const baseLangName = getLanguageName(request.baseLangCode); // Use helper to get name
+                     elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
                      elements.urlStatusText.style.color = "green";
                      await chrome.storage.local.set({
-                         'detected_base_lang_name': request.baseLangName,
+                         'detected_base_lang_name': baseLangName,
                          'detected_base_lang_code': request.baseLangCode
                      });
                      checkLanguagePairAvailability(elements);
@@ -512,8 +514,9 @@ document.addEventListener('DOMContentLoaded', () => {
                      await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                  }
              }
-             return false;
+             return false; // Return false as we are not using sendResponse
         }
+        // <<< MODIFICATION END >>>
 
         if (request.command === "language_pair_status") {
             const currentInputLangName = elements.targetLanguageInput.value.trim().toLowerCase();

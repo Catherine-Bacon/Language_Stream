@@ -134,7 +134,34 @@ function startSubtitleSync(videoElement) {
 function disableNetflixSubObserver() { if (typeof subtitleObserver !== 'undefined' && subtitleObserver) { subtitleObserver.disconnect(); console.log("Netflix native subtitle observer disconnected."); } }
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "check_language_pair") { /* ... logic ... */ return false; }
-    if (request.command === "detect_language") { /* ... logic ... */ return false; }
+    
+    // <<< MODIFICATION START: Replaced placeholder with full implementation >>>
+    if (request.command === "detect_language") {
+        (async () => {
+            parsedSubtitles = []; // Clear previous results
+            const xmlContent = await fetchXmlContent(request.url);
+            
+            if (xmlContent) {
+                const parseSuccess = parseTtmlXml(xmlContent, request.url);
+                if (parseSuccess && parsedSubtitles.length > 0) {
+                    const baseLangCode = await detectBaseLanguage();
+                    // Send the detected language code back to the popup
+                    chrome.runtime.sendMessage({
+                        command: "language_detected",
+                        url: request.url,
+                        baseLangCode: baseLangCode
+                    });
+                } else {
+                    // Signal a failure if parsing was unsuccessful
+                    chrome.runtime.sendMessage({ command: "language_detected", url: request.url, baseLangCode: null });
+                }
+            }
+            // If xmlContent is null, fetchXmlContent already sent an error message to the user.
+        })();
+        return true; // Indicates that the response will be sent asynchronously.
+    }
+    // <<< MODIFICATION END >>>
+
     if (request.command === "fetch_and_process_url" && request.url) {
         if (isProcessing) return false;
         isProcessing = true; isCancelled = false;
