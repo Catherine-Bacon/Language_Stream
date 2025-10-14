@@ -106,7 +106,6 @@ async function stopProcessingUI(elements) {
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
     
-    // --- MODIFICATION: Ensure generate button is visible after stopping. ---
     elements.confirmButton.classList.remove('hidden-no-space');
 
     elements.urlStatusText.classList.remove('hidden-no-space');
@@ -354,26 +353,23 @@ function loadSavedStatus(elements) {
                 elements.editStyleSettingsButton.disabled = true;
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                
-                // --- MODIFICATION: Hide generate button when processing starts. ---
                 elements.confirmButton.classList.add('hidden-no-space');
                 
             } else {
-                const finalLangName = currentBaseLangName || detectedBaseLangName || "Subtitle";
-                elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
-                elements.urlStatusText.style.color = "green";
-                elements.confirmButton.disabled = false;
-                elements.targetLanguageInput.disabled = false;
-                elements.subtitleUrlInput.disabled = false;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.editStyleSettingsButton.disabled = !hasSettings;
-                elements.cancelButton.classList.add('hidden-no-space');
-                
-                // --- MODIFICATION: Show generate button on completion. ---
-                elements.confirmButton.classList.remove('hidden-no-space');
-                
-                checkLanguagePairAvailability(elements);
+                // --- MODIFICATION START: Set UI to "completed" state when loading ---
+                // Keep inputs locked.
+                elements.confirmButton.disabled = true;
+                elements.targetLanguageInput.disabled = true;
+                elements.subtitleUrlInput.disabled = true;
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.editStyleSettingsButton.disabled = true;
+
+                // Show 'Clear Subtitles' button and hide 'Generate' button.
+                elements.confirmButton.classList.add('hidden-no-space');
+                elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Clear Subtitles";
+                // --- MODIFICATION END ---
             }
         } else {
              elements.urlStatusText.classList.remove('hidden-no-space');
@@ -481,7 +477,6 @@ async function handleConfirmClick(elements) {
     });
     await chrome.storage.local.remove(['ui_temp_state']);
     
-    // --- MODIFICATION: Hide the generate button when processing starts. ---
     elements.confirmButton.classList.add('hidden-no-space');
 
     elements.statusText.textContent = "URL accepted. Initializing content script...";
@@ -537,28 +532,34 @@ async function handleConfirmClick(elements) {
     });
 }
 
+// --- MODIFICATION START: Updated cancel logic to handle "Clear Subtitles" state ---
 async function handleCancelClick(elements) {
     isCancelledByPopup = true;
 
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0] || !tabs[0].id) {
-            console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
-            return;
-        }
-        const currentTabId = tabs[0].id;
-        chrome.scripting.executeScript({
-            target: { tabId: currentTabId },
-            files: ['content.js']
-        }, () => {
-            if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
-            chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
-                 if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending cancel message:", e);
+    // If we are canceling an in-progress translation, tell the content script to stop.
+    if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0] || !tabs[0].id) {
+                console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
+                return;
+            }
+            const currentTabId = tabs[0].id;
+            chrome.scripting.executeScript({
+                target: { tabId: currentTabId },
+                files: ['content.js']
+            }, () => {
+                if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
+                chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
+                     if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending cancel message:", e);
+                });
             });
         });
-    });
+    }
 
+    // Whether clearing a completed job or canceling an active one, reset the UI.
     await stopProcessingUI(elements);
 }
+// --- MODIFICATION END ---
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -675,33 +676,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     await chrome.storage.local.set({ ls_status });
                 }
                 
-                // --- MODIFICATION: Show generate button on completion. ---
-                elements.confirmButton.classList.remove('hidden-no-space');
-                elements.confirmButton.disabled = false;
+                // --- MODIFICATION START: Set UI to "completed" state ---
+                // Keep inputs locked after completion.
+                elements.confirmButton.disabled = true;
+                elements.targetLanguageInput.disabled = true;
+                elements.subtitleUrlInput.disabled = true;
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.editStyleSettingsButton.disabled = true;
                 
-                elements.targetLanguageInput.disabled = false;
-                elements.subtitleUrlInput.disabled = false;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                
-                chrome.storage.local.get(['subtitle_style_pref', 'ls_status', 'detected_base_lang_name'], async (data) => {
-                    const savedStyle = data.subtitle_style_pref;
-                    const hasSettings = (savedStyle === 'netflix' || savedStyle === 'custom');
-                    elements.editStyleSettingsButton.disabled = !hasSettings;
-                    
-                    const baseLangCode = data.ls_status?.baseLang;
-                    const detectedBaseLangName = data.detected_base_lang_name;
-                    const finalLangName = (baseLangCode) ? getLanguageName(baseLangCode) : (detectedBaseLangName || "Subtitle");
-                    elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
-                    elements.urlStatusText.style.color = "green";
-                    await checkLanguagePairAvailability(elements);
-                    chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                });
-                
-                elements.cancelButton.classList.add('hidden-no-space');
+                // Show 'Clear Subtitles' button and hide 'Generate' button.
+                elements.confirmButton.classList.add('hidden-no-space');
+                elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Clear Subtitles";
+                // --- MODIFICATION END ---
                 
             } else if (progress > 0) {
-                // --- MODIFICATION: Hide generate button when processing starts. ---
                 elements.confirmButton.classList.add('hidden-no-space');
                 elements.confirmButton.disabled = true;
                 
@@ -716,7 +706,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
                 elements.confirmButton.disabled = !isUrlValid;
 
-                // --- MODIFICATION: Show generate button on failure/idle. ---
                 elements.confirmButton.classList.remove('hidden-no-space');
 
                 if (!isUrlValid) {
