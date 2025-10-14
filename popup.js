@@ -18,7 +18,6 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
-// --- MODIFICATION START: Added helper function to save current input values ---
 function saveCurrentInputs(elements) {
     const currentState = {
         url: elements.subtitleUrlInput.value.trim(),
@@ -26,7 +25,6 @@ function saveCurrentInputs(elements) {
     };
     chrome.storage.local.set({ 'ui_temp_state': currentState });
 }
-// --- MODIFICATION END ---
 
 async function resetStatus(elements) {
     await chrome.storage.local.remove([
@@ -35,7 +33,7 @@ async function resetStatus(elements) {
         'captured_subtitle_url',
         'detected_base_lang_name',
         'detected_base_lang_code',
-        'ui_temp_state' // --- MODIFICATION: Clear temporary state on reset ---
+        'ui_temp_state'
     ]);
 
     if (!elements.confirmButton) return;
@@ -93,31 +91,41 @@ function getLanguageName(langCode) {
 }
 
 async function checkLanguagePairAvailability(elements) {
-    const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
-    if (inputLangName === '') {
+    const inputLang = elements.targetLanguageInput.value.trim().toLowerCase();
+    if (inputLang === '') {
         elements.langStatusText.textContent = "Waiting for language...";
         elements.langStatusText.style.color = "#e50914";
         return;
     }
 
-    // <<< MODIFICATION START: Replaced direct lookup with a more flexible search >>>
-    let targetLangCode = LANGUAGE_MAP[inputLangName]; // First, try a direct match (e.g., for 'english')
-    if (!targetLangCode) {
-        // If no direct match, try finding a key that *includes* the user's input
-        const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.includes(inputLangName));
-        if (matchingKey) {
-            targetLangCode = LANGUAGE_MAP[matchingKey];
+    // <<< MODIFICATION START: Replaced lookup logic with a more precise search >>>
+    let targetLangCode = null;
+
+    if (inputLang.length === 2) {
+        // If 2 letters, treat as a language code and check if it exists in our map's values
+        if (Object.values(LANGUAGE_MAP).includes(inputLang)) {
+            targetLangCode = inputLang;
+        }
+    } else if (inputLang.length > 2) {
+        // If more than 2 letters, treat as a language name.
+        // First, try for an exact key match (e.g., user types "english")
+        targetLangCode = LANGUAGE_MAP[inputLang];
+        
+        // If no exact match, find a key that starts with the input (e.g., "span" for "spanish / castilian")
+        if (!targetLangCode) {
+            const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLang));
+            if (matchingKey) {
+                targetLangCode = LANGUAGE_MAP[matchingKey];
+            }
         }
     }
-    // If still no code found, assume the user typed a 2-letter code directly (e.g., 'es')
-    targetLangCode = targetLangCode || inputLangName;
-    // <<< MODIFICATION END >>>
 
-    if (targetLangCode.length !== 2) {
+    if (!targetLangCode) { // If no valid code was found by any method
         elements.langStatusText.textContent = "Please check language spelling.";
         elements.langStatusText.style.color = "#e50914";
         return;
     }
+    // <<< MODIFICATION END >>>
 
     const data = await chrome.storage.local.get(['detected_base_lang_code']);
     const baseLangCode = data.detected_base_lang_code;
@@ -144,8 +152,16 @@ async function checkLanguagePairAvailability(elements) {
                     elements.langStatusText.style.color = "#e50914";
                     return;
                 }
-                const currentInputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
-                const currentTargetLangCode = LANGUAGE_MAP[currentInputLangName] || targetLangCode; // Use the found code
+                
+                // Re-verify the current input hasn't changed since the async call started
+                const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
+                let currentTargetLangCode = null;
+                if(currentInputLang.length === 2) {
+                    currentTargetLangCode = currentInputLang;
+                } else if (currentInputLang.length > 2) {
+                    currentTargetLangCode = LANGUAGE_MAP[currentInputLang] || (Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang)) ? LANGUAGE_MAP[Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang))] : null);
+                }
+
                 if (currentTargetLangCode === response.targetLang) {
                     if (response.isAvailable) {
                         elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
@@ -234,7 +250,7 @@ function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     chrome.storage.local.get([
         'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
-        'detected_base_lang_name', 'ui_temp_state' // --- MODIFICATION: Load temporary state ---
+        'detected_base_lang_name', 'ui_temp_state'
     ], (data) => {
         const status = data.ls_status;
         const detectedBaseLangName = data.detected_base_lang_name;
@@ -265,24 +281,21 @@ function loadSavedStatus(elements) {
         const hasSettings = (savedStyle === 'netflix' || savedStyle === 'custom');
         elements.editStyleSettingsButton.disabled = !hasSettings;
 
-        // --- MODIFICATION START: Prioritize restoring unsaved inputs over last successful inputs ---
         const isProcessing = status && status.progress > 0 && status.progress < 100;
         if (!isProcessing) {
-            // If there's a temporary state, use it first
             if (data.ui_temp_state) {
                 elements.targetLanguageInput.value = data.ui_temp_state.targetLang || '';
                 elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
-            } else if (data.last_input) { // Otherwise, fall back to the last generated input
+            } else if (data.last_input) {
                 const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                 elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
                 elements.subtitleUrlInput.value = data.last_input.url || '';
             }
-        } else if (data.last_input) { // If processing, always show the inputs for the current job
+        } else if (data.last_input) {
             const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
             elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
             elements.subtitleUrlInput.value = data.last_input.url || '';
         }
-        // --- MODIFICATION END ---
 
         let currentBaseLangName = null;
         if (status && status.baseLang) {
@@ -381,9 +394,20 @@ async function handleConfirmClick(elements) {
         finalStylePrefs.font_color_pref = customData.font_color_pref || 'white';
         finalStylePrefs.font_color_alpha_pref = customData.font_color_alpha_pref ?? 1.0;
     }
-
-    const targetLang = LANGUAGE_MAP[inputLangName] || inputLangName;
-    if (targetLang.length !== 2) {
+    
+    // Use the same robust logic from checkLanguagePairAvailability to get the final code
+    let targetLang = null;
+    if (inputLangName.length === 2) {
+        if (Object.values(LANGUAGE_MAP).includes(inputLangName)) targetLang = inputLangName;
+    } else if (inputLangName.length > 2) {
+        targetLang = LANGUAGE_MAP[inputLangName];
+        if (!targetLang) {
+            const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLangName));
+            if (matchingKey) targetLang = LANGUAGE_MAP[matchingKey];
+        }
+    }
+    
+    if (!targetLang) {
          elements.langStatusText.textContent = `Please check language spelling`;
          elements.langStatusText.style.color = "#e50914";
          elements.statusText.textContent = "";
@@ -413,7 +437,6 @@ async function handleConfirmClick(elements) {
         translated_only_pref: translatedOnly,
         subtitle_style_pref: selectedStyle,
     });
-    // --- MODIFICATION: Clear temporary state now that generation has started ---
     await chrome.storage.local.remove(['ui_temp_state']);
 
     elements.statusText.textContent = "URL accepted. Initializing content script...";
@@ -512,6 +535,10 @@ document.addEventListener('DOMContentLoaded', () => {
         editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
     };
     
+    // <<< MODIFICATION START: Timer for debouncing language input >>>
+    let languageInputTimer;
+    // <<< MODIFICATION END >>>
+
     if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
         console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
         return;
@@ -549,16 +576,23 @@ document.addEventListener('DOMContentLoaded', () => {
         openCustomSettingsWindow(selectedStyle);
     });
 
-    // --- MODIFICATION START: Save inputs on change ---
     elements.subtitleUrlInput.addEventListener('input', () => {
         checkUrlAndDetectLanguage(elements);
         saveCurrentInputs(elements);
     });
+
+    // <<< MODIFICATION START: Debounce language input validation >>>
     elements.targetLanguageInput.addEventListener('input', () => {
-        checkLanguagePairAvailability(elements);
-        saveCurrentInputs(elements);
+        // Clear any existing timer to reset the delay
+        clearTimeout(languageInputTimer);
+        
+        // Set a new timer to run the functions after 500ms of inactivity
+        languageInputTimer = setTimeout(() => {
+            checkLanguagePairAvailability(elements);
+            saveCurrentInputs(elements);
+        }, 500); // 500ms delay
     });
-    // --- MODIFICATION END ---
+    // <<< MODIFICATION END >>>
 
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (request.command === "update_status") {
