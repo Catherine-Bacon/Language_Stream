@@ -366,34 +366,39 @@ function disableNetflixSubObserver() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "check_language_pair") {
-        // <<< MODIFICATION START: Added console logs for debugging >>>
         console.log(`[DEBUG] Received check_language_pair. Base: ${request.baseLang}, Target: ${request.targetLang}`);
-        // <<< MODIFICATION END >>>
-
-        if ('Translator' in self && typeof Translator.isLanguagePairAvailable === 'function') {
+        
+        // <<< MODIFICATION START: Replaced 'isLanguagePairAvailable' with 'availability' >>>
+        if ('Translator' in self && typeof Translator.availability === 'function') {
             (async () => {
                 try {
-                    const isAvailable = await Translator.isLanguagePairAvailable(request.baseLang, request.targetLang);
-                    // <<< MODIFICATION START: Added console log for the result >>>
-                    console.log(`[DEBUG] isLanguagePairAvailable returned: ${isAvailable}`);
-                    // <<< MODIFICATION END >>>
+                    // Use the method from the new documentation
+                    const availabilityResult = await Translator.availability({
+                        sourceLanguage: request.baseLang,
+                        targetLanguage: request.targetLang
+                    });
+
+                    console.log(`[DEBUG] Translator.availability() returned: '${availabilityResult}'`);
+
+                    // Treat 'available' or 'downloadable' as a success
+                    const isAvailable = (availabilityResult === 'available' || availabilityResult === 'downloadable');
+
                     sendResponse({
                         isAvailable: isAvailable,
                         baseLang: request.baseLang,
                         targetLang: request.targetLang
                     });
                 } catch (e) {
-                    // <<< MODIFICATION START: Added console log for any errors >>>
-                    console.error("[DEBUG] Error during isLanguagePairAvailable check:", e);
-                    // <<< MODIFICATION END >>>
-                    sendResponse({ isAvailable: false });
+                    console.error("[DEBUG] Error during Translator.availability() check:", e);
+                    sendResponse({ isAvailable: false }); // Always send a response back on error
                 }
             })();
         } else {
-            console.warn("Translator API is not available in this context.");
+            console.warn("Translator API (or availability function) is not available in this context.");
             sendResponse({ isAvailable: false });
         }
-        return true;
+        // <<< MODIFICATION END >>>
+        return true; // Keep the message channel open for the async response
     }
 
     if (request.command === "detect_language") {
