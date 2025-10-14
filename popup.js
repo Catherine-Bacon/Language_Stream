@@ -3,7 +3,6 @@ console.log("1. popup.js script file loaded.");
 // --- NETFLIX STYLE PRESET ---
 const NETFLIX_PRESET = {
     font_size_pref: 'medium', // Corresponds to 0.9em in content.js
-    background_color_pref: 'black', // Corresponds to rgba(0, 0, 0, 0.85) in content.js
     font_shadow_pref: 'black_shadow', // Corresponds to 2px 2px 4px rgba(0, 0, 0, 0.8) in content.js
     font_color_pref: 'white' // Corresponds to #FFFFFF in content.js
 };
