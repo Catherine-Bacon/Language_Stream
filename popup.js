@@ -105,6 +105,9 @@ async function stopProcessingUI(elements) {
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
+    
+    // --- MODIFICATION: Ensure generate button is visible after stopping. ---
+    elements.confirmButton.classList.remove('hidden-no-space');
 
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
@@ -351,6 +354,10 @@ function loadSavedStatus(elements) {
                 elements.editStyleSettingsButton.disabled = true;
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
+                
+                // --- MODIFICATION: Hide generate button when processing starts. ---
+                elements.confirmButton.classList.add('hidden-no-space');
+                
             } else {
                 const finalLangName = currentBaseLangName || detectedBaseLangName || "Subtitle";
                 elements.urlStatusText.textContent = `${finalLangName} subtitles ready to translate!`;
@@ -361,11 +368,10 @@ function loadSavedStatus(elements) {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 elements.editStyleSettingsButton.disabled = !hasSettings;
-                
-                // --- MODIFICATION START: On completion, hide the cancel button. ---
-                // This replaces the logic that showed the "Clear Status" button.
                 elements.cancelButton.classList.add('hidden-no-space');
-                // --- MODIFICATION END ---
+                
+                // --- MODIFICATION: Show generate button on completion. ---
+                elements.confirmButton.classList.remove('hidden-no-space');
                 
                 checkLanguagePairAvailability(elements);
             }
@@ -474,6 +480,9 @@ async function handleConfirmClick(elements) {
         subtitle_style_pref: selectedStyle,
     });
     await chrome.storage.local.remove(['ui_temp_state']);
+    
+    // --- MODIFICATION: Hide the generate button when processing starts. ---
+    elements.confirmButton.classList.add('hidden-no-space');
 
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
@@ -528,9 +537,6 @@ async function handleConfirmClick(elements) {
     });
 }
 
-// --- MODIFICATION START: Simplified cancel logic ---
-// The function now only ever performs a "soft" reset (stopping the process
-// while preserving user inputs), as there is no "Clear" state anymore.
 async function handleCancelClick(elements) {
     isCancelledByPopup = true;
 
@@ -551,10 +557,8 @@ async function handleCancelClick(elements) {
         });
     });
 
-    // Always perform a soft reset (stop processing, preserve inputs).
     await stopProcessingUI(elements);
 }
-// --- MODIFICATION END ---
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -671,7 +675,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     await chrome.storage.local.set({ ls_status });
                 }
                 
+                // --- MODIFICATION: Show generate button on completion. ---
+                elements.confirmButton.classList.remove('hidden-no-space');
                 elements.confirmButton.disabled = false;
+                
                 elements.targetLanguageInput.disabled = false;
                 elements.subtitleUrlInput.disabled = false;
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -691,14 +698,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                 });
                 
-                // --- MODIFICATION START: Revert to idle UI state on completion ---
-                // Hide the cancel button, making the "Generate" button visible again.
-                // This removes the "Clear Status & Reset" state entirely.
                 elements.cancelButton.classList.add('hidden-no-space');
-                // --- MODIFICATION END ---
                 
             } else if (progress > 0) {
+                // --- MODIFICATION: Hide generate button when processing starts. ---
+                elements.confirmButton.classList.add('hidden-no-space');
                 elements.confirmButton.disabled = true;
+                
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -709,6 +715,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
                 elements.confirmButton.disabled = !isUrlValid;
+
+                // --- MODIFICATION: Show generate button on failure/idle. ---
+                elements.confirmButton.classList.remove('hidden-no-space');
+
                 if (!isUrlValid) {
                     elements.urlStatusText.textContent = "Waiting for URL...";
                     elements.urlStatusText.style.color = "#e50914";
