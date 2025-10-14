@@ -246,8 +246,8 @@ function createFloatingWindow() {
       top: 80%;
       left: 50%;
       transform: translate(-50%, 0);
-      width: 70%;
-      max-width: 800px;
+      width: 90%;
+      max-width: 1200px;
       min-height: 50px;
 
       /* MODIFIED: REMOVE BACKGROUND COLOR AND PADDING from the main window */
