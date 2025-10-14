@@ -520,10 +520,10 @@ function getFontSizeEm(preference) {
         case 'small':
             return '0.75em'; // Adjusted for slightly smaller size on screen
         case 'large':
-            return '1.1em'; // Adjusted for slightly larger size on screen
+            return '1.25em'; // Adjusted for slightly larger size on screen
         case 'medium':
         default:
-            return '0.9em'; // Adjusted for a visually balanced medium on screen
+            return '1em'; // Adjusted for a visually balanced medium on screen
     }
 }
 
