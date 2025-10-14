@@ -1,17 +1,17 @@
 console.log("1. popup.js script file loaded.");
 
-// --- NETFLIX STYLE PRESET ---
+// --- MODIFICATION START: Style presets now use unprefixed keys ---
 const NETFLIX_PRESET = {
-    font_size_pref: 'medium',
-    background_color_pref: 'none',
-    background_alpha_pref: 1.0,
-    font_shadow_pref: 'black_shadow',
-    font_color_pref: 'white',
-    font_color_alpha_pref: 1.0
+    font_size: 'medium',
+    background_color: 'none',
+    background_alpha: 1.0,
+    font_shadow: 'black_shadow',
+    font_color: 'white',
+    font_color_alpha: 1.0
 };
-// ----------------------------
+const PREF_KEYS = Object.keys(NETFLIX_PRESET);
+// --- MODIFICATION END ---
 
-// --- NEW GLOBAL LANGUAGE MAP ---
 const LANGUAGE_MAP = {
     "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
 };
@@ -36,6 +36,16 @@ async function resetStatus(elements) {
         'ui_temp_state'
     ]);
 
+    // --- MODIFICATION START: Restore default Netflix settings on reset ---
+    // This resets any temporary changes made to the Netflix style without
+    // touching the user's saved custom settings.
+    const netflixSettingsToSave = {};
+    for (const key of PREF_KEYS) {
+        netflixSettingsToSave[`netflix_${key}`] = NETFLIX_PRESET[key];
+    }
+    await chrome.storage.local.set(netflixSettingsToSave);
+    // --- MODIFICATION END ---
+
     if (!elements.confirmButton) return;
 
     elements.subtitleUrlInput.value = '';
@@ -48,7 +58,7 @@ async function resetStatus(elements) {
 
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
-    elements.editStyleSettingsButton.disabled = true;
+    elements.editStyleSettingsButton.disabled = false; // Netflix is default, so enable button
 
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = false;
@@ -98,20 +108,14 @@ async function checkLanguagePairAvailability(elements) {
         return;
     }
 
-    // <<< MODIFICATION START: Replaced lookup logic with a more precise search >>>
     let targetLangCode = null;
 
     if (inputLang.length === 2) {
-        // If 2 letters, treat as a language code and check if it exists in our map's values
         if (Object.values(LANGUAGE_MAP).includes(inputLang)) {
             targetLangCode = inputLang;
         }
     } else if (inputLang.length > 2) {
-        // If more than 2 letters, treat as a language name.
-        // First, try for an exact key match (e.g., user types "english")
         targetLangCode = LANGUAGE_MAP[inputLang];
-        
-        // If no exact match, find a key that starts with the input (e.g., "span" for "spanish / castilian")
         if (!targetLangCode) {
             const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLang));
             if (matchingKey) {
@@ -120,12 +124,11 @@ async function checkLanguagePairAvailability(elements) {
         }
     }
 
-    if (!targetLangCode) { // If no valid code was found by any method
+    if (!targetLangCode) {
         elements.langStatusText.textContent = "Please check language spelling.";
         elements.langStatusText.style.color = "#e50914";
         return;
     }
-    // <<< MODIFICATION END >>>
 
     const data = await chrome.storage.local.get(['detected_base_lang_code']);
     const baseLangCode = data.detected_base_lang_code;
@@ -153,7 +156,6 @@ async function checkLanguagePairAvailability(elements) {
                     return;
                 }
                 
-                // Re-verify the current input hasn't changed since the async call started
                 const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
                 let currentTargetLangCode = null;
                 if(currentInputLang.length === 2) {
@@ -379,23 +381,25 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    let finalStylePrefs = {};
+    // --- MODIFICATION START: Overhauled style preference loading ---
+    // This new logic correctly loads the namespaced settings based on the selected style.
+    // 'vocabulary' and 'grammar' will use the 'custom' settings as a fallback.
+    let stylePrefix = 'custom_';
     if (selectedStyle === 'netflix') {
-        finalStylePrefs = NETFLIX_PRESET;
-    } else {
-        const customData = await chrome.storage.local.get([
-            'font_size_pref', 'background_color_pref', 'background_alpha_pref', 
-            'font_shadow_pref', 'font_color_pref', 'font_color_alpha_pref'
-        ]);
-        finalStylePrefs.font_size_pref = customData.font_size_pref || 'medium';
-        finalStylePrefs.background_color_pref = customData.background_color_pref || 'black';
-        finalStylePrefs.background_alpha_pref = customData.background_alpha_pref ?? 1.0;
-        finalStylePrefs.font_shadow_pref = customData.font_shadow_pref || 'black_shadow';
-        finalStylePrefs.font_color_pref = customData.font_color_pref || 'white';
-        finalStylePrefs.font_color_alpha_pref = customData.font_color_alpha_pref ?? 1.0;
+        stylePrefix = 'netflix_';
     }
     
-    // Use the same robust logic from checkLanguagePairAvailability to get the final code
+    const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
+    const storedData = await chrome.storage.local.get(keysToLoad);
+    
+    const finalStylePrefs = {};
+    for (const key of PREF_KEYS) {
+        // Map from prefixed key (e.g., 'custom_font_size') to the key content.js expects ('fontSize')
+        const storedKey = `${stylePrefix}${key}`;
+        finalStylePrefs[key] = storedData[storedKey]; // Use saved value, will be undefined if not set
+    }
+    // --- MODIFICATION END ---
+
     let targetLang = null;
     if (inputLangName.length === 2) {
         if (Object.values(LANGUAGE_MAP).includes(inputLangName)) targetLang = inputLangName;
@@ -461,20 +465,23 @@ async function handleConfirmClick(elements) {
         
         const currentTabId = tabs[0].id;
         console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
-
+        
+        // --- MODIFICATION START: Map finalStylePrefs to the message payload ---
+        // The keys in finalStylePrefs are now unprefixed and match what content.js expects.
         const message = {
             command: "fetch_and_process_url",
             url: url,
             targetLang: targetLang,
             translatedOnly: translatedOnly,
-            fontSize: finalStylePrefs.font_size_pref,
-            backgroundColor: finalStylePrefs.background_color_pref,
-            backgroundAlpha: finalStylePrefs.background_alpha_pref,
-            fontShadow: finalStylePrefs.font_shadow_pref,
-            fontColor: finalStylePrefs.font_color_pref,
-            fontColorAlpha: finalStylePrefs.font_color_alpha_pref,
+            fontSize: finalStylePrefs.font_size,
+            backgroundColor: finalStylePrefs.background_color,
+            backgroundAlpha: finalStylePrefs.background_alpha,
+            fontShadow: finalStylePrefs.font_shadow,
+            fontColor: finalStylePrefs.font_color,
+            fontColorAlpha: finalStylePrefs.font_color_alpha,
             colourCoding: selectedStyle
         };
+        // --- MODIFICATION END ---
 
         chrome.scripting.executeScript({
             target: { tabId: currentTabId },
@@ -535,9 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
     };
     
-    // <<< MODIFICATION START: Timer for debouncing language input >>>
     let languageInputTimer;
-    // <<< MODIFICATION END >>>
 
     if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
         console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
@@ -581,18 +586,13 @@ document.addEventListener('DOMContentLoaded', () => {
         saveCurrentInputs(elements);
     });
 
-    // <<< MODIFICATION START: Debounce language input validation >>>
     elements.targetLanguageInput.addEventListener('input', () => {
-        // Clear any existing timer to reset the delay
         clearTimeout(languageInputTimer);
-        
-        // Set a new timer to run the functions after 500ms of inactivity
         languageInputTimer = setTimeout(() => {
             checkLanguagePairAvailability(elements);
             saveCurrentInputs(elements);
-        }, 500); // 500ms delay
+        }, 500);
     });
-    // <<< MODIFICATION END >>>
 
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (request.command === "update_status") {
