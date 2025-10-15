@@ -97,6 +97,8 @@ async function resetStatus(elements) {
 async function stopProcessingUI(elements) {
     await chrome.storage.local.remove(['ls_status']);
 
+    document.body.style.height = ''; // This will reset the height
+
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -424,6 +426,8 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
+    document.body.style.height = '385px';
+
     isCancelledByPopup = false;
     elements.statusBox.classList.remove('hidden-no-space');
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
