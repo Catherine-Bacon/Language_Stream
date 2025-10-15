@@ -25,19 +25,13 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
-// --- MODIFICATION START: Updated button logic to hide/show instead of disable ---
+// --- MODIFICATION START: Reverted to disabling/enabling the button ---
 function updateGenerateButtonState(elements) {
     const isUrlValid = elements.urlStatusText.style.color === 'green';
     const isLangValid = elements.langStatusText.style.color === 'green';
     
-    // Show the button only if both conditions are true.
-    if (isUrlValid && isLangValid) {
-        elements.confirmButton.classList.remove('hidden-no-space');
-        elements.confirmButton.disabled = false;
-    } else {
-        elements.confirmButton.classList.add('hidden-no-space');
-        elements.confirmButton.disabled = true;
-    }
+    // Disable the button if either condition is false.
+    elements.confirmButton.disabled = !(isUrlValid && isLangValid);
 }
 // --- MODIFICATION END ---
 
@@ -122,8 +116,8 @@ async function stopProcessingUI(elements) {
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
     
-    elements.confirmButton.classList.remove('hidden-no-space');
-
+    // REMOVED logic for showing/hiding the confirm button
+    
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
     
@@ -381,7 +375,7 @@ function loadSavedStatus(elements) {
                 elements.editStyleSettingsButton.disabled = true;
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                elements.confirmButton.classList.add('hidden-no-space');
+                // confirm button is visible but disabled during processing
                 
             } else {
                 elements.confirmButton.disabled = true;
@@ -390,7 +384,7 @@ function loadSavedStatus(elements) {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
-                elements.confirmButton.classList.add('hidden-no-space');
+                // confirm button is visible but disabled when complete
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
             }
@@ -498,8 +492,6 @@ async function handleConfirmClick(elements) {
     });
     await chrome.storage.local.remove(['ui_temp_state']);
     
-    elements.confirmButton.classList.add('hidden-no-space');
-
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
@@ -700,12 +692,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
                 
-                elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
                 
             } else if (progress > 0) {
-                elements.confirmButton.classList.add('hidden-no-space');
                 elements.confirmButton.disabled = true;
                 
                 elements.targetLanguageInput.disabled = true;
@@ -716,12 +706,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
             } else {
-                const isUrlValid = (elements.subtitleUrlInput.value && elements.subtitleUrlInput.value.startsWith('http'));
-                elements.confirmButton.disabled = !isUrlValid;
-
-                elements.confirmButton.classList.remove('hidden-no-space');
-
-                if (!isUrlValid) {
+                elements.confirmButton.disabled = false;
+                
+                if (!elements.subtitleUrlInput.value.trim().startsWith('http')) {
                     elements.urlStatusText.textContent = "Waiting for URL...";
                     elements.urlStatusText.style.color = "#e50914";
                 }

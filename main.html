@@ -61,6 +61,19 @@
       button#cancelButton:hover {
         background-color: #999;
       }
+
+      /* --- MODIFICATION START: Added style for disabled buttons --- */
+      button:disabled,
+      button[disabled]{
+        background-color: #cccccc;
+        color: #666666;
+        cursor: not-allowed;
+      }
+      button:disabled:hover,
+      button[disabled]:hover {
+        background-color: #cccccc;
+      }
+      /* --- MODIFICATION END --- */
       
       .hidden-no-space {
           display: none !important;
@@ -187,8 +200,6 @@
           width: auto;
           margin-right: 5px;
       }
-
-      /* --- MODIFICATION: Removed the wrapper CSS --- */
 
     </style>
   </head>
