@@ -1,8 +1,8 @@
 console.log("1. popup.js script file loaded.");
 
-// --- MODIFICATION START: Define fixed heights ---
-const INITIAL_POPUP_HEIGHT = '485px'; // Taller height for setup state
-const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state
+// --- MODIFICATION: Define fixed heights ---
+const INITIAL_POPUP_HEIGHT = '485px'; // Taller height for setup state (Instructions visible)
+const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state (matches the height set in main.html's CSS)
 // --- MODIFICATION END ---
 
 const NETFLIX_PRESET = {
@@ -63,8 +63,8 @@ async function resetStatus(elements) {
 
     if (!elements.confirmButton) return;
     
-    // --- MODIFICATION: Set height back to initial setup size ---
-    document.body.style.height = INITIAL_POPUP_HEIGHT;
+    // --- HEIGHT: Set height back to initial setup size ---
+    document.body.style.height = INITIAL_POPUP_HEIGHT; // Set to '485px'
 
     elements.subtitleUrlInput.value = '';
     elements.targetLanguageInput.value = '';
@@ -103,8 +103,8 @@ async function resetStatus(elements) {
 }
 
 async function stopProcessingUI(elements) {
-    // --- MODIFICATION: Set height back to initial setup size ---
-    document.body.style.height = INITIAL_POPUP_HEIGHT;
+    // --- HEIGHT: Set height back to initial setup size on Cancel/Clear ---
+    document.body.style.height = INITIAL_POPUP_HEIGHT; // Set to '485px'
 
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
@@ -437,8 +437,9 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
-    // --- MODIFICATION: Set to Shorter Height for Processing ---
-    document.body.style.height = PROCESSING_POPUP_HEIGHT;
+    // --- CRITICAL FIX: Clear the inline height style. 
+    //    This forces the browser to adopt the shorter '360px' height from the main.html CSS. ---
+    document.body.style.height = ''; 
     
     // 1. Hide irrelevant setup UI
     elements.urlInstructions.classList.add('hidden-no-space');
@@ -487,266 +488,266 @@ async function handleConfirmClick(elements) {
     let targetLang = null;
     if (inputLangName.length === 2) {
         if (Object.values(LANGUAGE_MAP).includes(inputLangName)) targetLang = inputLangName;
-    } else if (inputLangName.length > 2) {
-        targetLang = LANGUAGE_MAP[inputLangName];
-        if (!targetLang) {
-            const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLangName));
-            if (matchingKey) targetLang = LANGUAGE_MAP[matchingKey];
+        } else if (inputLangName.length > 2) {
+            targetLang = LANGUAGE_MAP[inputLangName];
+            if (!targetLang) {
+                const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLangName));
+                if (matchingKey) targetLang = LANGUAGE_MAP[matchingKey];
+            }
         }
-    }
-    
-    if (!targetLang) {
-         // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
-         elements.statusText.textContent = "Error: Please check language spelling.";
-         elements.progressBar.style.width = '0%';
-         await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
-         elements.langStatusText.textContent = `Please check language spelling`; // Re-display error
-         elements.langStatusText.style.color = "#e50914";
-         return;
-    }
-    
-    if (!url || !url.startsWith('http')) {
-        // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
-        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
-        elements.progressBar.style.width = '0%';
-        await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
-        elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
-        elements.urlStatusText.style.color = "#e50914";
-        return;
-    }
-
-    // 5. Save state and proceed
-    await chrome.storage.local.remove(['ls_status']);
-    await chrome.storage.local.set({
-        last_input: { url, targetLang: targetLang },
-        translated_only_pref: translatedOnly,
-        subtitle_style_pref: selectedStyle,
-    });
-    await chrome.storage.local.remove(['ui_temp_state']);
-    
-
-    elements.statusText.textContent = "URL accepted. Initializing content script...";
-    elements.progressBar.style.width = '10%';
-
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0] || !tabs[0].id) {
-            elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
-            console.error("[POPUP] Failed to retrieve active tab information.");
+        
+        if (!targetLang) {
+            // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
+            elements.statusText.textContent = "Error: Please check language spelling.";
             elements.progressBar.style.width = '0%';
-            stopProcessingUI(elements);
+            await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
+            elements.langStatusText.textContent = `Please check language spelling`; // Re-display error
+            elements.langStatusText.style.color = "#e50914";
             return;
         }
         
-        const currentTabId = tabs[0].id;
-        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+        if (!url || !url.startsWith('http')) {
+            // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
+            elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
+            elements.progressBar.style.width = '0%';
+            await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
+            elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
+            elements.urlStatusText.style.color = "#e50914";
+            return;
+        }
         
-        const message = {
-            command: "fetch_and_process_url",
-            url: url,
-            targetLang: targetLang,
-            translatedOnly: translatedOnly,
-            fontSize: finalStylePrefs.font_size,
-            backgroundColor: finalStylePrefs.background_color,
-            backgroundAlpha: finalStylePrefs.background_alpha,
-            fontShadow: finalStylePrefs.font_shadow,
-            fontColor: finalStylePrefs.font_color,
-            fontColorAlpha: finalStylePrefs.font_color_alpha,
-            colourCoding: selectedStyle
-        };
-
-        chrome.scripting.executeScript({
-            target: { tabId: currentTabId },
-            files: ['content.js']
-        }, () => {
-            if (chrome.runtime.lastError) {
-                elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
-                console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
+        // 5. Save state and proceed
+        await chrome.storage.local.remove(['ls_status']);
+        await chrome.storage.local.set({
+            last_input: { url, targetLang: targetLang },
+            translated_only_pref: translatedOnly,
+            subtitle_style_pref: selectedStyle,
+        });
+        await chrome.storage.local.remove(['ui_temp_state']);
+        
+        
+        elements.statusText.textContent = "URL accepted. Initializing content script...";
+        elements.progressBar.style.width = '10%';
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0] || !tabs[0].id) {
+                elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
+                console.error("[POPUP] Failed to retrieve active tab information.");
                 elements.progressBar.style.width = '0%';
                 stopProcessingUI(elements);
                 return;
             }
-            elements.statusText.textContent = "Content script injected. Sending start command...";
-            chrome.tabs.sendMessage(currentTabId, message);
-        });
-    });
-}
-
-async function handleCancelClick(elements) {
-    isCancelledByPopup = true;
-
-    if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs[0] || !tabs[0].id) {
-                console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
-                return;
-            }
+            
             const currentTabId = tabs[0].id;
+            console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+            
+            const message = {
+                command: "fetch_and_process_url",
+                url: url,
+                targetLang: targetLang,
+                translatedOnly: translatedOnly,
+                fontSize: finalStylePrefs.font_size,
+                backgroundColor: finalStylePrefs.background_color,
+                backgroundAlpha: finalStylePrefs.background_alpha,
+                fontShadow: finalStylePrefs.font_shadow,
+                fontColor: finalStylePrefs.font_color,
+                fontColorAlpha: finalStylePrefs.font_color_alpha,
+                colourCoding: selectedStyle
+            };
+            
             chrome.scripting.executeScript({
                 target: { tabId: currentTabId },
                 files: ['content.js']
             }, () => {
-                if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
-                chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
-                     if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending cancel message:", e);
-                });
+                if (chrome.runtime.lastError) {
+                    elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
+                    console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
+                    elements.progressBar.style.width = '0%';
+                    stopProcessingUI(elements);
+                    return;
+                }
+                elements.statusText.textContent = "Content script injected. Sending start command...";
+                chrome.tabs.sendMessage(currentTabId, message);
             });
         });
     }
 
-    await stopProcessingUI(elements);
-}
+    async function handleCancelClick(elements) {
+        isCancelledByPopup = true;
 
-
-document.addEventListener('DOMContentLoaded', () => {
-    const elements = {
-        confirmButton: document.getElementById('confirmButton'),
-        targetLanguageInput: document.getElementById('targetLanguage'),
-        subtitleUrlInput: document.getElementById('subtitleUrlInput'),
-        statusBox: document.getElementById('statusBox'),
-        statusText: document.getElementById('statusText'),
-        progressBar: document.getElementById('progressBar'),
-        cancelButton: document.getElementById('cancelButton'),
-        urlStatusText: document.getElementById('urlStatusText'),
-        langStatusText: document.getElementById('langStatusText'),
-        subtitleModeGroup: document.getElementById('subtitleModeGroup'),
-        subtitleModeDual: document.getElementById('subtitleModeDual'),
-        subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'),
-        subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
-        subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
-        subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
-        subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
-        subtitleStyleGrammar: document.getElementById('subtitleStyleGrammar'),
-        editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
-        urlInstructions: document.getElementById('urlInstructions'),
-    };
-    
-    let languageInputTimer;
-
-    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
-        console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
-        return;
-    }
-    console.log("2. All DOM elements found. Attaching listeners.");
-
-    // --- CRITICAL FIX: Force the taller setup size immediately after loading ---
-    document.body.style.height = INITIAL_POPUP_HEIGHT; 
-    
-    loadSavedStatus(elements);
-
-    elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
-    elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
-    
-    elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                chrome.storage.local.set({ 'translated_only_pref': (e.target.value === 'translated_only') });
-            }
-        });
-    });
-    
-    elements.subtitleStyleGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                const selectedStyle = e.target.value;
-                chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
-                    const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
-                    elements.editStyleSettingsButton.disabled = !hasSettings;
-                    elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
+        if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (!tabs[0] || !tabs[0].id) {
+                    console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
+                    return;
+                }
+                const currentTabId = tabs[0].id;
+                chrome.scripting.executeScript({
+                    target: { tabId: currentTabId },
+                    files: ['content.js']
+                }, () => {
+                    if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
+                    chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
+                        if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending cancel message:", e);
+                    });
                 });
+            });
+        }
+
+        await stopProcessingUI(elements);
+    }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const elements = {
+            confirmButton: document.getElementById('confirmButton'),
+            targetLanguageInput: document.getElementById('targetLanguage'),
+            subtitleUrlInput: document.getElementById('subtitleUrlInput'),
+            statusBox: document.getElementById('statusBox'),
+            statusText: document.getElementById('statusText'),
+            progressBar: document.getElementById('progressBar'),
+            cancelButton: document.getElementById('cancelButton'),
+            urlStatusText: document.getElementById('urlStatusText'),
+            langStatusText: document.getElementById('langStatusText'),
+            subtitleModeGroup: document.getElementById('subtitleModeGroup'),
+            subtitleModeDual: document.getElementById('subtitleModeDual'),
+            subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'),
+            subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
+            subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
+            subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
+            subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
+            subtitleStyleGrammar: document.getElementById('subtitleStyleGrammar'),
+            editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
+            urlInstructions: document.getElementById('urlInstructions'),
+        };
+        
+        let languageInputTimer;
+
+        if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
+            console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
+            return;
+        }
+        console.log("2. All DOM elements found. Attaching listeners.");
+
+        // --- CRITICAL FIX: Force the taller setup size immediately after loading ---
+        document.body.style.height = INITIAL_POPUP_HEIGHT; 
+        
+        loadSavedStatus(elements);
+
+        elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
+        elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
+        
+        elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    chrome.storage.local.set({ 'translated_only_pref': (e.target.value === 'translated_only') });
+                }
+            });
+        });
+        
+        elements.subtitleStyleGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    const selectedStyle = e.target.value;
+                    chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
+                        const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
+                        elements.editStyleSettingsButton.disabled = !hasSettings;
+                        elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
+                    });
+                }
+            });
+        });
+        
+        elements.editStyleSettingsButton.addEventListener('click', () => {
+            const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
+            openCustomSettingsWindow(selectedStyle);
+        });
+
+        elements.subtitleUrlInput.addEventListener('input', () => {
+            checkUrlAndDetectLanguage(elements);
+            saveCurrentInputs(elements);
+        });
+
+        elements.targetLanguageInput.addEventListener('input', () => {
+            clearTimeout(languageInputTimer);
+            languageInputTimer = setTimeout(() => {
+                checkLanguagePairAvailability(elements);
+                saveCurrentInputs(elements);
+            }, 500);
+        });
+
+        chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+            if (request.command === "update_status") {
+                if (isCancelledByPopup) {
+                    console.log("Popup is in cancelled state. Ignoring status update.");
+                    return;
+                }
+                
+                const { progress, message, route } = request;
+                elements.statusBox.classList.remove('hidden-no-space');
+                
+                if (route === 'url' || progress === 0) {
+                    if (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved")) {
+                        elements.urlStatusText.textContent = message;
+                        elements.urlStatusText.style.color = "#e50914";
+                        elements.urlStatusText.classList.remove('hidden-no-space');
+                    }
+                } 
+                
+                if (progress > 0 && progress < 100) {
+                    elements.statusText.textContent = message;
+                } else if (progress === 0) {
+                    elements.statusText.textContent = message;
+                }
+                
+                elements.progressBar.style.width = progress + '%';
+                
+                if (progress >= 100) {
+                    const popcornEmoji = "\u{1F37F}";
+                    const completionMessage = `Enjoy your show !${popcornEmoji}`;
+                    elements.statusText.textContent = completionMessage;
+
+                    const { ls_status } = await chrome.storage.local.get('ls_status');
+                    if (ls_status) {
+                        ls_status.message = completionMessage;
+                        await chrome.storage.local.set({ ls_status });
+                    }
+                    
+                    elements.targetLanguageInput.disabled = true;
+                    elements.subtitleUrlInput.disabled = true;
+                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.editStyleSettingsButton.disabled = true;
+                    
+                    elements.confirmButton.classList.add('hidden-no-space');
+                    elements.cancelButton.classList.remove('hidden-no-space');
+                    elements.cancelButton.textContent = "Clear Subtitles";
+                    
+                } else if (progress > 0) {
+                    elements.confirmButton.classList.add('hidden-no-space');
+                    
+                    elements.targetLanguageInput.disabled = true;
+                    elements.subtitleUrlInput.disabled = true;
+                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.editStyleSettingsButton.disabled = true;
+                    elements.cancelButton.classList.remove('hidden-no-space');
+                    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+                } else {
+                    elements.confirmButton.disabled = false;
+                    
+                    if (!elements.subtitleUrlInput.value.trim().startsWith('http')) {
+                        elements.urlStatusText.textContent = "Waiting for URL...";
+                        elements.urlStatusText.style.color = "#e50914";
+                    }
+                    elements.targetLanguageInput.disabled = false;
+                    elements.subtitleUrlInput.disabled = false;
+                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                    elements.cancelButton.classList.add('hidden-no-space');
+                    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+                    checkLanguagePairAvailability(elements);
+                }
             }
         });
     });
-    
-    elements.editStyleSettingsButton.addEventListener('click', () => {
-        const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-        openCustomSettingsWindow(selectedStyle);
-    });
-
-    elements.subtitleUrlInput.addEventListener('input', () => {
-        checkUrlAndDetectLanguage(elements);
-        saveCurrentInputs(elements);
-    });
-
-    elements.targetLanguageInput.addEventListener('input', () => {
-        clearTimeout(languageInputTimer);
-        languageInputTimer = setTimeout(() => {
-            checkLanguagePairAvailability(elements);
-            saveCurrentInputs(elements);
-        }, 500);
-    });
-
-    chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-        if (request.command === "update_status") {
-            if (isCancelledByPopup) {
-                console.log("Popup is in cancelled state. Ignoring status update.");
-                return;
-            }
-            
-            const { progress, message, route } = request;
-            elements.statusBox.classList.remove('hidden-no-space');
-            
-            if (route === 'url' || progress === 0) {
-                 if (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved")) {
-                     elements.urlStatusText.textContent = message;
-                     elements.urlStatusText.style.color = "#e50914";
-                     elements.urlStatusText.classList.remove('hidden-no-space');
-                 }
-            } 
-            
-            if (progress > 0 && progress < 100) {
-                 elements.statusText.textContent = message;
-            } else if (progress === 0) {
-                elements.statusText.textContent = message;
-            }
-            
-            elements.progressBar.style.width = progress + '%';
-            
-            if (progress >= 100) {
-                const popcornEmoji = "\u{1F37F}";
-                const completionMessage = `Enjoy your show !${popcornEmoji}`;
-                elements.statusText.textContent = completionMessage;
-
-                const { ls_status } = await chrome.storage.local.get('ls_status');
-                if (ls_status) {
-                    ls_status.message = completionMessage;
-                    await chrome.storage.local.set({ ls_status });
-                }
-                
-                elements.targetLanguageInput.disabled = true;
-                elements.subtitleUrlInput.disabled = true;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                
-                elements.confirmButton.classList.add('hidden-no-space');
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Subtitles";
-                
-            } else if (progress > 0) {
-                elements.confirmButton.classList.add('hidden-no-space');
-                
-                elements.targetLanguageInput.disabled = true;
-                elements.subtitleUrlInput.disabled = true;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation";
-            } else {
-                elements.confirmButton.disabled = false;
-                
-                if (!elements.subtitleUrlInput.value.trim().startsWith('http')) {
-                    elements.urlStatusText.textContent = "Waiting for URL...";
-                    elements.urlStatusText.style.color = "#e50914";
-                }
-                elements.targetLanguageInput.disabled = false;
-                elements.subtitleUrlInput.disabled = false;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                elements.cancelButton.classList.add('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                checkLanguagePairAvailability(elements);
-            }
-        }
-    });
-});
