@@ -25,15 +25,19 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
-// --- MODIFICATION START: Updated button state logic ---
+// --- MODIFICATION START: Updated button logic to hide/show instead of disable ---
 function updateGenerateButtonState(elements) {
-    // A valid URL is now determined by the green success message.
     const isUrlValid = elements.urlStatusText.style.color === 'green';
-    // A valid language is indicated by the green status text.
     const isLangValid = elements.langStatusText.style.color === 'green';
     
-    // Enable the button only if both conditions are true.
-    elements.confirmButton.disabled = !(isUrlValid && isLangValid);
+    // Show the button only if both conditions are true.
+    if (isUrlValid && isLangValid) {
+        elements.confirmButton.classList.remove('hidden-no-space');
+        elements.confirmButton.disabled = false;
+    } else {
+        elements.confirmButton.classList.add('hidden-no-space');
+        elements.confirmButton.disabled = true;
+    }
 }
 // --- MODIFICATION END ---
 
@@ -253,7 +257,7 @@ function checkUrlAndDetectLanguage(elements) {
                 elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
                 elements.urlStatusText.style.color = "green";
             }
-            updateGenerateButtonState(elements); // Update based on initial text
+            updateGenerateButtonState(elements); 
         });
         
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -281,13 +285,13 @@ function checkUrlAndDetectLanguage(elements) {
                             elements.urlStatusText.style.color = "#e50914";
                             await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                         }
-                        updateGenerateButtonState(elements); // --- MODIFICATION
+                        updateGenerateButtonState(elements);
                     }
                 }).catch(e => {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
                    }
-                   updateGenerateButtonState(elements); // --- MODIFICATION
+                   updateGenerateButtonState(elements);
                 });
             }
         });
@@ -295,7 +299,7 @@ function checkUrlAndDetectLanguage(elements) {
          elements.urlStatusText.textContent = "Waiting for URL...";
          elements.urlStatusText.style.color = "#e50914";
          chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-         updateGenerateButtonState(elements); // --- MODIFICATION
+         updateGenerateButtonState(elements);
     }
     
     if (!elements.statusBox.classList.contains('hidden-no-space')) {
