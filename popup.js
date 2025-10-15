@@ -25,6 +25,18 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
+// --- MODIFICATION START: Updated button state logic ---
+function updateGenerateButtonState(elements) {
+    // A valid URL is now determined by the green success message.
+    const isUrlValid = elements.urlStatusText.style.color === 'green';
+    // A valid language is indicated by the green status text.
+    const isLangValid = elements.langStatusText.style.color === 'green';
+    
+    // Enable the button only if both conditions are true.
+    elements.confirmButton.disabled = !(isUrlValid && isLangValid);
+}
+// --- MODIFICATION END ---
+
 function saveCurrentInputs(elements) {
     const currentState = {
         url: elements.subtitleUrlInput.value.trim(),
@@ -98,7 +110,6 @@ async function stopProcessingUI(elements) {
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-    // --- MODIFICATION: Settings are now available for vocab and grammar modes ---
     const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
     elements.editStyleSettingsButton.disabled = !hasSettings;
 
@@ -114,6 +125,8 @@ async function stopProcessingUI(elements) {
     
     checkUrlAndDetectLanguage(elements);
     checkLanguagePairAvailability(elements);
+    
+    updateGenerateButtonState(elements);
 
     console.log("Processing stopped. UI reset without clearing inputs.");
 }
@@ -139,6 +152,7 @@ async function checkLanguagePairAvailability(elements) {
     if (inputLang === '') {
         elements.langStatusText.textContent = "Waiting for language...";
         elements.langStatusText.style.color = "#e50914";
+        updateGenerateButtonState(elements);
         return;
     }
 
@@ -161,6 +175,7 @@ async function checkLanguagePairAvailability(elements) {
     if (!targetLangCode) {
         elements.langStatusText.textContent = "Please check language spelling.";
         elements.langStatusText.style.color = "#e50914";
+        updateGenerateButtonState(elements);
         return;
     }
 
@@ -169,6 +184,7 @@ async function checkLanguagePairAvailability(elements) {
     if (!baseLangCode) {
         elements.langStatusText.textContent = "Waiting for URL to check translation compatibility...";
         elements.langStatusText.style.color = "#777";
+        updateGenerateButtonState(elements);
         return;
     }
 
@@ -187,6 +203,7 @@ async function checkLanguagePairAvailability(elements) {
                     console.warn("Language check error:", chrome.runtime.lastError.message);
                     elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
                     elements.langStatusText.style.color = "#e50914";
+                    updateGenerateButtonState(elements);
                     return;
                 }
                 
@@ -207,25 +224,27 @@ async function checkLanguagePairAvailability(elements) {
                         elements.langStatusText.style.color = "#e50914";
                     }
                 }
+                updateGenerateButtonState(elements);
             }).catch(e => {
                 console.warn("Could not send language pair check message:", e);
                 elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
                 elements.langStatusText.style.color = "#e50914";
+                updateGenerateButtonState(elements);
             });
         }
     } catch (e) {
         console.warn("Could not query tabs for language pair check:", e);
         elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
         elements.langStatusText.style.color = "#e50914";
+        updateGenerateButtonState(elements);
     }
 }
 
 function checkUrlAndDetectLanguage(elements) {
     const url = elements.subtitleUrlInput.value.trim();
-    const isUrlValid = (url && url.startsWith('http'));
-    elements.confirmButton.disabled = !isUrlValid;
+    const urlLooksValid = (url && url.startsWith('http'));
 
-    if (isUrlValid) {
+    if (urlLooksValid) {
         chrome.storage.local.get(['detected_base_lang_name'], (data) => {
             if (!data.detected_base_lang_name) {
                 elements.urlStatusText.textContent = `Detecting language...`;
@@ -234,6 +253,7 @@ function checkUrlAndDetectLanguage(elements) {
                 elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
                 elements.urlStatusText.style.color = "green";
             }
+            updateGenerateButtonState(elements); // Update based on initial text
         });
         
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -261,11 +281,13 @@ function checkUrlAndDetectLanguage(elements) {
                             elements.urlStatusText.style.color = "#e50914";
                             await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                         }
+                        updateGenerateButtonState(elements); // --- MODIFICATION
                     }
                 }).catch(e => {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
-                    }
+                   }
+                   updateGenerateButtonState(elements); // --- MODIFICATION
                 });
             }
         });
@@ -273,6 +295,7 @@ function checkUrlAndDetectLanguage(elements) {
          elements.urlStatusText.textContent = "Waiting for URL...";
          elements.urlStatusText.style.color = "#e50914";
          chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+         updateGenerateButtonState(elements); // --- MODIFICATION
     }
     
     if (!elements.statusBox.classList.contains('hidden-no-space')) {
@@ -314,7 +337,6 @@ function loadSavedStatus(elements) {
         const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
         if (styleElement) styleElement.checked = true;
 
-        // --- MODIFICATION: Settings are now available for vocab and grammar modes ---
         const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(savedStyle);
         elements.editStyleSettingsButton.disabled = !hasSettings;
 
@@ -397,6 +419,8 @@ function loadSavedStatus(elements) {
              elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
              elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
              elements.editStyleSettingsButton.disabled = !hasSettings;
+             
+             updateGenerateButtonState(elements);
         }
     });
 }
@@ -415,7 +439,6 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    // --- MODIFICATION: Dynamically set prefix and defaults for all styles ---
     const defaults = (selectedStyle === 'netflix') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
     const stylePrefix = `${selectedStyle}_`;
     
@@ -600,7 +623,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.checked) {
                 const selectedStyle = e.target.value;
                 chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
-                    // --- MODIFICATION: Settings are now available for vocab and grammar modes ---
                     const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
                     elements.editStyleSettingsButton.disabled = !hasSettings;
                     elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
