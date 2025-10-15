@@ -18,6 +18,7 @@ var currentTranslator = currentTranslator || null;
 var TICK_RATE = TICK_RATE || 10000000;
 
 function sendStatusUpdate(message, progress, url = null, route = 'main') {
+    if (isCancelled) return; // FIX: Prevents any status updates after cancellation.
     chrome.storage.local.set({ 'ls_status': { message: message, progress: progress, baseLang: subtitleLanguages.base, targetLang: subtitleLanguages.target, url: progress < 100 ? url : null } }).catch(e => console.error("Could not save status to storage:", e));
     chrome.runtime.sendMessage({ command: "update_status", message: message, progress: progress, route: route }).catch(e => { if (!e.message.includes('Receiving end does not exist')) console.warn("Content Script Messaging Error:", e); });
 }
@@ -87,7 +88,7 @@ function parseTtmlXml(xmlString, url) {
 function detectBaseLanguage() {
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
     return new Promise((resolve) => {
-        if (!chrome.i1n || !chrome.i18n.detectLanguage) {
+        if (!chrome.i18n || !chrome.i18n.detectLanguage) {
             console.error("Chrome i18n.detectLanguage API not available. Defaulting to 'en'.");
             resolve('en');
             return;
