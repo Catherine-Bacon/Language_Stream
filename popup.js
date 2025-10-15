@@ -25,15 +25,12 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
-// --- MODIFICATION START: Reverted logic to enable/disable the button ---
 function updateGenerateButtonState(elements) {
     const isUrlValid = elements.urlStatusText.style.color === 'green';
     const isLangValid = elements.langStatusText.style.color === 'green';
     
-    // Enable the button only if both conditions are true.
     elements.confirmButton.disabled = !(isUrlValid && isLangValid);
 }
-// --- MODIFICATION END ---
 
 function saveCurrentInputs(elements) {
     const currentState = {
@@ -365,8 +362,10 @@ function loadSavedStatus(elements) {
             elements.urlStatusText.classList.add('hidden-no-space');
             elements.langStatusText.classList.add('hidden-no-space');
             
+            // --- MODIFICATION: Hide generate button when processing or complete ---
+            elements.confirmButton.classList.add('hidden-no-space');
+            
             if (status.progress < 100) {
-                elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -374,16 +373,13 @@ function loadSavedStatus(elements) {
                 elements.editStyleSettingsButton.disabled = true;
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                elements.confirmButton.classList.remove('hidden-no-space'); // MODIFICATION: Ensure visible but disabled
                 
             } else {
-                elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
-                elements.confirmButton.classList.remove('hidden-no-space'); // MODIFICATION: Ensure visible but disabled
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
             }
@@ -491,9 +487,11 @@ async function handleConfirmClick(elements) {
     });
     await chrome.storage.local.remove(['ui_temp_state']);
     
+    // --- MODIFICATION: Hide generate button when processing starts ---
+    elements.confirmButton.classList.add('hidden-no-space');
+
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
-    elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = true;
     elements.subtitleUrlInput.disabled = true;
     
@@ -684,22 +682,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     await chrome.storage.local.set({ ls_status });
                 }
                 
-                elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
                 
-                // --- MODIFICATION: Make sure generate button is visible but disabled ---
-                elements.confirmButton.classList.remove('hidden-no-space');
+                // --- MODIFICATION: Hide generate button when complete ---
+                elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
                 
             } else if (progress > 0) {
-                // --- MODIFICATION: Make sure generate button is visible but disabled ---
-                elements.confirmButton.classList.remove('hidden-no-space');
-                elements.confirmButton.disabled = true;
+                // --- MODIFICATION: Hide generate button during processing ---
+                elements.confirmButton.classList.add('hidden-no-space');
                 
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
