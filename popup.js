@@ -80,7 +80,7 @@ async function resetStatus(elements) {
     elements.cancelButton.classList.add('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
 
-    elements.statusBox.classList.add('hidden-no-space');
+    elements.statusBox.classList.add('hidden-no-space'); // *MODIFICATION: Ensure statusBox is hidden during a full reset.*
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
 
@@ -319,7 +319,7 @@ function loadSavedStatus(elements) {
         elements.subtitleUrlInput.disabled = false;
         elements.cancelButton.classList.add('hidden-no-space');
         elements.cancelButton.textContent = "Cancel Subtitle Generation";
-        elements.statusBox.classList.add('hidden-no-space');
+        elements.statusBox.classList.add('hidden-no-space'); // *MODIFICATION: Ensure statusBox is hidden initially unless status requires it*
         
         if (data.translated_only_pref === true) {
             elements.subtitleModeTranslatedOnly.checked = true;
@@ -660,7 +660,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  if (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved")) {
                      elements.urlStatusText.textContent = message;
                      elements.urlStatusText.style.color = "#e50914";
-                     elements.statusText.textContent = "";
                      elements.urlStatusText.classList.remove('hidden-no-space');
                  }
             } 
