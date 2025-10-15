@@ -112,11 +112,11 @@ async function stopProcessingUI(elements) {
     elements.progressBar.style.width = '0%';
     
     elements.confirmButton.classList.remove('hidden-no-space');
+
+    // --- MODIFICATION: Make status and instruction texts visible again ---
+    elements.urlInstructions.classList.remove('hidden-no-space');
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
-
-    // --- MODIFICATION: Make instructions visible again ---
-    elements.urlInstructions.classList.remove('hidden-no-space');
     
     checkUrlAndDetectLanguage(elements);
     checkLanguagePairAvailability(elements);
@@ -361,11 +361,12 @@ function loadSavedStatus(elements) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
-            elements.urlStatusText.classList.remove('hidden-no-space');
-            elements.langStatusText.classList.remove('hidden-no-space');
+            // --- MODIFICATION: Hide instructional and status texts ---
+            elements.urlInstructions.classList.add('hidden-no-space');
+            elements.urlStatusText.classList.add('hidden-no-space');
+            elements.langStatusText.classList.add('hidden-no-space');
             
             elements.confirmButton.classList.add('hidden-no-space');
-            elements.urlInstructions.classList.add('hidden-no-space'); // --- MODIFICATION
             
             if (status.progress < 100) {
                 elements.targetLanguageInput.disabled = true;
@@ -427,8 +428,10 @@ async function handleConfirmClick(elements) {
     elements.statusBox.classList.remove('hidden-no-space');
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
-    // --- MODIFICATION: Hide instructions on click ---
+    // --- MODIFICATION: Hide instructions and status texts on click ---
     elements.urlInstructions.classList.add('hidden-no-space');
+    elements.urlStatusText.classList.add('hidden-no-space');
+    elements.langStatusText.classList.add('hidden-no-space');
 
     const url = elements.subtitleUrlInput.value.trim();
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
@@ -590,7 +593,6 @@ document.addEventListener('DOMContentLoaded', () => {
         subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
         subtitleStyleGrammar: document.getElementById('subtitleStyleGrammar'),
         editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
-        // --- MODIFICATION: Add reference to instructions div ---
         urlInstructions: document.getElementById('urlInstructions'),
     };
     
