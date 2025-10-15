@@ -80,7 +80,7 @@ async function resetStatus(elements) {
     elements.cancelButton.classList.add('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
 
-    elements.statusBox.classList.add('hidden-no-space'); // *MODIFICATION: Ensure statusBox is hidden during a full reset.*
+    elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
 
