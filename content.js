@@ -329,8 +329,19 @@ async function translateAllSubtitles(url) {
     const criticalBatch = parsedSubtitles.slice(0, CRITICAL_BATCH_SIZE);
     const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
     const START_PROGRESS = 60;
-    const CRITICAL_BATCH_WEIGHT = 10;
-    const CONCURRENT_BATCH_WEIGHT = 30;
+    
+    // --- MODIFICATION START: Adjust weights for Vocab style ---
+    const isVocab = (subtitleStylePref === 'vocabulary');
+    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; // 20% for translation if Vocab, 30% otherwise
+    const MATCHING_WEIGHT = isVocab ? 10 : 0;     // 10% for matching if Vocab, 0% otherwise
+    const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT; // Total is 30% for all styles
+    
+    // The total weight for the concurrent batch needs to cover the remaining portion up to 100 (excluding initial 60)
+    const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? 20 : 30;
+    const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
+    const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT; // Total is 30% for all styles
+    // --- MODIFICATION END ---
+    
     sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
     
     // --- Phase 1: Critical Batch Translation and VOCAB PROCESSING ---
@@ -344,17 +355,21 @@ async function translateAllSubtitles(url) {
         // 1. Translate the entire line
         sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         
+        // Calculate progress after main translation (for Vocab this is TRANSLATION_WEIGHT of the batch)
+        let progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * TRANSLATION_WEIGHT);
+
         // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
-        if (subtitleStylePref === 'vocabulary' && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
+        if (isVocab && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
              await processVocabColorCoding(sub);
+             // Increment progress by MATCHING_WEIGHT after word matching
+             progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_TOTAL_WEIGHT);
         }
         
-        const progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_WEIGHT);
         sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
     }
     
     // --- Phase 2: Concurrent Batch Translation and VOCAB PROCESSING ---
-    const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_WEIGHT;
+    const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT;
     sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
     
     const translationPromises = concurrentBatch.map(async (sub, index) => {
@@ -364,12 +379,18 @@ async function translateAllSubtitles(url) {
         sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         
         // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
-        if (subtitleStylePref === 'vocabulary' && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
+        if (isVocab && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
              await processVocabColorCoding(sub);
         }
         
         if (index % 5 === 0 || index === concurrentBatch.length - 1) {
-            const progress = CONCURRENT_START_PROGRESS + Math.floor(((index + 1) / concurrentBatch.length) * CONCURRENT_BATCH_WEIGHT);
+            // Calculate total progress: START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT (for phase 1) 
+            // + CONCURRENT_BATCH_TOTAL_WEIGHT (for phase 2, which covers both translation and matching if vocab)
+            const progressRatio = (index + 1) / concurrentBatch.length;
+            
+            // Total progress = Start of Phase 2 + (Progress Ratio * Phase 2 Weight)
+            const progress = CONCURRENT_START_PROGRESS + Math.floor(progressRatio * CONCURRENT_BATCH_TOTAL_WEIGHT);
+
             if (progress < 100) {
                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
                 sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url);
