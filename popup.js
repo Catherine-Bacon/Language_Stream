@@ -112,9 +112,11 @@ async function stopProcessingUI(elements) {
     elements.progressBar.style.width = '0%';
     
     elements.confirmButton.classList.remove('hidden-no-space');
-
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
+
+    // --- MODIFICATION: Make instructions visible again ---
+    elements.urlInstructions.classList.remove('hidden-no-space');
     
     checkUrlAndDetectLanguage(elements);
     checkLanguagePairAvailability(elements);
@@ -359,11 +361,11 @@ function loadSavedStatus(elements) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
-            // --- MODIFICATION: Ensure status texts are visible ---
             elements.urlStatusText.classList.remove('hidden-no-space');
             elements.langStatusText.classList.remove('hidden-no-space');
             
             elements.confirmButton.classList.add('hidden-no-space');
+            elements.urlInstructions.classList.add('hidden-no-space'); // --- MODIFICATION
             
             if (status.progress < 100) {
                 elements.targetLanguageInput.disabled = true;
@@ -425,6 +427,9 @@ async function handleConfirmClick(elements) {
     elements.statusBox.classList.remove('hidden-no-space');
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
+    // --- MODIFICATION: Hide instructions on click ---
+    elements.urlInstructions.classList.add('hidden-no-space');
+
     const url = elements.subtitleUrlInput.value.trim();
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
     
@@ -465,9 +470,6 @@ async function handleConfirmClick(elements) {
     }
     
     elements.statusText.textContent = "Generating subtitles...";
-    // --- MODIFICATION: Keep status texts visible ---
-    // elements.urlStatusText.classList.add('hidden-no-space');
-    // elements.langStatusText.classList.add('hidden-no-space');
     elements.progressBar.style.width = '5%';
     
     if (!url || !url.startsWith('http')) {
@@ -588,6 +590,8 @@ document.addEventListener('DOMContentLoaded', () => {
         subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
         subtitleStyleGrammar: document.getElementById('subtitleStyleGrammar'),
         editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
+        // --- MODIFICATION: Add reference to instructions div ---
+        urlInstructions: document.getElementById('urlInstructions'),
     };
     
     let languageInputTimer;
@@ -663,9 +667,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (progress > 0 && progress < 100) {
                  elements.statusText.textContent = message;
-                 // --- MODIFICATION: Keep status texts visible ---
-                 // elements.urlStatusText.classList.add('hidden-no-space');
-                 // elements.langStatusText.classList.add('hidden-no-space');
             } else if (progress === 0) {
                 elements.statusText.textContent = message;
             }

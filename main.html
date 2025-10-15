@@ -45,7 +45,7 @@
         margin-bottom: 5px;
       }
       #confirmButton {
-        margin-top: 10px;
+        margin-top: 15px;
         margin-bottom: 0;
       }
       button:hover {
@@ -62,7 +62,6 @@
         background-color: #999;
       }
 
-      /* --- MODIFICATION START: Added style for disabled buttons --- */
       button:disabled,
       button[disabled]{
         background-color: #cccccc;
@@ -73,7 +72,6 @@
       button[disabled]:hover {
         background-color: #cccccc;
       }
-      /* --- MODIFICATION END --- */
       
       .hidden-no-space {
           display: none !important;
@@ -207,14 +205,15 @@
     <h1>Language Stream</h1>
 
     <h2>1. Retrieve Subtitle URL</h2>
-    <p>Open Netflix's player and  set subtitles to your Base Language</p>
-    <p>Right click video player > Inspect</p>    
-    <p>Press Network > Reload Page</p>
-    <p>Search ?o= > Sort by name (descending)<p>
-    <p>Right click the top name (starting with ?o=) > Copy > Copy URL</p>
-    
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <p style="margin: 0; padding: 0;">Turn off Netflix subtitles and paste the URL below:</p>
+    <div id="urlInstructions">
+      <p>Open Netflix's player and  set subtitles to your Base Language</p>
+      <p>Right click video player > Inspect</p>    
+      <p>Press Network > Reload Page</p>
+      <p>Search ?o= > Sort by name (descending)<p>
+      <p>Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+          <p style="margin: 0; padding: 0;">Turn off Netflix subtitles and paste the URL below:</p>
+      </div>
     </div>
     <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
            value="">
