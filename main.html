@@ -3,7 +3,8 @@
     <style>
       body {
         font-family: Arial, sans-serif;
-        padding: 15px;
+        /* --- MODIFICATION: Reduced bottom padding --- */
+        padding: 15px 15px 5px 15px;
         width: 350px;
       }
       h1 {
@@ -32,11 +33,9 @@
         border: 1px solid #ddd;
         box-sizing: border-box;
       }
-      /* --- MODIFICATION START: Added specific rule for the language input --- */
       #targetLanguage {
         margin-top: 0;
       }
-      /* --- MODIFICATION END --- */
       button {
         background-color: #e50914;
         color: white;
@@ -46,6 +45,11 @@
         margin-top: 0; 
         margin-bottom: 5px;
       }
+      /* --- MODIFICATION START: Added top margin for spacing --- */
+      #confirmButton {
+        margin-top: 15px;
+      }
+      /* --- MODIFICATION END --- */
       button:hover {
         background-color: #f40a16;
       }
@@ -116,11 +120,10 @@
           margin: 0;
       }
       
-      /* MODIFIED: Standard Radio Group for Subtitle Mode */
       .radio-group {
         display: flex;
-        justify-content: center; /* Center horizontally */
-        align-items: center;     /* Center vertically */
+        justify-content: center;
+        align-items: center;
         gap: 10px; 
         margin-bottom: 0; 
         padding: 5px 5px; 
@@ -128,8 +131,8 @@
         border-radius: 4px;
         flex-grow: 1; 
         flex-wrap: wrap; 
-        height: 38px; /* MODIFIED: Set fixed height for consistent sizing */
-        box-sizing: border-box; /* ADDED: To match the style group's height calculation */
+        height: 38px;
+        box-sizing: border-box;
       }
       .radio-group label {
         display: flex;
@@ -143,7 +146,6 @@
         margin-right: 5px;
       }
       
-      /* <<< MODIFICATION START: Settings cog smaller and centered */
       #editStyleSettingsButton {
           width: 28px; 
           height: 28px; 
@@ -152,16 +154,14 @@
           margin-top: 2px;
           background-color: #555;
           line-height: 1; 
-          font-size: 1em; /* Smaller font for the cog symbol */
+          font-size: 1em;
           border: none; 
           flex-shrink: 0;
       }
-      /* <<< MODIFICATION END */
       #editStyleSettingsButton:hover {
           background-color: #777;
       }
 
-      /* MODIFIED: Style for the container holding the style radio buttons and the button */
       .style-selection-group {
           display: flex;
           align-items: center;
@@ -169,15 +169,15 @@
           border: 1px solid #ddd;
           border-radius: 4px;
           padding: 3px 5px; 
-          height: 38px; /* MODIFIED: Set fixed height for consistent sizing */
-          box-sizing: border-box; /* Ensure padding is inside the height */
+          height: 38px;
+          box-sizing: border-box;
       }
       .style-radio-group {
           display: flex;
           gap: 10px;
           flex-grow: 1; 
-          justify-content: center; /* Center the radio options */
-          align-items: center; /* Center vertically */
+          justify-content: center;
+          align-items: center;
       }
       .style-radio-group label {
           display: flex;
@@ -232,7 +232,7 @@
         </div>
     </div>
     
-    <div class="preference-row">
+    <div class="preference-row" style="margin-bottom: 0;">
         <p>Style:</p>
         <div class="style-selection-group">
             <div id="subtitleStyleGroup" class="style-radio-group">
