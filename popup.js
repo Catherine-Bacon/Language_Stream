@@ -356,7 +356,7 @@ function loadSavedStatus(elements) {
         }
 
         if (status && status.progress > 0) {
-            document.body.style.height = '300px';
+            document.body.style.height = '200px';
 
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
@@ -424,7 +424,7 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
-    document.body.style.height = '300px';
+    document.body.style.height = '200px';
 
     isCancelledByPopup = false;
     elements.statusBox.classList.remove('hidden-no-space');
