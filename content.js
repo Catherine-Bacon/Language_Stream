@@ -213,10 +213,10 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     }
 }
 
-// --- MODIFIED FUNCTION: Word-level translation and color coding for Vocab mode (Two Passes) ---
+// --- MODIFIED FUNCTION: Word-level translation and color coding for Vocab mode (Two Passes with Multi-Word Match) ---
 async function processVocabColorCoding(subtitle) {
-    // Helper to sanitize words for matching
-    const sanitizeWord = (word) => word.toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g, "").trim();
+    // Helper to sanitize words for matching (removes punctuation, keeps spaces for phrase matching)
+    const sanitizePhrase = (phrase) => phrase.toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g, "").trim();
 
     const baseWords = subtitle.text.split(/\s+/).filter(w => w.length > 0);
     const translatedWords = subtitle.translatedText.split(/\s+/).filter(w => w.length > 0);
@@ -229,60 +229,88 @@ async function processVocabColorCoding(subtitle) {
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
     
-    // --- PASS 1: Base Language (i) to Target Language (j) ---
+    // --- PASS 1: Base Language (i) to Target Language (j) - Search for single/multi-word match ---
     for (let i = 0; i < baseWords.length; i++) {
         if (baseWordColors[i] !== 0) continue; // Skip if already matched
         
-        const wordToTranslate = sanitizeWord(baseWords[i]);
+        const wordToTranslate = sanitizePhrase(baseWords[i]);
         if (wordToTranslate.length === 0) continue; 
         
         // 1. Get word-level translation (Base -> Target)
         const wordTranslation = await translateSubtitle(wordToTranslate, baseLang, targetLang);
         if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
 
-        const targetWord = sanitizeWord(wordTranslation);
+        const targetPhrase = sanitizePhrase(wordTranslation);
+        const targetPhraseWords = targetPhrase.split(/\s+/).filter(w => w.length > 0);
+        const matchLength = targetPhraseWords.length;
 
-        // 2. Search for exact match in the translated subtitle
-        for (let j = 0; j < translatedWords.length; j++) {
-            if (translatedWordColors[j] === 0) { // Only check unused translated words
-                const currentTranslatedWord = sanitizeWord(translatedWords[j]);
-                
-                if (currentTranslatedWord === targetWord) {
-                    // Match found: assign a new color code
-                    baseWordColors[i] = colorCodeCounter;
-                    translatedWordColors[j] = colorCodeCounter;
-                    colorCodeCounter++;
+        // 2. Search for multi-word match in the translated subtitle
+        for (let j = 0; j <= translatedWords.length - matchLength; j++) {
+            // Check if the sequence of target words is currently uncolored
+            let isUncolored = true;
+            for (let k = 0; k < matchLength; k++) {
+                if (translatedWordColors[j + k] !== 0) {
+                    isUncolored = false;
                     break;
                 }
+            }
+            if (!isUncolored) continue; // Skip if any part of the sequence is already matched
+
+            // Construct the phrase from the subtitle for comparison
+            const subtitlePhraseWords = translatedWords.slice(j, j + matchLength);
+            const subtitlePhrase = sanitizePhrase(subtitlePhraseWords.join(' '));
+            
+            if (subtitlePhrase === targetPhrase) {
+                // Match found: assign a new color code to the base word and the target phrase sequence
+                baseWordColors[i] = colorCodeCounter;
+                for (let k = 0; k < matchLength; k++) {
+                    translatedWordColors[j + k] = colorCodeCounter;
+                }
+                colorCodeCounter++;
+                break; // Found match for base word[i], move to next base word
             }
         }
     }
 
-    // --- PASS 2: Translated Language (j) to Base Language (i) ---
+    // --- PASS 2: Translated Language (j) to Base Language (i) - Search for single/multi-word match ---
     for (let j = 0; j < translatedWords.length; j++) {
         if (translatedWordColors[j] !== 0) continue; // Skip if already matched
         
-        const wordToTranslate = sanitizeWord(translatedWords[j]);
+        const wordToTranslate = sanitizePhrase(translatedWords[j]);
         if (wordToTranslate.length === 0) continue;
         
         // 1. Get word-level back-translation (Target -> Base)
         const wordTranslation = await translateSubtitle(wordToTranslate, targetLang, baseLang);
         if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
         
-        const targetWord = sanitizeWord(wordTranslation);
-
-        // 2. Search for exact match in the base subtitle
-        for (let i = 0; i < baseWords.length; i++) {
-            if (baseWordColors[i] === 0) { // Only check unused base words
-                const currentBaseWord = sanitizeWord(baseWords[i]);
-                
-                if (currentBaseWord === targetWord) {
-                    // Match found: assign a new color code
-                    baseWordColors[i] = colorCodeCounter;
-                    translatedWordColors[j] = colorCodeCounter;
-                    colorCodeCounter++;
+        const targetPhrase = sanitizePhrase(wordTranslation);
+        const targetPhraseWords = targetPhrase.split(/\s+/).filter(w => w.length > 0);
+        const matchLength = targetPhraseWords.length;
+        
+        // 2. Search for multi-word match in the base subtitle
+        for (let i = 0; i <= baseWords.length - matchLength; i++) {
+            // Check if the sequence of base words is currently uncolored
+            let isUncolored = true;
+            for (let k = 0; k < matchLength; k++) {
+                if (baseWordColors[i + k] !== 0) {
+                    isUncolored = false;
                     break;
                 }
+            }
+            if (!isUncolored) continue; // Skip if any part of the sequence is already matched
+
+            // Construct the phrase from the subtitle for comparison
+            const subtitlePhraseWords = baseWords.slice(i, i + matchLength);
+            const subtitlePhrase = sanitizePhrase(subtitlePhraseWords.join(' '));
+            
+            if (subtitlePhrase === targetPhrase) {
+                // Match found: assign a new color code to the translated word and the base phrase sequence
+                translatedWordColors[j] = colorCodeCounter;
+                for (let k = 0; k < matchLength; k++) {
+                    baseWordColors[i + k] = colorCodeCounter;
+                }
+                colorCodeCounter++;
+                break; // Found match for translated word[j], move to next translated word
             }
         }
     }
