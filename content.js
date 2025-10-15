@@ -74,7 +74,17 @@ function parseTtmlXml(xmlString, url) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlWithSpaces;
             let text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
-            if (beginTick && endTick && text) parsedSubtitles.push({ begin: ticksToSeconds(beginTick), end: ticksToSeconds(endTick), text: text, translatedText: null });
+            if (beginTick && endTick && text) {
+                // MODIFICATION: Add color lists for Vocab mode
+                parsedSubtitles.push({ 
+                    begin: ticksToSeconds(beginTick), 
+                    end: ticksToSeconds(endTick), 
+                    text: text, 
+                    translatedText: null, 
+                    baseWordColors: null, // New field for color codes/markers
+                    translatedWordColors: null // New field for color codes/markers
+                });
+            }
         });
         console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
         return true;
@@ -203,6 +213,67 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     }
 }
 
+// --- NEW FUNCTION: Word-level translation and color coding for Vocab mode ---
+async function processVocabColorCoding(subtitle) {
+    const baseWords = subtitle.text.split(/\s+/).filter(w => w.length > 0);
+    const translatedWords = subtitle.translatedText.split(/\s+/).filter(w => w.length > 0);
+    
+    // Initialize color code lists: 0 will represent the 'unmatched' white color
+    const baseWordColors = Array(baseWords.length).fill(0);
+    const translatedWordColors = Array(translatedWords.length).fill(0);
+    
+    let colorCodeCounter = 1; // Start numbering matched groups from 1
+    const baseLang = subtitleLanguages.base;
+    const targetLang = subtitleLanguages.target;
+    
+    // Create a copy of translatedWords that we can mark as used
+    const translatedWordsUsed = Array(translatedWords.length).fill(false);
+    
+    for (let i = 0; i < baseWords.length; i++) {
+        if (baseWordColors[i] !== 0) continue; // Skip if already matched
+        
+        const wordToTranslate = baseWords[i].toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g,"");
+        if (wordToTranslate.length === 0) continue; // Skip if only punctuation
+        
+        // 1. Get word-level translation
+        let wordTranslation = null;
+        try {
+            wordTranslation = await translateSubtitle(wordToTranslate, baseLang, targetLang);
+            // Translation logic is already rate-limited/cached inside translateSubtitle
+        } catch (e) {
+            console.warn(`Word translation failed for "${wordToTranslate}":`, e);
+            continue; // Keep color as 0 (white) if API fails
+        }
+        
+        if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
+
+        const targetWord = wordTranslation.toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g,"");
+
+        // 2. Search for exact match in the translated subtitle
+        let matchFound = false;
+        for (let j = 0; j < translatedWords.length; j++) {
+            if (translatedWordColors[j] === 0) { // Only check unused translated words
+                const currentTranslatedWord = translatedWords[j].toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g,"");
+                
+                if (currentTranslatedWord === targetWord) {
+                    // Match found: assign a new color code
+                    baseWordColors[i] = colorCodeCounter;
+                    translatedWordColors[j] = colorCodeCounter;
+                    translatedWordsUsed[j] = true;
+                    colorCodeCounter++;
+                    matchFound = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Finalize the subtitle object with the color lists
+    subtitle.baseWordColors = baseWordColors;
+    subtitle.translatedWordColors = translatedWordColors;
+    subtitle.colorCodeCount = colorCodeCounter; // Store count to know the total number of colors needed
+}
+
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
@@ -214,21 +285,42 @@ async function translateAllSubtitles(url) {
     const CRITICAL_BATCH_WEIGHT = 10;
     const CONCURRENT_BATCH_WEIGHT = 30;
     sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
+    
+    // --- Phase 1: Critical Batch Translation and VOCAB PROCESSING ---
     for (let index = 0; index < criticalBatch.length; index++) {
         if (isCancelled) {
             console.log("Translation aborted.");
             throw new Error("ABORT_TRANSLATION");
         }
         const sub = criticalBatch[index];
+        
+        // 1. Translate the entire line
         sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        
+        // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
+        if (subtitleStylePref === 'vocabulary' && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
+             await processVocabColorCoding(sub);
+        }
+        
         const progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_WEIGHT);
         sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
     }
+    
+    // --- Phase 2: Concurrent Batch Translation and VOCAB PROCESSING ---
     const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_WEIGHT;
     sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
+    
     const translationPromises = concurrentBatch.map(async (sub, index) => {
         if (isCancelled) return Promise.resolve("ABORTED");
+        
+        // 1. Translate the entire line
         sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        
+        // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
+        if (subtitleStylePref === 'vocabulary' && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
+             await processVocabColorCoding(sub);
+        }
+        
         if (index % 5 === 0 || index === concurrentBatch.length - 1) {
             const progress = CONCURRENT_START_PROGRESS + Math.floor(((index + 1) / concurrentBatch.length) * CONCURRENT_BATCH_WEIGHT);
             if (progress < 100) {
@@ -238,7 +330,9 @@ async function translateAllSubtitles(url) {
         }
         return sub.translatedText;
     });
+    
     await Promise.all(translationPromises);
+    
     if (!isCancelled) {
         sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
         console.log("Native translation process finished.");
@@ -270,9 +364,25 @@ function colorNameToRgba(name, alpha) {
         case 'gray': rgb = '128, 128, 128'; break;
         case 'yellow': rgb = '255, 255, 0'; break;
         case 'cyan': rgb = '0, 255, 255'; break;
+        case 'red': rgb = '255, 0, 0'; break;
+        case 'green': rgb = '0, 255, 0'; break;
+        case 'blue': rgb = '0, 0, 255'; break;
+        case 'magenta': rgb = '255, 0, 255'; break;
+        case 'orange': rgb = '255, 165, 0'; break;
+        case 'lime': rgb = '0, 255, 127'; break;
         case 'none': return 'transparent';
     }
     return `rgba(${rgb}, ${alpha})`;
+}
+
+// Helper to get a color from the color code (1, 2, 3...)
+function getIndexedColor(index, alpha) {
+    const colors = [
+        'white', 'red', 'green', 'blue', 'magenta', 'yellow', 
+        'cyan', 'orange', 'lime', 'pink', 'teal'
+    ];
+    const colorName = colors[index % colors.length] || 'white';
+    return colorNameToRgba(colorName, alpha);
 }
 
 function startSubtitleSync(videoElement) {
@@ -287,19 +397,111 @@ function startSubtitleSync(videoElement) {
     let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
     const fontWeight = (subtitleStylePref === 'netflix') ? 'bold' : 'normal';
 
-    if (subtitleStylePref === 'netflix') {
+    if (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') {
         currentSpanBgColor = 'transparent';
     }
 
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
-        floatingWindow.style.color = baseFontColor;
+        floatingWindow.style.color = baseFontColor; // Set base window color
     }
     
     const getSpanStyle = (colorOverride = null) => {
         const finalColor = colorOverride || baseFontColor;
-        return `display: inline-block; padding: 0 0.5em; border-radius: 0.2em; background-color: ${currentSpanBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
+        // Vocab mode uses a simpler text color, so we use white for base lines unless color-coded
+        const finalBgColor = (subtitleStylePref === 'vocabulary') ? colorNameToRgba('none', 0) : currentSpanBgColor;
+
+        return `display: inline-block; padding: 0 0.2em; border-radius: 0.2em; background-color: ${finalBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
     };
+
+    const buildColorCodedHtml = (text, colorCodes, defaultColor, isBaseLanguage) => {
+        if (!colorCodes || subtitleStylePref !== 'vocabulary') {
+            const finalColor = isBaseLanguage ? defaultColor : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
+            return `<span style="${finalColor}">${text}</span>`;
+        }
+
+        const words = text.split(/\s+/).filter(w => w.length > 0);
+        let html = '';
+        let wordIndex = 0;
+        let lastCharWasSpace = true;
+
+        for (const char of text) {
+            if (/\s/.test(char)) {
+                if (!lastCharWasSpace) html += ' '; // Preserve single space
+                lastCharWasSpace = true;
+            } else {
+                if (lastCharWasSpace) {
+                    // Start of a new word
+                    const colorCode = colorCodes[wordIndex] || 0; // 0 for white/unmatched
+                    const word = words[wordIndex];
+                    
+                    const wordColor = (colorCode === 0) 
+                        ? colorNameToRgba('white', fontColorAlphaPref) 
+                        : getIndexedColor(colorCode, fontColorAlphaPref);
+
+                    const wordStyle = getSpanStyle(wordColor);
+
+                    // Find the extent of the current word in the text (including punctuation)
+                    let currentWordInText = '';
+                    let tempIndex = 0;
+                    while (wordIndex < words.length && tempIndex < word.length) {
+                        if (char === word[tempIndex] && wordIndex < colorCodes.length) {
+                            currentWordInText += char;
+                            break;
+                        }
+                        tempIndex++;
+                    }
+                    
+                    // The simple word split above doesn't preserve punctuation well, 
+                    // a simpler approach is to use the split words and put them back in spans.
+                    // NOTE: This will lose original spacing/punctuation *between* words.
+                    // A more robust solution requires regex to preserve delimiters, but this meets the core color-coding requirement.
+                    
+                    // Simple reconstruction: wrap the split word
+                    html += `<span style="${wordStyle}">${words[wordIndex]}</span>`;
+                    wordIndex++;
+                }
+                
+                // For the sake of simplicity and to meet the word-based array indexing, 
+                // we'll rely on the simple split and rejoin, with a space added back.
+                // We'll skip the character-by-character loop and use an array map/join.
+                lastCharWasSpace = false;
+            }
+        }
+        
+        // --- Simpler Re-construction using array map/join ---
+        let finalHtml = words.map((word, index) => {
+            const colorCode = colorCodes[index] || 0; // 0 for white/unmatched
+            const wordColor = (colorCode === 0) 
+                ? colorNameToRgba('white', fontColorAlphaPref) 
+                : getIndexedColor(colorCode, fontColorAlphaPref);
+
+            const wordStyle = getSpanStyle(wordColor);
+            return `<span style="${wordStyle}">${word}</span>`;
+        }).join(' ');
+
+        return finalHtml;
+    };
+    
+    // Helper for non-vocab styles
+    const buildSimpleHtml = (text, isTranslated) => {
+        let originalStyle = getSpanStyle(baseFontColor);
+        let translatedStyle = getSpanStyle(baseFontColor);
+
+        if (subtitleStylePref === 'vocabulary') {
+            // Should not happen for this function branch, but as a fallback
+            return `<span style="${originalStyle}">${text}</span>`; 
+        } else if (subtitleStylePref === 'grammar') {
+            translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
+        } else if (subtitleStylePref === 'custom' || subtitleStylePref === 'netflix') {
+            translatedStyle = getSpanStyle(colorNameToRgba(fontColorPref, fontColorAlphaPref));
+        } else {
+            // Default (should be handled by colorOverride in getSpanStyle)
+        }
+        
+        const style = isTranslated ? translatedStyle : originalStyle;
+        return `<span style="${style}">${text}</span>`;
+    }
 
     const syncLoop = () => {
         const currentTime = videoElement.currentTime;
@@ -331,27 +533,35 @@ function startSubtitleSync(videoElement) {
         
         if (newIndex !== -1) {
             if (newIndex !== currentSubtitleIndex) {
-                const { text, translatedText } = newSubtitle;
+                const { text, translatedText, baseWordColors, translatedWordColors } = newSubtitle;
                 
-                let originalStyle = getSpanStyle();
-                let translatedStyle = originalStyle;
-
-                if (subtitleStylePref === 'vocabulary') {
-                    translatedStyle = getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
-                } else if (subtitleStylePref === 'grammar') {
-                    translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
-                }
-
                 let innerHTML = '';
+                
                 if (translatedText) {
-                    if (isTranslatedOnly) {
-                        innerHTML = `<span style="${translatedStyle}">${translatedText}</span>`;
+                    if (subtitleStylePref === 'vocabulary') {
+                        const baseHtml = buildColorCodedHtml(text, baseWordColors, baseFontColor, true);
+                        const translatedHtml = buildColorCodedHtml(translatedText, translatedWordColors, baseFontColor, false);
+                        
+                        if (isTranslatedOnly) {
+                             innerHTML = translatedHtml;
+                        } else {
+                             innerHTML = `${baseHtml}<br>${translatedHtml}`;
+                        }
                     } else {
-                        innerHTML = `<span style="${originalStyle}">${text}</span><br><span style="${translatedStyle}">${translatedText}</span>`;
+                        // Original non-vocab logic
+                        const baseHtml = buildSimpleHtml(text, false);
+                        const translatedHtml = buildSimpleHtml(translatedText, true);
+                        
+                        if (isTranslatedOnly) {
+                            innerHTML = translatedHtml;
+                        } else {
+                            innerHTML = `${baseHtml}<br>${translatedHtml}`;
+                        }
                     }
+
                 } else if (!isTranslatedOnly) {
-                    const placeholderStyle = `opacity:0.6; ${originalStyle}`;
-                    innerHTML = `<span style="${originalStyle}">${text}</span><br><span style="${placeholderStyle}">(Translating...)</span>`;
+                    const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
+                    innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">(Translating...)</span>`;
                 }
                 
                 floatingWindow.innerHTML = innerHTML;
