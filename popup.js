@@ -423,13 +423,30 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
-    isCancelledByPopup = false;
-    elements.statusBox.classList.remove('hidden-no-space');
-    await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-
+    // 1. Hide irrelevant setup UI (moved to the start for better user feedback)
     elements.urlInstructions.classList.add('hidden-no-space');
     elements.urlStatusText.classList.add('hidden-no-space');
     elements.langStatusText.classList.add('hidden-no-space');
+    elements.confirmButton.classList.add('hidden-no-space');
+    
+    // 2. Show status/control UI
+    isCancelledByPopup = false;
+    elements.statusBox.classList.remove('hidden-no-space');
+    elements.cancelButton.classList.remove('hidden-no-space');
+    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+    
+    // 3. Set initial status
+    elements.statusText.textContent = "Generating subtitles...";
+    elements.progressBar.style.width = '5%';
+    
+    // 4. Disable inputs
+    elements.targetLanguageInput.disabled = true;
+    elements.subtitleUrlInput.disabled = true;
+    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+    elements.editStyleSettingsButton.disabled = true;
+
+    await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
     const url = elements.subtitleUrlInput.value.trim();
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
@@ -462,27 +479,26 @@ async function handleConfirmClick(elements) {
     }
     
     if (!targetLang) {
-         elements.langStatusText.textContent = `Please check language spelling`;
-         elements.langStatusText.style.color = "#e50914";
-         elements.statusText.textContent = "";
+         // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
+         elements.statusText.textContent = "Error: Please check language spelling.";
          elements.progressBar.style.width = '0%';
-         elements.confirmButton.disabled = false;
+         await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
+         elements.langStatusText.textContent = `Please check language spelling`; // Re-display error
+         elements.langStatusText.style.color = "#e50914";
          return;
     }
     
-    elements.statusText.textContent = "Generating subtitles...";
-    elements.progressBar.style.width = '5%';
-    
     if (!url || !url.startsWith('http')) {
-        elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
-        elements.urlStatusText.style.color = "#e50914";
+        // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
         elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
         elements.progressBar.style.width = '0%';
-        elements.confirmButton.disabled = false;
-        elements.urlStatusText.classList.remove('hidden-no-space');
+        await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
+        elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
+        elements.urlStatusText.style.color = "#e50914";
         return;
     }
 
+    // 5. Save state and proceed
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({
         last_input: { url, targetLang: targetLang },
@@ -491,24 +507,16 @@ async function handleConfirmClick(elements) {
     });
     await chrome.storage.local.remove(['ui_temp_state']);
     
-    elements.confirmButton.classList.add('hidden-no-space');
 
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
-    elements.targetLanguageInput.disabled = true;
-    elements.subtitleUrlInput.disabled = true;
-    
-    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.editStyleSettingsButton.disabled = true;
-    elements.cancelButton.textContent = "Cancel Subtitle Generation";
-    elements.cancelButton.classList.remove('hidden-no-space');
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
             elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
             console.error("[POPUP] Failed to retrieve active tab information.");
             elements.progressBar.style.width = '0%';
+            stopProcessingUI(elements);
             return;
         }
         
@@ -537,6 +545,7 @@ async function handleConfirmClick(elements) {
                 elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
                 console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
                 elements.progressBar.style.width = '0%';
+                stopProcessingUI(elements);
                 return;
             }
             elements.statusText.textContent = "Content script injected. Sending start command...";
