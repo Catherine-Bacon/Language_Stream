@@ -95,8 +95,6 @@ async function resetStatus(elements) {
 }
 
 async function stopProcessingUI(elements) {
-    await chrome.storage.local.remove(['ls_status']);
-
     document.body.style.height = ''; // Reset height to auto
 
     elements.targetLanguageInput.disabled = false;
@@ -119,7 +117,6 @@ async function stopProcessingUI(elements) {
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
     
-    // FIX: Re-enable validation for a cleaner reset
     checkUrlAndDetectLanguage(elements);
     checkLanguagePairAvailability(elements);
     
@@ -359,7 +356,6 @@ function loadSavedStatus(elements) {
         }
 
         if (status && status.progress > 0) {
-            // FIX: Set correct height when opening in a processing state
             document.body.style.height = '430px';
 
             elements.statusBox.classList.remove('hidden-no-space');

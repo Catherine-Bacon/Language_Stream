@@ -87,7 +87,7 @@ function parseTtmlXml(xmlString, url) {
 function detectBaseLanguage() {
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
     return new Promise((resolve) => {
-        if (!chrome.i18n || !chrome.i18n.detectLanguage) {
+        if (!chrome.i1n || !chrome.i18n.detectLanguage) {
             console.error("Chrome i18n.detectLanguage API not available. Defaulting to 'en'.");
             resolve('en');
             return;
@@ -305,7 +305,6 @@ function startSubtitleSync(videoElement) {
         if (videoElement.paused && currentTime === lastTime) return;
         lastTime = currentTime;
 
-        // --- OPTIMIZATION: Use Binary Search ---
         let low = 0, high = parsedSubtitles.length - 1;
         let bestMatchIndex = -1;
 
@@ -362,7 +361,7 @@ function startSubtitleSync(videoElement) {
             currentSubtitleIndex = -1;
         }
     };
-    syncInterval = setInterval(syncLoop, 100); // Increased interval slightly for better performance
+    syncInterval = setInterval(syncLoop, 100);
     console.log("Subtitle sync loop started with binary search.");
 }
 
@@ -503,6 +502,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             floatingWindow.innerHTML = '';
         }
         isProcessing = false;
+        
+        (async () => {
+            await chrome.storage.local.remove(['ls_status']);
+            console.log("Processing cancelled. Cleared status from storage.");
+        })();
+        
         return false;
     }
 
