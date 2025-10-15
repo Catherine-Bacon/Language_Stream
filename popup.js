@@ -1,5 +1,10 @@
 console.log("1. popup.js script file loaded.");
 
+// --- MODIFICATION START: Define fixed heights ---
+const INITIAL_POPUP_HEIGHT = '485px';
+const PROCESSING_POPUP_HEIGHT = '300px'; 
+// --- MODIFICATION END ---
+
 const NETFLIX_PRESET = {
     font_size: 'medium',
     background_color: 'none',
@@ -57,6 +62,9 @@ async function resetStatus(elements) {
     await chrome.storage.local.set(netflixSettingsToSave);
 
     if (!elements.confirmButton) return;
+    
+    // --- MODIFICATION: Set height back to initial setup size ---
+    document.body.style.height = INITIAL_POPUP_HEIGHT;
 
     elements.subtitleUrlInput.value = '';
     elements.targetLanguageInput.value = '';
@@ -95,7 +103,8 @@ async function resetStatus(elements) {
 }
 
 async function stopProcessingUI(elements) {
-    // document.body.style.height = ''; <-- REMOVED: No longer needed with fixed height CSS
+    // --- MODIFICATION: Set height back to initial setup size ---
+    document.body.style.height = INITIAL_POPUP_HEIGHT;
 
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
@@ -356,6 +365,8 @@ function loadSavedStatus(elements) {
         }
 
         if (status && status.progress > 0) {
+            // Processing/Complete State
+            document.body.style.height = PROCESSING_POPUP_HEIGHT;
 
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
@@ -386,6 +397,9 @@ function loadSavedStatus(elements) {
                 elements.cancelButton.textContent = "Clear Subtitles";
             }
         } else {
+             // Initial/Error State
+             document.body.style.height = INITIAL_POPUP_HEIGHT;
+             
              elements.urlStatusText.classList.remove('hidden-no-space');
              elements.langStatusText.classList.remove('hidden-no-space');
              checkLanguagePairAvailability(elements);
@@ -422,6 +436,9 @@ function loadSavedStatus(elements) {
 
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
+    
+    // --- MODIFICATION: Set to Shorter Height for Processing ---
+    document.body.style.height = PROCESSING_POPUP_HEIGHT;
     
     // 1. Hide irrelevant setup UI
     elements.urlInstructions.classList.add('hidden-no-space');
