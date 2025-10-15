@@ -6,8 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
         backgroundAlphaSlider: document.getElementById('backgroundAlphaSlider'),
         backgroundAlphaValue: document.getElementById('backgroundAlphaValue'),
         statusMessage: document.getElementById('saveStatus'),
-        // --- MODIFICATION: Added reference to the font color row ---
-        fontColorRow: document.getElementById('fontColorRow')
+        fontColorRow: document.getElementById('fontColorRow'),
+        // --- MODIFICATION: Added reference to the new reset button ---
+        resetButton: document.getElementById('resetButton')
     };
 
     const NETFLIX_PRESET = {
@@ -65,17 +66,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 settings[key] = storedData[storedKey] ?? defaults[key];
             }
             
-            // --- MODIFICATION START: Update UI based on the style being edited ---
             const capitalizedContext = settingsContext.charAt(0).toUpperCase() + settingsContext.slice(1);
             elements.title.textContent = `Settings - ${capitalizedContext}`;
 
-            // Hide the font color option for learning modes, as their colors are fixed.
             if (settingsContext === 'vocabulary' || settingsContext === 'grammar') {
                 elements.fontColorRow.style.display = 'none';
+                elements.resetButton.style.display = 'none'; // Hide reset for learning modes
+            } else if (settingsContext === 'netflix') {
+                elements.fontColorRow.style.display = 'flex';
+                elements.resetButton.style.display = 'block'; // --- MODIFICATION: Show reset button for Netflix ---
             } else {
                 elements.fontColorRow.style.display = 'flex';
+                elements.resetButton.style.display = 'none'; // Hide for Custom
             }
-            // --- MODIFICATION END ---
             
             applySettingsToUI(settings);
         });
@@ -100,4 +103,23 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.backgroundAlphaValue.textContent = `${Math.round(value * 100)}%`;
         savePreference('background_alpha', value);
     });
+
+    // --- MODIFICATION START: Add event listener for the reset button ---
+    elements.resetButton.addEventListener('click', () => {
+        // Apply the default settings to the UI immediately
+        applySettingsToUI(NETFLIX_PRESET);
+
+        // Save the default settings back to storage
+        const settingsToSave = {};
+        for (const key of PREF_KEYS) {
+            settingsToSave[`netflix_${key}`] = NETFLIX_PRESET[key];
+        }
+        chrome.storage.local.set(settingsToSave, () => {
+            elements.statusMessage.textContent = "Default settings restored!";
+            setTimeout(() => {
+                elements.statusMessage.textContent = "Settings are saved automatically.";
+            }, 2000);
+        });
+    });
+    // --- MODIFICATION END ---
 });

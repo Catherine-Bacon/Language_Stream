@@ -68,6 +68,22 @@
             color: green;
             text-align: center;
         }
+        /* --- MODIFICATION START: Style for the new Reset Button --- */
+        #resetButton {
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            font-weight: bold;
+            color: #333;
+        }
+        #resetButton:hover {
+            background-color: #e0e0e0;
+        }
+        /* --- MODIFICATION END --- */
     </style>
 </head>
 <body>
@@ -124,6 +140,8 @@
             <span id="backgroundAlphaValue">100%</span>
         </div>
     </div>
+    
+    <button id="resetButton" style="display: none;">Reset to Default</button>
     
     <div id="saveStatus">Settings are saved automatically.</div>
 
