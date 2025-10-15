@@ -25,11 +25,22 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
+// --- MODIFICATION START: New function to force popup resizing ---
+function resizePopup() {
+    // This function measures the content and sets the body height,
+    // forcing the popup window to resize to fit its content perfectly.
+    setTimeout(() => {
+        document.body.style.height = `${document.body.scrollHeight}px`;
+    }, 100); // A small delay allows the DOM to update first.
+}
+// --- MODIFICATION END ---
+
 function updateGenerateButtonState(elements) {
     const isUrlValid = elements.urlStatusText.style.color === 'green';
     const isLangValid = elements.langStatusText.style.color === 'green';
     
     elements.confirmButton.disabled = !(isUrlValid && isLangValid);
+    resizePopup(); // Resize whenever the button state changes
 }
 
 function saveCurrentInputs(elements) {
@@ -112,8 +123,6 @@ async function stopProcessingUI(elements) {
     elements.progressBar.style.width = '0%';
     
     elements.confirmButton.classList.remove('hidden-no-space');
-
-    // --- MODIFICATION: Make status and instruction texts visible again ---
     elements.urlInstructions.classList.remove('hidden-no-space');
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
@@ -124,6 +133,7 @@ async function stopProcessingUI(elements) {
     updateGenerateButtonState(elements);
 
     console.log("Processing stopped. UI reset without clearing inputs.");
+    resizePopup(); // Resize when returning to the initial state
 }
 
 async function openCustomSettingsWindow(selectedStyle) {
@@ -361,7 +371,6 @@ function loadSavedStatus(elements) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
-            // --- MODIFICATION: Hide instructional and status texts ---
             elements.urlInstructions.classList.add('hidden-no-space');
             elements.urlStatusText.classList.add('hidden-no-space');
             elements.langStatusText.classList.add('hidden-no-space');
@@ -386,6 +395,7 @@ function loadSavedStatus(elements) {
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
             }
+            resizePopup(); // Resize on load if processing
         } else {
              elements.urlStatusText.classList.remove('hidden-no-space');
              elements.langStatusText.classList.remove('hidden-no-space');
@@ -428,10 +438,10 @@ async function handleConfirmClick(elements) {
     elements.statusBox.classList.remove('hidden-no-space');
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
-    // --- MODIFICATION: Hide instructions and status texts on click ---
     elements.urlInstructions.classList.add('hidden-no-space');
     elements.urlStatusText.classList.add('hidden-no-space');
     elements.langStatusText.classList.add('hidden-no-space');
+    resizePopup(); // Resize after hiding elements
 
     const url = elements.subtitleUrlInput.value.trim();
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
@@ -505,6 +515,7 @@ async function handleConfirmClick(elements) {
     elements.editStyleSettingsButton.disabled = true;
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
     elements.cancelButton.classList.remove('hidden-no-space');
+    resizePopup(); // Resize after showing cancel button
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0] || !tabs[0].id) {
@@ -605,6 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("2. All DOM elements found. Attaching listeners.");
     
     loadSavedStatus(elements);
+    resizePopup(); // Initial resize on load
 
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
     elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
@@ -721,6 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
                 checkLanguagePairAvailability(elements);
             }
+            resizePopup(); // Resize whenever status updates
         }
     });
 });
