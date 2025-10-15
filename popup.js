@@ -2,7 +2,7 @@ console.log("1. popup.js script file loaded.");
 
 // --- MODIFICATION START: Define fixed heights ---
 const INITIAL_POPUP_HEIGHT = '485px'; // Taller height for setup state
-const PROCESSING_POPUP_HEIGHT = '300px'; // Shorter height for processing state
+const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state
 // --- MODIFICATION END ---
 
 const NETFLIX_PRESET = {
