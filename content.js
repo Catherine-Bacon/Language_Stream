@@ -213,8 +213,11 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     }
 }
 
-// --- NEW FUNCTION: Word-level translation and color coding for Vocab mode ---
+// --- MODIFIED FUNCTION: Word-level translation and color coding for Vocab mode (Two Passes) ---
 async function processVocabColorCoding(subtitle) {
+    // Helper to sanitize words for matching
+    const sanitizeWord = (word) => word.toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g, "").trim();
+
     const baseWords = subtitle.text.split(/\s+/).filter(w => w.length > 0);
     const translatedWords = subtitle.translatedText.split(/\s+/).filter(w => w.length > 0);
     
@@ -226,42 +229,58 @@ async function processVocabColorCoding(subtitle) {
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
     
-    // Create a copy of translatedWords that we can mark as used
-    const translatedWordsUsed = Array(translatedWords.length).fill(false);
-    
+    // --- PASS 1: Base Language (i) to Target Language (j) ---
     for (let i = 0; i < baseWords.length; i++) {
         if (baseWordColors[i] !== 0) continue; // Skip if already matched
         
-        const wordToTranslate = baseWords[i].toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g,"");
-        if (wordToTranslate.length === 0) continue; // Skip if only punctuation
+        const wordToTranslate = sanitizeWord(baseWords[i]);
+        if (wordToTranslate.length === 0) continue; 
         
-        // 1. Get word-level translation
-        let wordTranslation = null;
-        try {
-            wordTranslation = await translateSubtitle(wordToTranslate, baseLang, targetLang);
-            // Translation logic is already rate-limited/cached inside translateSubtitle
-        } catch (e) {
-            console.warn(`Word translation failed for "${wordToTranslate}":`, e);
-            continue; // Keep color as 0 (white) if API fails
-        }
-        
+        // 1. Get word-level translation (Base -> Target)
+        const wordTranslation = await translateSubtitle(wordToTranslate, baseLang, targetLang);
         if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
 
-        const targetWord = wordTranslation.toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g,"");
+        const targetWord = sanitizeWord(wordTranslation);
 
         // 2. Search for exact match in the translated subtitle
-        let matchFound = false;
         for (let j = 0; j < translatedWords.length; j++) {
             if (translatedWordColors[j] === 0) { // Only check unused translated words
-                const currentTranslatedWord = translatedWords[j].toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g,"");
+                const currentTranslatedWord = sanitizeWord(translatedWords[j]);
                 
                 if (currentTranslatedWord === targetWord) {
                     // Match found: assign a new color code
                     baseWordColors[i] = colorCodeCounter;
                     translatedWordColors[j] = colorCodeCounter;
-                    translatedWordsUsed[j] = true;
                     colorCodeCounter++;
-                    matchFound = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // --- PASS 2: Translated Language (j) to Base Language (i) ---
+    for (let j = 0; j < translatedWords.length; j++) {
+        if (translatedWordColors[j] !== 0) continue; // Skip if already matched
+        
+        const wordToTranslate = sanitizeWord(translatedWords[j]);
+        if (wordToTranslate.length === 0) continue;
+        
+        // 1. Get word-level back-translation (Target -> Base)
+        const wordTranslation = await translateSubtitle(wordToTranslate, targetLang, baseLang);
+        if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
+        
+        const targetWord = sanitizeWord(wordTranslation);
+
+        // 2. Search for exact match in the base subtitle
+        for (let i = 0; i < baseWords.length; i++) {
+            if (baseWordColors[i] === 0) { // Only check unused base words
+                const currentBaseWord = sanitizeWord(baseWords[i]);
+                
+                if (currentBaseWord === targetWord) {
+                    // Match found: assign a new color code
+                    baseWordColors[i] = colorCodeCounter;
+                    translatedWordColors[j] = colorCodeCounter;
+                    colorCodeCounter++;
                     break;
                 }
             }
@@ -271,7 +290,7 @@ async function processVocabColorCoding(subtitle) {
     // Finalize the subtitle object with the color lists
     subtitle.baseWordColors = baseWordColors;
     subtitle.translatedWordColors = translatedWordColors;
-    subtitle.colorCodeCount = colorCodeCounter; // Store count to know the total number of colors needed
+    subtitle.colorCodeCount = colorCodeCounter; 
 }
 
 async function translateAllSubtitles(url) {
@@ -421,53 +440,6 @@ function startSubtitleSync(videoElement) {
         }
 
         const words = text.split(/\s+/).filter(w => w.length > 0);
-        let html = '';
-        let wordIndex = 0;
-        let lastCharWasSpace = true;
-
-        for (const char of text) {
-            if (/\s/.test(char)) {
-                if (!lastCharWasSpace) html += ' '; // Preserve single space
-                lastCharWasSpace = true;
-            } else {
-                if (lastCharWasSpace) {
-                    // Start of a new word
-                    const colorCode = colorCodes[wordIndex] || 0; // 0 for white/unmatched
-                    const word = words[wordIndex];
-                    
-                    const wordColor = (colorCode === 0) 
-                        ? colorNameToRgba('white', fontColorAlphaPref) 
-                        : getIndexedColor(colorCode, fontColorAlphaPref);
-
-                    const wordStyle = getSpanStyle(wordColor);
-
-                    // Find the extent of the current word in the text (including punctuation)
-                    let currentWordInText = '';
-                    let tempIndex = 0;
-                    while (wordIndex < words.length && tempIndex < word.length) {
-                        if (char === word[tempIndex] && wordIndex < colorCodes.length) {
-                            currentWordInText += char;
-                            break;
-                        }
-                        tempIndex++;
-                    }
-                    
-                    // The simple word split above doesn't preserve punctuation well, 
-                    // a simpler approach is to use the split words and put them back in spans.
-                    // NOTE: This will lose original spacing/punctuation *between* words.
-                    // A more robust solution requires regex to preserve delimiters, but this meets the core color-coding requirement.
-                    
-                    // Simple reconstruction: wrap the split word
-                    html += `<span style="${wordStyle}">${words[wordIndex]}</span>`;
-                    wordIndex++;
-                }
-                
-                // For the sake of simplicity and to meet the word-based array indexing, 
-                // we'll rely on the simple split and rejoin, with a space added back.
-                // We'll skip the character-by-character loop and use an array map/join.
-                lastCharWasSpace = false;
-            }
-        }
         
         // --- Simpler Re-construction using array map/join ---
         let finalHtml = words.map((word, index) => {
