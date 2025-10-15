@@ -32,6 +32,11 @@
         border: 1px solid #ddd;
         box-sizing: border-box;
       }
+      /* --- MODIFICATION START: Added specific rule for the language input --- */
+      #targetLanguage {
+        margin-top: 0;
+      }
+      /* --- MODIFICATION END --- */
       button {
         background-color: #e50914;
         color: white;
@@ -144,7 +149,6 @@
           height: 28px; 
           padding: 0; 
           margin-left: 10px;
-          /* --- MODIFICATION: Added top margin to center the button vertically --- */
           margin-top: 2px;
           background-color: #555;
           line-height: 1; 
@@ -196,9 +200,10 @@
     <p>Right click video player > Inspect</p>    
     <p>Press Network > Reload Page</p>
     <p>Search ?o= > Sort by name (descending)<p>
+    <p>Right click the top name (starting with ?o=) > Copy > Copy URL</p>
     
     <div style="display: flex; justify-content: space-between; align-items: center;">
-        <p style="margin: 0; padding: 0;">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+        <p style="margin: 0; padding: 0;">Turn off Netflix subtitles and paste the URL below:</p>
     </div>
     <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
            value="">
