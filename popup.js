@@ -25,13 +25,19 @@ const LANGUAGE_MAP = {
 
 let isCancelledByPopup = false;
 
-// --- MODIFICATION START: Reverted to disabling/enabling the button ---
+// --- MODIFICATION START: Updated logic to hide/show the button ---
 function updateGenerateButtonState(elements) {
     const isUrlValid = elements.urlStatusText.style.color === 'green';
     const isLangValid = elements.langStatusText.style.color === 'green';
     
-    // Disable the button if either condition is false.
-    elements.confirmButton.disabled = !(isUrlValid && isLangValid);
+    // Show the button if valid, otherwise hide it.
+    if (isUrlValid && isLangValid) {
+        elements.confirmButton.classList.remove('hidden-no-space');
+        elements.confirmButton.disabled = false;
+    } else {
+        elements.confirmButton.classList.add('hidden-no-space');
+        elements.confirmButton.disabled = true;
+    }
 }
 // --- MODIFICATION END ---
 
@@ -100,8 +106,6 @@ async function resetStatus(elements) {
 async function stopProcessingUI(elements) {
     await chrome.storage.local.remove(['ls_status']);
 
-    const isUrlValid = elements.subtitleUrlInput.value.trim().startsWith('http');
-    elements.confirmButton.disabled = !isUrlValid;
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -115,8 +119,6 @@ async function stopProcessingUI(elements) {
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
-    
-    // REMOVED logic for showing/hiding the confirm button
     
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
@@ -375,7 +377,7 @@ function loadSavedStatus(elements) {
                 elements.editStyleSettingsButton.disabled = true;
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                // confirm button is visible but disabled during processing
+                elements.confirmButton.classList.add('hidden-no-space');
                 
             } else {
                 elements.confirmButton.disabled = true;
@@ -384,7 +386,7 @@ function loadSavedStatus(elements) {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
-                // confirm button is visible but disabled when complete
+                elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
             }
@@ -492,6 +494,8 @@ async function handleConfirmClick(elements) {
     });
     await chrome.storage.local.remove(['ui_temp_state']);
     
+    elements.confirmButton.classList.add('hidden-no-space');
+
     elements.statusText.textContent = "URL accepted. Initializing content script...";
     elements.progressBar.style.width = '10%';
     elements.confirmButton.disabled = true;
@@ -692,10 +696,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
                 
+                elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
                 
             } else if (progress > 0) {
+                elements.confirmButton.classList.add('hidden-no-space');
                 elements.confirmButton.disabled = true;
                 
                 elements.targetLanguageInput.disabled = true;
