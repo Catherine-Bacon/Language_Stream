@@ -5,7 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
         fontColorAlphaValue: document.getElementById('fontColorAlphaValue'),
         backgroundAlphaSlider: document.getElementById('backgroundAlphaSlider'),
         backgroundAlphaValue: document.getElementById('backgroundAlphaValue'),
-        statusMessage: document.getElementById('saveStatus')
+        statusMessage: document.getElementById('saveStatus'),
+        // --- MODIFICATION: Added reference to the font color row ---
+        fontColorRow: document.getElementById('fontColorRow')
     };
 
     const NETFLIX_PRESET = {
@@ -27,14 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const PREF_KEYS = Object.keys(CUSTOM_DEFAULTS);
     let settingsPrefix = 'custom_';
 
-    // Function to update the UI from a settings object
     function applySettingsToUI(settings) {
-        // --- MODIFICATION START: Corrected camelCase to snake_case to match HTML names ---
         document.querySelector(`input[name="font_size"][value="${settings.font_size}"]`).checked = true;
         document.querySelector(`input[name="background_color"][value="${settings.background_color}"]`).checked = true;
         document.querySelector(`input[name="font_shadow"][value="${settings.font_shadow}"]`).checked = true;
         document.querySelector(`input[name="font_color"][value="${settings.font_color}"]`).checked = true;
-        // --- MODIFICATION END ---
         
         elements.fontColorAlphaSlider.value = settings.font_color_alpha;
         elements.fontColorAlphaValue.textContent = `${Math.round(settings.font_color_alpha * 100)}%`;
@@ -66,11 +65,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 settings[key] = storedData[storedKey] ?? defaults[key];
             }
             
-            if (settingsContext === 'netflix') {
-                elements.title.textContent = 'Settings - Netflix';
+            // --- MODIFICATION START: Update UI based on the style being edited ---
+            const capitalizedContext = settingsContext.charAt(0).toUpperCase() + settingsContext.slice(1);
+            elements.title.textContent = `Settings - ${capitalizedContext}`;
+
+            // Hide the font color option for learning modes, as their colors are fixed.
+            if (settingsContext === 'vocabulary' || settingsContext === 'grammar') {
+                elements.fontColorRow.style.display = 'none';
             } else {
-                elements.title.textContent = 'Settings - Custom';
+                elements.fontColorRow.style.display = 'flex';
             }
+            // --- MODIFICATION END ---
             
             applySettingsToUI(settings);
         });

@@ -98,7 +98,8 @@ async function stopProcessingUI(elements) {
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-    const hasSettings = (selectedStyle === 'netflix' || selectedStyle === 'custom');
+    // --- MODIFICATION: Settings are now available for vocab and grammar modes ---
+    const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
     elements.editStyleSettingsButton.disabled = !hasSettings;
 
     elements.cancelButton.classList.add('hidden-no-space');
@@ -313,7 +314,8 @@ function loadSavedStatus(elements) {
         const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
         if (styleElement) styleElement.checked = true;
 
-        const hasSettings = (savedStyle === 'netflix' || savedStyle === 'custom');
+        // --- MODIFICATION: Settings are now available for vocab and grammar modes ---
+        const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(savedStyle);
         elements.editStyleSettingsButton.disabled = !hasSettings;
 
         const isProcessing = status && status.progress > 0 && status.progress < 100;
@@ -356,20 +358,15 @@ function loadSavedStatus(elements) {
                 elements.confirmButton.classList.add('hidden-no-space');
                 
             } else {
-                // --- MODIFICATION START: Set UI to "completed" state when loading ---
-                // Keep inputs locked.
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
-
-                // Show 'Clear Subtitles' button and hide 'Generate' button.
                 elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
-                // --- MODIFICATION END ---
             }
         } else {
              elements.urlStatusText.classList.remove('hidden-no-space');
@@ -418,12 +415,9 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    let stylePrefix = 'custom_';
-    let defaults = CUSTOM_DEFAULTS;
-    if (selectedStyle === 'netflix') {
-        stylePrefix = 'netflix_';
-        defaults = NETFLIX_PRESET;
-    }
+    // --- MODIFICATION: Dynamically set prefix and defaults for all styles ---
+    const defaults = (selectedStyle === 'netflix') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+    const stylePrefix = `${selectedStyle}_`;
     
     const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
     const storedData = await chrome.storage.local.get(keysToLoad);
@@ -532,11 +526,9 @@ async function handleConfirmClick(elements) {
     });
 }
 
-// --- MODIFICATION START: Updated cancel logic to handle "Clear Subtitles" state ---
 async function handleCancelClick(elements) {
     isCancelledByPopup = true;
 
-    // If we are canceling an in-progress translation, tell the content script to stop.
     if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0] || !tabs[0].id) {
@@ -556,10 +548,8 @@ async function handleCancelClick(elements) {
         });
     }
 
-    // Whether clearing a completed job or canceling an active one, reset the UI.
     await stopProcessingUI(elements);
 }
-// --- MODIFICATION END ---
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -610,7 +600,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.checked) {
                 const selectedStyle = e.target.value;
                 chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
-                    const hasSettings = (selectedStyle === 'netflix' || selectedStyle === 'custom');
+                    // --- MODIFICATION: Settings are now available for vocab and grammar modes ---
+                    const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
                     elements.editStyleSettingsButton.disabled = !hasSettings;
                     elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
                 });
@@ -676,8 +667,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     await chrome.storage.local.set({ ls_status });
                 }
                 
-                // --- MODIFICATION START: Set UI to "completed" state ---
-                // Keep inputs locked after completion.
                 elements.confirmButton.disabled = true;
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
@@ -685,11 +674,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
                 
-                // Show 'Clear Subtitles' button and hide 'Generate' button.
                 elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
-                // --- MODIFICATION END ---
                 
             } else if (progress > 0) {
                 elements.confirmButton.classList.add('hidden-no-space');
