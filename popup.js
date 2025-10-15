@@ -95,7 +95,7 @@ async function resetStatus(elements) {
 }
 
 async function stopProcessingUI(elements) {
-    document.body.style.height = ''; // Reset height to auto
+    // document.body.style.height = ''; <-- REMOVED: No longer needed with fixed height CSS
 
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
@@ -423,7 +423,7 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
-    // 1. Hide irrelevant setup UI (moved to the start for better user feedback)
+    // 1. Hide irrelevant setup UI
     elements.urlInstructions.classList.add('hidden-no-space');
     elements.urlStatusText.classList.add('hidden-no-space');
     elements.langStatusText.classList.add('hidden-no-space');

@@ -5,6 +5,10 @@
         font-family: Arial, sans-serif;
         padding: 15px 15px 10px 15px;
         width: 350px;
+        /* --- MODIFICATION START: Set fixed height --- */
+        height: 600px;
+        overflow-y: auto; /* Ensure content is scrollable if it exceeds 600px */
+        /* --- MODIFICATION END --- */
       }
       h1 {
         color: #e50914; /* Netflix Red */
@@ -151,7 +155,6 @@
         align-items: center;
         font-size: 0.9em;
         cursor: pointer;
-        padding: 2px 5px; 
       }
       .radio-group input[type="radio"] {
         width: auto;
