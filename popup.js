@@ -1,8 +1,8 @@
 console.log("1. popup.js script file loaded.");
 
 // --- MODIFICATION START: Define fixed heights ---
-const INITIAL_POPUP_HEIGHT = '485px';
-const PROCESSING_POPUP_HEIGHT = '300px'; 
+const INITIAL_POPUP_HEIGHT = '485px'; // Taller height for setup state
+const PROCESSING_POPUP_HEIGHT = '300px'; // Shorter height for processing state
 // --- MODIFICATION END ---
 
 const NETFLIX_PRESET = {
@@ -627,6 +627,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     console.log("2. All DOM elements found. Attaching listeners.");
+
+    // --- CRITICAL FIX: Force the taller setup size immediately after loading ---
+    document.body.style.height = INITIAL_POPUP_HEIGHT; 
     
     loadSavedStatus(elements);
 
