@@ -111,7 +111,6 @@ async function stopProcessingUI(elements) {
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
     
-    // --- MODIFICATION: Make sure generate button is visible after stopping ---
     elements.confirmButton.classList.remove('hidden-no-space');
 
     elements.urlStatusText.classList.remove('hidden-no-space');
@@ -359,10 +358,11 @@ function loadSavedStatus(elements) {
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
-            elements.urlStatusText.classList.add('hidden-no-space');
-            elements.langStatusText.classList.add('hidden-no-space');
             
-            // --- MODIFICATION: Hide generate button when processing or complete ---
+            // --- MODIFICATION: Ensure status texts are visible ---
+            elements.urlStatusText.classList.remove('hidden-no-space');
+            elements.langStatusText.classList.remove('hidden-no-space');
+            
             elements.confirmButton.classList.add('hidden-no-space');
             
             if (status.progress < 100) {
@@ -465,8 +465,9 @@ async function handleConfirmClick(elements) {
     }
     
     elements.statusText.textContent = "Generating subtitles...";
-    elements.urlStatusText.classList.add('hidden-no-space');
-    elements.langStatusText.classList.add('hidden-no-space');
+    // --- MODIFICATION: Keep status texts visible ---
+    // elements.urlStatusText.classList.add('hidden-no-space');
+    // elements.langStatusText.classList.add('hidden-no-space');
     elements.progressBar.style.width = '5%';
     
     if (!url || !url.startsWith('http')) {
@@ -487,7 +488,6 @@ async function handleConfirmClick(elements) {
     });
     await chrome.storage.local.remove(['ui_temp_state']);
     
-    // --- MODIFICATION: Hide generate button when processing starts ---
     elements.confirmButton.classList.add('hidden-no-space');
 
     elements.statusText.textContent = "URL accepted. Initializing content script...";
@@ -663,8 +663,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (progress > 0 && progress < 100) {
                  elements.statusText.textContent = message;
-                 elements.urlStatusText.classList.add('hidden-no-space');
-                 elements.langStatusText.classList.add('hidden-no-space');
+                 // --- MODIFICATION: Keep status texts visible ---
+                 // elements.urlStatusText.classList.add('hidden-no-space');
+                 // elements.langStatusText.classList.add('hidden-no-space');
             } else if (progress === 0) {
                 elements.statusText.textContent = message;
             }
@@ -688,13 +689,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
                 
-                // --- MODIFICATION: Hide generate button when complete ---
                 elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
                 
             } else if (progress > 0) {
-                // --- MODIFICATION: Hide generate button during processing ---
                 elements.confirmButton.classList.add('hidden-no-space');
                 
                 elements.targetLanguageInput.disabled = true;
