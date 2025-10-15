@@ -426,7 +426,7 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log("[POPUP] 'Generate Subtitles' button clicked. Starting process.");
     
-    document.body.style.height = '385px';
+    document.body.style.height = '430px';
 
     isCancelledByPopup = false;
     elements.statusBox.classList.remove('hidden-no-space');
