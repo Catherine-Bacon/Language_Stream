@@ -97,7 +97,7 @@ async function resetStatus(elements) {
 async function stopProcessingUI(elements) {
     await chrome.storage.local.remove(['ls_status']);
 
-    document.body.style.height = ''; // This will reset the height
+    document.body.style.height = ''; // Reset height to auto
 
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
@@ -115,17 +115,17 @@ async function stopProcessingUI(elements) {
     
     elements.confirmButton.classList.remove('hidden-no-space');
 
-    // --- MODIFICATION: Make status and instruction texts visible again ---
     elements.urlInstructions.classList.remove('hidden-no-space');
     elements.urlStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
     
+    // FIX: Re-enable validation for a cleaner reset
     checkUrlAndDetectLanguage(elements);
     checkLanguagePairAvailability(elements);
     
     updateGenerateButtonState(elements);
 
-    console.log("Processing stopped. UI reset without clearing inputs.");
+    console.log("Processing stopped. UI reset.");
 }
 
 async function openCustomSettingsWindow(selectedStyle) {
@@ -359,11 +359,13 @@ function loadSavedStatus(elements) {
         }
 
         if (status && status.progress > 0) {
+            // FIX: Set correct height when opening in a processing state
+            document.body.style.height = '430px';
+
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
-            // --- MODIFICATION: Hide instructional and status texts ---
             elements.urlInstructions.classList.add('hidden-no-space');
             elements.urlStatusText.classList.add('hidden-no-space');
             elements.langStatusText.classList.add('hidden-no-space');
@@ -432,7 +434,6 @@ async function handleConfirmClick(elements) {
     elements.statusBox.classList.remove('hidden-no-space');
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
-    // --- MODIFICATION: Hide instructions and status texts on click ---
     elements.urlInstructions.classList.add('hidden-no-space');
     elements.urlStatusText.classList.add('hidden-no-space');
     elements.langStatusText.classList.add('hidden-no-space');

@@ -15,11 +15,6 @@
     }
   ],
   "permissions": ["scripting", "storage", "activeTab", "tabs", "webRequest"],
-  "host_permissions": ["*://*.netflix.com/*", "https://*.nflxvideo.net/*"], 
-  "web_accessible_resources": [
-    {
-      "resources": ["inpage.js"],
-      "matches": ["*://*.netflix.com/*"]
-    }
-  ]
+  "host_permissions": ["*://*.netflix.com/*", "https://*.nflxvideo.net/*"],
+  "web_accessible_resources": []
 }

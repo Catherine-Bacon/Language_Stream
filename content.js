@@ -12,8 +12,8 @@ var fontColorAlphaPref = 1.0;
 var fontShadowPref = 'black_shadow';
 var fontColorPref = 'white';
 var subtitleStylePref = 'netflix';
-var isProcessing = false;
-var isCancelled = false;
+var isProcessing = isProcessing || false;
+var isCancelled = isCancelled || false;
 var currentTranslator = currentTranslator || null;
 var TICK_RATE = TICK_RATE || 10000000;
 
@@ -274,14 +274,12 @@ function colorNameToRgba(name, alpha) {
     return `rgba(${rgb}, ${alpha})`;
 }
 
-// --- MODIFICATION START: Refactored subtitle sync logic for flexible styling ---
 function startSubtitleSync(videoElement) {
     if (syncInterval) clearInterval(syncInterval);
     let currentSubtitleIndex = -1;
     let lastTime = 0;
     if (floatingWindow) floatingWindow.style.display = 'block';
 
-    // Get the base style properties from the global variables set by the message
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
     const currentFontShadow = getFontShadowCss(fontShadowPref);
     const baseFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
@@ -292,13 +290,11 @@ function startSubtitleSync(videoElement) {
         currentSpanBgColor = 'transparent';
     }
 
-    // Apply container-level styles like shadow
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
-        floatingWindow.style.color = baseFontColor; // Default color
+        floatingWindow.style.color = baseFontColor;
     }
     
-    // Helper function to generate the CSS for a subtitle span
     const getSpanStyle = (colorOverride = null) => {
         const finalColor = colorOverride || baseFontColor;
         return `display: inline-block; padding: 0 0.5em; border-radius: 0.2em; background-color: ${currentSpanBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
@@ -307,47 +303,42 @@ function startSubtitleSync(videoElement) {
     const syncLoop = () => {
         const currentTime = videoElement.currentTime;
         if (videoElement.paused && currentTime === lastTime) return;
+        lastTime = currentTime;
+
+        // --- OPTIMIZATION: Use Binary Search ---
+        let low = 0, high = parsedSubtitles.length - 1;
+        let bestMatchIndex = -1;
+
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if (parsedSubtitles[mid].begin <= currentTime) {
+                bestMatchIndex = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
 
         let newSubtitle = null;
         let newIndex = -1;
-        let subtitleFound = false;
-
-        // Optimized search for the current subtitle
-        for (let i = Math.max(0, currentSubtitleIndex - 5); i < Math.min(currentSubtitleIndex + 5, parsedSubtitles.length); i++) {
-            const sub = parsedSubtitles[i];
-            if (sub && currentTime >= sub.begin && currentTime < sub.end) {
+        if (bestMatchIndex !== -1) {
+            const sub = parsedSubtitles[bestMatchIndex];
+            if (currentTime < sub.end) {
                 newSubtitle = sub;
-                newIndex = i;
-                subtitleFound = true;
-                break;
+                newIndex = bestMatchIndex;
             }
         }
-        if (!subtitleFound) {
-            for (let i = 0; i < parsedSubtitles.length; i++) {
-                const sub = parsedSubtitles[i];
-                if (currentTime >= sub.begin && currentTime < sub.end) {
-                    newSubtitle = sub;
-                    newIndex = i;
-                    subtitleFound = true;
-                    break;
-                }
-            }
-        }
-        lastTime = currentTime;
-
-        if (subtitleFound) {
+        
+        if (newIndex !== -1) {
             if (newIndex !== currentSubtitleIndex) {
                 const { text, translatedText } = newSubtitle;
                 
-                // Determine styles based on the selected mode
-                let originalStyle = getSpanStyle(); // Uses the base color from settings
+                let originalStyle = getSpanStyle();
                 let translatedStyle = originalStyle;
 
                 if (subtitleStylePref === 'vocabulary') {
-                    // In Vocab mode, translated text is yellow
                     translatedStyle = getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
                 } else if (subtitleStylePref === 'grammar') {
-                    // In Grammar mode, translated text is cyan
                     translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
                 }
 
@@ -359,7 +350,6 @@ function startSubtitleSync(videoElement) {
                         innerHTML = `<span style="${originalStyle}">${text}</span><br><span style="${translatedStyle}">${translatedText}</span>`;
                     }
                 } else if (!isTranslatedOnly) {
-                    // Show a placeholder for text that is still being translated
                     const placeholderStyle = `opacity:0.6; ${originalStyle}`;
                     innerHTML = `<span style="${originalStyle}">${text}</span><br><span style="${placeholderStyle}">(Translating...)</span>`;
                 }
@@ -372,10 +362,10 @@ function startSubtitleSync(videoElement) {
             currentSubtitleIndex = -1;
         }
     };
-    syncInterval = setInterval(syncLoop, 50);
-    console.log("Subtitle sync loop started.");
+    syncInterval = setInterval(syncLoop, 100); // Increased interval slightly for better performance
+    console.log("Subtitle sync loop started with binary search.");
 }
-// --- MODIFICATION END ---
+
 
 function disableNetflixSubObserver() {
     if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
