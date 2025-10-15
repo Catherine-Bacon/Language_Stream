@@ -1,8 +1,8 @@
 console.log("1. popup.js script file loaded.");
 
-// --- MODIFICATION: Define fixed heights ---
-const INITIAL_POPUP_HEIGHT = '485px'; // Taller height for setup state (Instructions visible)
-const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state (matches the height set in main.html's CSS)
+// --- MODIFICATION START: Define fixed heights ---
+const INITIAL_POPUP_HEIGHT = '485px'; // Taller height for setup state
+const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state (This is the CSS default)
 // --- MODIFICATION END ---
 
 const NETFLIX_PRESET = {
@@ -407,7 +407,7 @@ function loadSavedStatus(elements) {
              if (urlValue && urlValue.startsWith('http')) {
                  checkUrlAndDetectLanguage(elements);
                  if (status && status.message && (status.message.includes("Old subtitle URL used") || status.message.includes("Error fetching subtitles") || status.message.includes("Invalid URL retrieved"))) {
-                     elements.urlStatusText.textContent = status.message;
+                     elements.urlStatusText.textContent = message;
                      elements.urlStatusText.style.color = "#e50914";
                  }
              } else {
