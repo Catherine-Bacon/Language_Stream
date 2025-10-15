@@ -1,6 +1,6 @@
 {
   "name": "Language Stream",
-  "description": "Base Level Extension",
+  "description": "Netflix extension to generate and stream subtitles in multiple languages",
   "version": "1.0",
   "manifest_version": 3,
   "action": {
