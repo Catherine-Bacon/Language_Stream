@@ -582,6 +582,25 @@ async function handleConfirmClick(elements) {
     async function handleCancelClick(elements) {
         isCancelledByPopup = true;
 
+        if (elements.cancelButton.textContent === "Clear Subtitles") {
+            // --- MODIFICATION START ---
+            // If completed, 'Clear Subtitles' means a full status reset.
+            console.log("[POPUP] 'Clear Subtitles' clicked. Performing full reset.");
+            await resetStatus(elements);
+            // Additionally, send a cancellation command to content.js to ensure the floating window is removed
+            // even if the process was fully complete (progress=100) but hasn't had time to clear its UI.
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                 if (tabs[0] && tabs[0].id) {
+                     chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {
+                        if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending final clear message:", e);
+                    });
+                 }
+            });
+            return;
+            // --- MODIFICATION END ---
+        }
+
+        // If 'Cancel Subtitle Generation' is clicked (progress < 100)
         if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
             chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                 if (!tabs[0] || !tabs[0].id) {
