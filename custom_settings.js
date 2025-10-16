@@ -69,13 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const capitalizedContext = settingsContext.charAt(0).toUpperCase() + settingsContext.slice(1);
             elements.title.textContent = `Settings - ${capitalizedContext}`;
 
-            if (settingsContext === 'vocabulary' || settingsContext === 'grammar') {
+            // --- MODIFICATION: Remove 'grammar' from conditions ---
+            if (settingsContext === 'vocabulary') {
                 elements.fontColorRow.style.display = 'none';
                 elements.resetButton.style.display = 'none'; // Hide reset for learning modes
             } else if (settingsContext === 'netflix') {
                 elements.fontColorRow.style.display = 'flex';
-                elements.resetButton.style.display = 'block'; // --- MODIFICATION: Show reset button for Netflix ---
-            } else {
+                elements.resetButton.style.display = 'block'; // Show reset button for Netflix
+            } else { // 'custom'
                 elements.fontColorRow.style.display = 'flex';
                 elements.resetButton.style.display = 'none'; // Hide for Custom
             }

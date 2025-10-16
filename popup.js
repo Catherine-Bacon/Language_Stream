@@ -77,6 +77,7 @@ async function resetStatus(elements) {
     elements.subtitleModeDual.checked = true;
     elements.subtitleStyleNetflix.checked = true;
     elements.editStyleSettingsButton.disabled = false;
+    elements.editStyleSettingsButton.title = `Edit Netflix Settings`;
 
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = false;
@@ -112,8 +113,10 @@ async function stopProcessingUI(elements) {
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-    const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
+    // --- MODIFICATION: Updated to exclude 'grammar' ---
+    const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
     elements.editStyleSettingsButton.disabled = !hasSettings;
+    elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
 
     elements.cancelButton.classList.add('hidden-no-space');
     elements.statusBox.classList.add('hidden-no-space');
@@ -339,9 +342,11 @@ function loadSavedStatus(elements) {
         const savedStyle = data.subtitle_style_pref || 'netflix';
         const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
         if (styleElement) styleElement.checked = true;
-
-        const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(savedStyle);
+        
+        // --- MODIFICATION: Updated to exclude 'grammar' ---
+        const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(savedStyle);
         elements.editStyleSettingsButton.disabled = !hasSettings;
+        elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
 
         const isProcessing = status && status.progress > 0 && status.progress < 100;
         if (!isProcessing) {
@@ -473,7 +478,9 @@ async function handleConfirmClick(elements) {
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
-    const defaults = (selectedStyle === 'netflix') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+    const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+    // --- MODIFICATION: 'grammar' is removed, defaulting to 'netflix' for vocab/grammar is handled by logic now ---
+    
     const stylePrefix = `${selectedStyle}_`;
     
     const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
@@ -616,7 +623,7 @@ async function handleConfirmClick(elements) {
             subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
             subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
             subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
-            subtitleStyleGrammar: document.getElementById('subtitleStyleGrammar'),
+            // --- REMOVED: grammar reference ---
             editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
             urlInstructions: document.getElementById('urlInstructions'),
         };
@@ -650,7 +657,8 @@ async function handleConfirmClick(elements) {
                 if (e.target.checked) {
                     const selectedStyle = e.target.value;
                     chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
-                        const hasSettings = ['netflix', 'custom', 'vocabulary', 'grammar'].includes(selectedStyle);
+                        // --- MODIFICATION: Updated to exclude 'grammar' ---
+                        const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
                         elements.editStyleSettingsButton.disabled = !hasSettings;
                         elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
                     });
