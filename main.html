@@ -165,14 +165,14 @@
           height: 28px; 
           padding: 0; 
           margin-left: 10px;
-          /* REMOVED margin-top: 2px; for better vertical centering */
+          /* --- MODIFICATION START --- */
+          align-self: center; /* Ensures vertical centering within the flex container */
+          /* --- MODIFICATION END --- */
           background-color: #555;
           line-height: 1; 
           font-size: 1em;
           border: none; 
           flex-shrink: 0;
-          /* ADDED to ensure perfect vertical centering within the flex container */
-          align-self: center; 
       }
       #editStyleSettingsButton:hover {
           background-color: #777;
