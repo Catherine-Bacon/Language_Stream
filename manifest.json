@@ -14,12 +14,19 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.netflix.com/*"],
+      "matches": [
+        "*://*.netflix.com/*",
+        "*://www.youtube.com/watch*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "permissions": ["scripting", "storage", "activeTab", "tabs", "webRequest"],
-  "host_permissions": ["*://*.netflix.com/*", "https://*.nflxvideo.net/*"],
+  "host_permissions": [
+    "*://*.netflix.com/*", 
+    "https://*.nflxvideo.net/*",
+    "*://www.youtube.com/*" 
+  ],
   "web_accessible_resources": []
 }
