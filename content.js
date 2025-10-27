@@ -1,4 +1,3 @@
-Gemini
 // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];

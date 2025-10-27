@@ -1,4 +1,3 @@
-Gemini
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         title: document.getElementById('settingsTitle'),
