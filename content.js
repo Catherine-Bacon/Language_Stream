@@ -1,3 +1,4 @@
+Gemini
 // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
@@ -17,10 +18,10 @@ var isCancelled = isCancelled || false;
 var currentTranslator = currentTranslator || null;
 var TICK_RATE = TICK_RATE || 10000000;
 
-function sendStatusUpdate(message, progress, url = null, route = 'main', mode = 'netflix') {
+function sendStatusUpdate(message, progress, url = null, route = 'main') {
     if (isCancelled) return; // FIX: Prevents any status updates after cancellation.
     chrome.storage.local.set({ 'ls_status': { message: message, progress: progress, baseLang: subtitleLanguages.base, targetLang: subtitleLanguages.target, url: progress < 100 ? url : null } }).catch(e => console.error("Could not save status to storage:", e));
-    chrome.runtime.sendMessage({ command: "update_status", message: message, progress: progress, route: route, mode: mode }).catch(e => { if (!e.message.includes('Receiving end does not exist')) console.warn("Content Script Messaging Error:", e); });
+    chrome.runtime.sendMessage({ command: "update_status", message: message, progress: progress, route: route }).catch(e => { if (!e.message.includes('Receiving end does not exist')) console.warn("Content Script Messaging Error:", e); });
 }
 
 function ticksToSeconds(tickString) {
@@ -35,18 +36,8 @@ function getNetflixVideoElement() {
     return document.querySelector('video[src*="blob"]');
 }
 
-// --- MODIFICATION: New YouTube Video Element Getter ---
-function getYoutubeVideoElement() {
-    return document.querySelector('video.html5-main-video') || document.querySelector('ytd-player video');
-}
-
 function getNetflixPlayerContainer() {
     return document.querySelector('.watch-video--player-view');
-}
-
-// --- MODIFICATION: New YouTube Player Container Getter ---
-function getYoutubePlayerContainer() {
-    return document.querySelector('#movie_player') || document.querySelector('ytd-player');
 }
 
 async function fetchXmlContent(url) {
@@ -105,98 +96,8 @@ function parseTtmlXml(xmlString, url) {
     }
 }
 
-// --- MODIFICATION: New parser for raw text input with timestamps ---
-function parseRawTextTranscript(rawText) {
-    parsedSubtitles = [];
-    if (!rawText) return false;
-
-    // Use a slice of text to avoid loading massive transcripts for detection, while still maintaining structure for parsing
-    const textForParsing = rawText; 
-    
-    const lines = textForParsing.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    let currentBeginTime = 0;
-    let textBuffer = [];
-    const timestampRegex = /^(\d+:\d{2}:\d{2}|\d+:\d{2})$/; // Matches M:SS or H:MM:SS
-
-    const timeToSeconds = (timeStr) => {
-        const parts = timeStr.split(':').map(p => parseInt(p, 10));
-        if (parts.length === 3) {
-            return parts[0] * 3600 + parts[1] * 60 + parts[2];
-        } else if (parts.length === 2) {
-            return parts[0] * 60 + parts[1];
-        }
-        return 0;
-    };
-
-    const processBuffer = (nextBeginTime) => {
-        if (textBuffer.length > 0) {
-            const text = textBuffer.join(' ').trim();
-            if (text) {
-                // Determine end time: use the next timestamp's start time, or assume 3s
-                const endTime = (nextBeginTime > currentBeginTime) ? nextBeginTime : currentBeginTime + 3.0;
-                
-                parsedSubtitles.push({
-                    begin: currentBeginTime,
-                    end: endTime,
-                    text: text,
-                    translatedText: null,
-                    baseWordColors: null,
-                    translatedWordColors: null
-                });
-            }
-            textBuffer = [];
-        }
-    };
-
-    for (const line of lines) {
-        if (timestampRegex.test(line)) {
-            // Found a new timestamp: finalize the previous subtitle
-            const nextBeginTime = timeToSeconds(line);
-            processBuffer(nextBeginTime);
-            currentBeginTime = nextBeginTime;
-        } else {
-            // Found a line of text: add to buffer
-            textBuffer.push(line);
-        }
-    }
-
-    // Process any remaining text after the last timestamp
-    processBuffer(currentBeginTime + 5.0); // Use a default end time for the last segment
-
-    // If this function is called specifically for detection (only Netflix mode needs 
-    // to check the whole content here), we only need a sample. 
-    // If called from the YouTube processing pipeline, the whole list is needed.
-    if (parsedSubtitles.length === 0) {
-        console.warn("No valid subtitle lines found in raw transcript.");
-        return false;
-    }
-    
-    // For detection purposes, a smaller sample is enough to feed detectBaseLanguage
-    // We rely on the internal logic of detectBaseLanguage to sample the text.
-    console.log(`Successfully parsed ${parsedSubtitles.length} subtitles from raw text input.`);
-    return parsedSubtitles.length > 0;
-}
-// --- END NEW FUNCTION ---
-
-
-function getLanguageName(langCode) {
-    const LANGUAGE_MAP = {
-        "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
-    };
-    const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
-    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
-}
-
-
 function detectBaseLanguage() {
-    // Only sample the first 50 lines to detect the language.
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
-    
-    // Clear the global state of parsedSubtitles if it was only used for detection
-    // to ensure only the final full set is used later.
-    const subsForDetection = [...parsedSubtitles];
-    parsedSubtitles = []; 
-
     return new Promise((resolve) => {
         if (!chrome.i18n || !chrome.i18n.detectLanguage) {
             console.error("Chrome i18n.detectLanguage API not available. Defaulting to 'en'.");
@@ -210,14 +111,10 @@ function detectBaseLanguage() {
     });
 }
 
-function createFloatingWindow(mode) {
+function createFloatingWindow() {
     let existingWindow = document.getElementById('language-stream-window');
     const textShadow = getFontShadowCss(fontShadowPref);
     const defaultFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
-    
-    // Determine the player container based on mode
-    const playerContainer = (mode === 'youtube' ? getYoutubePlayerContainer() : getNetflixPlayerContainer());
-    
     if (existingWindow) {
         floatingWindow = existingWindow;
         floatingWindow.style.textShadow = textShadow;
@@ -225,19 +122,12 @@ function createFloatingWindow(mode) {
     } else {
         const windowDiv = document.createElement('div');
         windowDiv.id = 'language-stream-window';
-        // CRITICAL: Ensure correct positioning relative to the detected player container
         windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
         makeDraggable(windowDiv);
-        
+        const playerContainer = getNetflixPlayerContainer();
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
-        if (playerContainer) {
-             // For YouTube, the movie_player is already relatively positioned, 
-             // but ensuring it doesn't break.
-             if (mode === 'netflix' && playerContainer.style.position !== 'relative') {
-                playerContainer.style.position = 'relative';
-             }
-        }
+        if (playerContainer) playerContainer.style.position = 'relative';
         floatingWindow = windowDiv;
     }
 }
@@ -432,7 +322,7 @@ async function processVocabColorCoding(subtitle) {
     subtitle.colorCodeCount = colorCodeCounter; 
 }
 
-async function translateAllSubtitles(url, mode) {
+async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
@@ -441,16 +331,19 @@ async function translateAllSubtitles(url, mode) {
     const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
     const START_PROGRESS = 60;
     
+    // --- MODIFICATION START: Adjust weights for Vocab style ---
     const isVocab = (subtitleStylePref === 'vocabulary');
-    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; 
-    const MATCHING_WEIGHT = isVocab ? 10 : 0;     
-    const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT; 
+    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; // 20% for translation if Vocab, 30% otherwise
+    const MATCHING_WEIGHT = isVocab ? 10 : 0;     // 10% for matching if Vocab, 0% otherwise
+    const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT; // Total is 30% for all styles
     
+    // The total weight for the concurrent batch needs to cover the remaining portion up to 100 (excluding initial 60)
     const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? 20 : 30;
     const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
-    const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT; 
+    const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT; // Total is 30% for all styles
+    // --- MODIFICATION END ---
     
-    sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url, 'main', mode);
+    sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
     
     // --- Phase 1: Critical Batch Translation and VOCAB PROCESSING ---
     for (let index = 0; index < criticalBatch.length; index++) {
@@ -463,20 +356,22 @@ async function translateAllSubtitles(url, mode) {
         // 1. Translate the entire line
         sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
         
+        // Calculate progress after main translation (for Vocab this is TRANSLATION_WEIGHT of the batch)
         let progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * TRANSLATION_WEIGHT);
 
         // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
         if (isVocab && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
              await processVocabColorCoding(sub);
+             // Increment progress by MATCHING_WEIGHT after word matching
              progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_TOTAL_WEIGHT);
         }
         
-        sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url, 'main', mode);
+        sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
     }
     
     // --- Phase 2: Concurrent Batch Translation and VOCAB PROCESSING ---
     const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT;
-    sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url, 'main', mode);
+    sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
     
     const translationPromises = concurrentBatch.map(async (sub, index) => {
         if (isCancelled) return Promise.resolve("ABORTED");
@@ -490,13 +385,16 @@ async function translateAllSubtitles(url, mode) {
         }
         
         if (index % 5 === 0 || index === concurrentBatch.length - 1) {
+            // Calculate total progress: START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT (for phase 1) 
+            // + CONCURRENT_BATCH_TOTAL_WEIGHT (for phase 2, which covers both translation and matching if vocab)
             const progressRatio = (index + 1) / concurrentBatch.length;
             
+            // Total progress = Start of Phase 2 + (Progress Ratio * Phase 2 Weight)
             const progress = CONCURRENT_START_PROGRESS + Math.floor(progressRatio * CONCURRENT_BATCH_TOTAL_WEIGHT);
 
             if (progress < 100) {
                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
-                sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url, 'main', mode);
+                sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url);
             }
         }
         return sub.translatedText;
@@ -505,7 +403,7 @@ async function translateAllSubtitles(url, mode) {
     await Promise.all(translationPromises);
     
     if (!isCancelled) {
-        sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url, 'main', mode);
+        sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
         console.log("Native translation process finished.");
     } else {
         console.log("Translation finished, but process was cancelled.");
@@ -556,7 +454,7 @@ function getIndexedColor(index, alpha) {
     return colorNameToRgba(colorName, alpha);
 }
 
-function startSubtitleSync(videoElement, mode) {
+function startSubtitleSync(videoElement) {
     if (syncInterval) clearInterval(syncInterval);
     let currentSubtitleIndex = -1;
     let lastTime = 0;
@@ -575,14 +473,14 @@ function startSubtitleSync(videoElement, mode) {
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
         floatingWindow.style.color = baseFontColor; // Set base window color
-        floatingWindow.style.fontSize = currentFontSizeEm; // Apply size to main container for relative sizing
     }
     
     const getSpanStyle = (colorOverride = null) => {
         const finalColor = colorOverride || baseFontColor;
+        // Vocab mode uses a simpler text color, so we use white for base lines unless color-coded
         const finalBgColor = (subtitleStylePref === 'vocabulary') ? colorNameToRgba('none', 0) : currentSpanBgColor;
 
-        return `display: inline-block; padding: 0 0.2em; border-radius: 0.2em; background-color: ${finalBgColor}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
+        return `display: inline-block; padding: 0 0.2em; border-radius: 0.2em; background-color: ${finalBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
     };
 
     const buildColorCodedHtml = (text, colorCodes, defaultColor, isBaseLanguage) => {
@@ -593,6 +491,7 @@ function startSubtitleSync(videoElement, mode) {
 
         const words = text.split(/\s+/).filter(w => w.length > 0);
         
+        // --- Simpler Re-construction using array map/join ---
         let finalHtml = words.map((word, index) => {
             const colorCode = colorCodes[index] || 0; // 0 for white/unmatched
             const wordColor = (colorCode === 0) 
@@ -612,11 +511,14 @@ function startSubtitleSync(videoElement, mode) {
         let translatedStyle = getSpanStyle(baseFontColor);
 
         if (subtitleStylePref === 'vocabulary') {
+            // Should not happen for this function branch, but as a fallback
             return `<span style="${originalStyle}">${text}</span>`; 
         } else if (subtitleStylePref === 'grammar') {
             translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
         } else if (subtitleStylePref === 'custom' || subtitleStylePref === 'netflix') {
             translatedStyle = getSpanStyle(colorNameToRgba(fontColorPref, fontColorAlphaPref));
+        } else {
+            // Default (should be handled by colorOverride in getSpanStyle)
         }
         
         const style = isTranslated ? translatedStyle : originalStyle;
@@ -668,6 +570,7 @@ function startSubtitleSync(videoElement, mode) {
                              innerHTML = `${baseHtml}<br>${translatedHtml}`;
                         }
                     } else {
+                        // Original non-vocab logic
                         const baseHtml = buildSimpleHtml(text, false);
                         const translatedHtml = buildSimpleHtml(translatedText, true);
                         
@@ -703,100 +606,60 @@ function disableNetflixSubObserver() {
     }
 }
 
-// --- MODIFICATION: Removed the function extractYoutubeTranscript ---
-// The functionality is now replaced by user input and parsing in parseRawTextTranscript
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    
-    // --- NEW HANDLER: Added for robust script detection (ping) ---
-    if (request.command === "ping") {
-        sendResponse({ status: "pong" });
-        return false; 
-    }
-    
     if (request.command === "check_language_pair") {
-        (async () => {
-            let isAvailable = false;
-            let status = 'unavailable';
-            
-            console.log(`[Content Script] Checking compatibility for ${request.baseLang} -> ${request.targetLang}...`); // DEBUG
-
-            if ('Translator' in self) {
+        console.log(`[DEBUG] Received check_language_pair. Base: ${request.baseLang}, Target: ${request.targetLang}`);
+        
+        if ('Translator' in self && typeof Translator.availability === 'function') {
+            (async () => {
                 try {
-                    // Use the native Translator API to check availability
-                    const capabilities = await Translator.availability({
+                    const availabilityResult = await Translator.availability({
                         sourceLanguage: request.baseLang,
-                        targetLanguage: request.targetLang,
+                        targetLanguage: request.targetLang
                     });
-                    
-                    status = capabilities;
-                    isAvailable = (capabilities === 'available');
-                    console.log(`[Content Script] Translator.availability status: ${status}`); // DEBUG
 
+                    console.log(`[DEBUG] Translator.availability() returned: '${availabilityResult}'`);
+                    const isAvailable = (availabilityResult === 'available' || availabilityResult === 'downloadable');
+
+                    sendResponse({
+                        isAvailable: isAvailable,
+                        baseLang: request.baseLang,
+                        targetLang: request.targetLang
+                    });
                 } catch (e) {
-                    console.error("[Content Script] Translator.availability check failed:", e); // DEBUG
-                    status = 'error';
+                    console.error("[DEBUG] Error during Translator.availability() check:", e);
+                    sendResponse({ isAvailable: false });
                 }
-            } else {
-                // If API is missing, assume unavailable for safety
-                console.error("[Content Script] Translator API ('Translator' in self) is not available."); // DEBUG
-                status = 'missing_api';
-            }
-
-            // Send back the detailed result
-            sendResponse({
-                isAvailable: isAvailable,
-                status: status, // New: send back the explicit status
-                baseLang: request.baseLang,
-                targetLang: request.targetLang
-            });
-        })();
-        return true; // Indicates the response will be sent asynchronously
+            })();
+        } else {
+            console.warn("Translator API (or availability function) is not available in this context.");
+            sendResponse({ isAvailable: false });
+        }
+        return true;
     }
 
     if (request.command === "detect_language") {
-        // This function is for Netflix (detecting language from a fetched XML)
-        
-        // Asynchronously parse XML to detect language
         (async () => {
+            parsedSubtitles = [];
             const xmlContent = await fetchXmlContent(request.url);
-            if (!xmlContent) {
-                sendResponse({ url: request.url, baseLangCode: null });
-                return;
-            }
-            if (!parseTtmlXml(xmlContent, request.url)) {
-                sendResponse({ url: request.url, baseLangCode: null });
-                return;
-            }
-            const baseLangCode = await detectBaseLanguage();
-            sendResponse({ url: request.url, baseLangCode: baseLangCode });
-        })();
-        return true; 
-    }
-    
-    // --- NEW MODIFICATION: Language Detection for Raw Transcript Input (YouTube Mode) ---
-    if (request.command === "detect_transcript_language") {
-        (async () => {
-            // Use the existing Netflix parser's helper to extract text from a sample of the raw input
-            if (!parseRawTextTranscript(request.rawTranscript)) { 
-                sendResponse({ baseLangCode: null });
-                return;
-            }
-            // Use the same detection function as Netflix mode
-            const baseLangCode = await detectBaseLanguage();
-            // Store the detected language and send it back
-            await chrome.storage.local.set({ 
-                'detected_youtube_base_lang_code': baseLangCode,
-                'detected_youtube_base_lang_name': baseLangCode ? getLanguageName(baseLangCode) : null
-            });
-            sendResponse({ baseLangCode: baseLangCode });
-        })();
-        return true; 
-    }
-    // --- END NEW MODIFICATION ---
 
-    // --- MODIFICATION: Updated fetch_and_process_url to handle YouTube mode's raw input ---
-    if (request.command === "fetch_and_process_url" && request.targetLang) {
+            if (xmlContent) {
+                const parseSuccess = parseTtmlXml(xmlContent, request.url);
+                if (parseSuccess && parsedSubtitles.length > 0) {
+                    const baseLangCode = await detectBaseLanguage();
+                    sendResponse({
+                        url: request.url,
+                        baseLangCode: baseLangCode
+                    });
+                } else {
+                    sendResponse({ url: request.url, baseLangCode: null });
+                }
+            }
+        })();
+        return true;
+    }
+
+    if (request.command === "fetch_and_process_url" && request.url) {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
@@ -809,87 +672,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         fontColorPref = request.fontColor;
         fontColorAlphaPref = request.fontColorAlpha;
         subtitleStylePref = request.colourCoding;
-        const mode = request.mode; // New: Capture mode
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
-        const url = request.url; // Only relevant for Netflix
-
+        const url = request.url;
         if (!('Translator' in self)) {
-            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'main', mode);
+            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url);
             isProcessing = false;
             return false;
         }
 
         (async () => {
-            const videoElement = mode === 'youtube' ? getYoutubeVideoElement() : getNetflixVideoElement();
-            
+            const videoElement = getNetflixVideoElement();
             if (!videoElement) {
-                sendStatusUpdate("Video player not found.", 0, url, 'main', mode);
+                sendStatusUpdate("Video player not found.", 0);
                 isProcessing = false;
                 return;
             }
-            
-            let parseSuccess = false;
-            
-            if (mode === 'netflix') {
-                const xmlContent = await fetchXmlContent(url);
-                if (!xmlContent || isCancelled) {
-                    isProcessing = false;
-                    return;
-                }
-                parseSuccess = parseTtmlXml(xmlContent, url);
-                
-            } else { // YouTube Mode
-                // MODIFICATION: Get raw text input instead of parsed data
-                const data = await chrome.storage.local.get(['youtube_raw_transcript_data', 'youtube_base_lang_code']);
-                const rawTranscript = data.youtube_raw_transcript_data;
-                
-                if (!rawTranscript || isCancelled) {
-                    sendStatusUpdate("Error: Transcript not found in storage. Please re-paste it.", 0, url, 'url', mode);
-                    isProcessing = false;
-                    return;
-                }
-                
-                subtitleLanguages.base = data.youtube_base_lang_code;
-                parseSuccess = parseRawTextTranscript(rawTranscript); // MODIFIED: Call new parser function
-                
-                // Clear raw text and temporary detection keys after loading
-                await chrome.storage.local.remove(['youtube_raw_transcript_data', 'detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
+            const xmlContent = await fetchXmlContent(url);
+            if (!xmlContent || isCancelled) {
+                isProcessing = false;
+                return;
             }
-            
-            createFloatingWindow(mode);
-            if (mode === 'netflix') disableNetflixSubObserver();
-            
+            createFloatingWindow();
+            disableNetflixSubObserver();
+            const parseSuccess = parseTtmlXml(xmlContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
-                
-                if (mode === 'netflix') {
-                    sendStatusUpdate("Detecting language...", 30, url, 'main', mode);
-                    subtitleLanguages.base = await detectBaseLanguage();
-                }
-                // NOTE: For YouTube mode, subtitleLanguages.base is already set using the result from detect_transcript_language in popup.js
-                
+                sendStatusUpdate("Detecting language...", 30, url);
+                subtitleLanguages.base = await detectBaseLanguage();
                 if (isCancelled) {
                     isProcessing = false;
                     return;
                 }
-                
                 if (!subtitleLanguages.base) {
-                    sendStatusUpdate(`Detection FAIL. Fallback 'en'.`, 30, url, 'main', mode);
+                    sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url);
                     subtitleLanguages.base = 'en';
                 } else {
-                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'main', mode);
+                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url);
                 }
-                
-                startSubtitleSync(videoElement, mode);
-                
+                startSubtitleSync(videoElement);
                 try {
-                    await translateAllSubtitles(url, mode);
+                    await translateAllSubtitles(url);
                 } catch (e) {
                     if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e);
                 }
                 isProcessing = false;
             } else {
-                if (!isCancelled) sendStatusUpdate(mode === 'netflix' ? "Invalid URL." : "No valid transcript lines found.", 0, url, 'url', mode);
+                if (!isCancelled) sendStatusUpdate("Invalid URL.", 0, url, 'url');
                 isProcessing = false;
             }
         })();
@@ -897,22 +725,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.command === "cancel_processing") {
-        console.log("Processing cancelled by user command.");
         isCancelled = true;
-        isProcessing = false;
-        if (syncInterval) clearInterval(syncInterval);
-        
-        // Remove the custom subtitle window
-        const windowDiv = document.getElementById('language-stream-window');
-        if (windowDiv) {
-            windowDiv.remove();
+        if (syncInterval) {
+            clearInterval(syncInterval);
+            syncInterval = null;
         }
+        if (floatingWindow) {
+            floatingWindow.style.display = 'none';
+            floatingWindow.innerHTML = '';
+        }
+        isProcessing = false;
         
-        // Clear status storage (MODIFIED to include new key)
-        chrome.storage.local.remove(['ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code', 'youtube_raw_transcript_data', 'youtube_base_lang_code', 'detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
+        (async () => {
+            await chrome.storage.local.remove(['ls_status']);
+            console.log("Processing cancelled. Cleared status from storage.");
+        })();
         
-        // Placeholder: If Netflix observer was disabled, re-enable if possible (complex for this scope)
-
         return false;
     }
 
