@@ -80,7 +80,7 @@
         margin-top: 0; 
         margin-bottom: 5px;
       }
-      #confirmButton {
+      #confirmButton, #youtube-confirmButton {
         margin-top: 15px;
         margin-bottom: 0;
       }
@@ -88,13 +88,13 @@
         background-color: #f40a16;
       }
       /* Style for the Cancel button */
-      button#cancelButton { 
+      button#cancelButton, button#youtube-cancelButton { 
         background-color: #777; 
         margin-top: 15px; 
         margin-bottom: 0px; 
         display: block; 
       }
-      button#cancelButton:hover {
+      button#cancelButton:hover, button#youtube-cancelButton:hover {
         background-color: #999;
       }
 
@@ -119,7 +119,7 @@
           visibility: hidden !important; 
       }
       
-      #statusBox {
+      #statusBox, #youtube-statusBox {
         margin-top: 10px; 
         padding: 5px;
         border: 1px solid #eee;
@@ -128,7 +128,7 @@
         text-align: center;
       }
       /* Simple Loading Bar CSS */
-      #progressBarContainer {
+      #progressBarContainer, #youtube-progressBarContainer {
         width: 100%;
         background-color: #ddd;
         border-radius: 5px;
@@ -138,7 +138,7 @@
         /* --- MODIFICATION END --- */
         overflow: hidden;
       }
-      #progressBar {
+      #progressBar, #youtube-progressBar {
         width: 0%;
         height: 15px;
         background-color: #4CAF50;
@@ -193,7 +193,7 @@
         margin-right: 5px;
       }
       
-      #editStyleSettingsButton {
+      #editStyleSettingsButton, #youtube-editStyleSettingsButton {
           width: 28px; 
           height: 28px; 
           padding: 0; 
@@ -211,7 +211,7 @@
           border: none; 
           flex-shrink: 0;
       }
-      #editStyleSettingsButton:hover {
+      #editStyleSettingsButton:hover, #youtube-editStyleSettingsButton:hover {
           background-color: #777;
       }
 
@@ -333,15 +333,14 @@
     </div>
 
     <div id="youtube-content" class="hidden-no-space">
-      <h2>1. Open Transcript</h2>
+      <h2>1. Retrieve Transcript</h2>
       <div id="youtube-urlInstructions">
         <p>Open a YouTube video with subtitles.</p>
         <p>Click the '...' (More) button below the video.</p>
         <p>Click 'Show transcript'.</p>
-        <p>(This extension will auto-detect the transcript!)</p>
+        <p>Then, click the button below to retrieve the transcript with timings.</p>
       </div>
-      <input type="text" id="youtube-subtitleUrlInput" placeholder="YouTube URL (auto-detected)" 
-            value="" disabled>
+      <button id="detectTranscriptButton">Detect Transcript</button>
       
       <p id="youtube-urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
       
@@ -388,7 +387,7 @@
           </div>
       </div>
       
-      <button id="youtube-confirmButton">Generate Subtitles</button>
+      <button id="youtube-confirmButton" disabled>Generate Subtitles</button>
       
       <button id="youtube-cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
 
