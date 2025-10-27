@@ -438,11 +438,20 @@ async function checkYoutubeLanguagePairAvailability(elements) {
                 const currentTargetLangCode = getLangCodeFromInput(elements.youtubeTargetLanguage.value);
 
                 if (currentTargetLangCode === response.targetLang) {
-                    if (response.isAvailable) {
+                    // MODIFICATION: Check response.isAvailable instead of relying on simple logic
+                    if (response.isAvailable) { 
                         elements.youtubeLangStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
                         elements.youtubeLangStatusText.style.color = "green";
                     } else {
-                        elements.youtubeLangStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
+                        // Display a more helpful message based on the issue
+                        let message = "Language pair not yet available, please retry with different inputs.";
+                        if (response.status === 'downloadable') {
+                            message = "Translation model is downloading. Try again shortly.";
+                        } else if (response.status === 'error' || response.status === 'missing_api') {
+                            message = "Compatibility check failed. Please reload the tab.";
+                        }
+                        
+                        elements.youtubeLangStatusText.textContent = message;
                         elements.youtubeLangStatusText.style.color = "#e50914";
                     }
                 }
@@ -513,11 +522,20 @@ async function checkLanguagePairAvailability(elements) {
                 let currentTargetLangCode = getLangCodeFromInput(currentInputLang);
                 
                 if (currentTargetLangCode === response.targetLang) {
-                    if (response.isAvailable) {
+                    // MODIFICATION: Check response.isAvailable instead of relying on simple logic
+                    if (response.isAvailable) { 
                         elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
                         elements.langStatusText.style.color = "green";
                     } else {
-                        elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
+                        // Display a more helpful message based on the issue
+                        let message = "Language pair not yet available, please retry with different inputs.";
+                        if (response.status === 'downloadable') {
+                            message = "Translation model is downloading. Try again shortly.";
+                        } else if (response.status === 'error' || response.status === 'missing_api') {
+                            message = "Compatibility check failed. Please reload the tab.";
+                        }
+                        
+                        elements.langStatusText.textContent = message;
                         elements.langStatusText.style.color = "#e50914";
                     }
                 }

@@ -711,17 +711,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // --- MODIFICATION: Removed listener for detect_youtube_transcript ---
     
     if (request.command === "check_language_pair") {
-        // This function checks language availability (requires external translation API)
-        
-        // Placeholder implementation for language check
-        const isAvailable = (request.baseLang && request.targetLang && request.baseLang !== request.targetLang);
+        (async () => {
+            let isAvailable = false;
+            let status = 'unavailable';
 
-        sendResponse({
-            isAvailable: isAvailable,
-            baseLang: request.baseLang,
-            targetLang: request.targetLang
-        });
-        return true; 
+            if ('Translator' in self) {
+                try {
+                    // Use the native Translator API to check availability
+                    const capabilities = await Translator.availability({
+                        sourceLanguage: request.baseLang,
+                        targetLanguage: request.targetLang,
+                    });
+                    
+                    status = capabilities;
+                    isAvailable = (capabilities === 'available');
+
+                } catch (e) {
+                    console.error("Translator.availability check failed:", e);
+                    status = 'error';
+                }
+            } else {
+                // If API is missing, assume unavailable for safety
+                status = 'missing_api';
+            }
+
+            // Send back the detailed result
+            sendResponse({
+                isAvailable: isAvailable,
+                status: status, // New: send back the explicit status
+                baseLang: request.baseLang,
+                targetLang: request.targetLang
+            });
+        })();
+        return true; // Indicates the response will be sent asynchronously
     }
 
     if (request.command === "detect_language") {
