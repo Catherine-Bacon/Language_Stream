@@ -632,38 +632,100 @@ function disableNetflixSubObserver() {
     }
 }
 
-// --- NEW FUNCTION: YouTube Transcript Extractor Placeholder ---
+// --- MODIFICATION: Implemented Live Transcript Scraping Logic ---
 function extractYoutubeTranscript() {
-    // --- THIS IS A DYNAMIC IMPLEMENTATION, using a placeholder for now ---
-    // The actual implementation would query the DOM for YouTube's own transcript
-    // element (which is complex and prone to breaking with YouTube updates)
-    // or use a separate API/library to fetch it via the video ID.
-    // For now, we simulate success with dummy data and the video's current language.
+    // Select the entire transcript panel container
+    const transcriptPanel = document.querySelector('ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-searchable-transcript"] #transcript');
     
-    // --- Step 1: Check if the user is on a YouTube video page ---
     if (!window.location.href.includes('youtube.com/watch')) {
         return { success: false, error: "Error: Not on a YouTube video page.", data: null, baseLangCode: null };
     }
+
+    if (!transcriptPanel) {
+        // This is the CRITICAL failure point if the user hasn't opened the transcript
+        return { success: false, error: "Error: Transcript panel not found. Did you click 'Show transcript'?", data: null, baseLangCode: null };
+    }
     
-    // --- Step 2: Attempt to find the language code (Placeholder logic) ---
-    // In a real scenario, this would involve finding the currently selected caption/transcript language
-    let baseLangCode = 'en'; // Default to English or the video's default
+    // Find the currently displayed language code from the settings button's aria-label
+    // This element is usually nested inside ytd-transcript-renderer
+    const langElement = document.querySelector('ytd-transcript-renderer button[aria-label^="Transcript language:"]');
+    let baseLangCode = 'en'; // Default fallback
+    if (langElement) {
+        const match = langElement.getAttribute('aria-label').match(/language:\s*([a-z]{2})/i);
+        if (match && match[1]) {
+            baseLangCode = match[1].toLowerCase();
+        }
+    }
     
-    // --- Step 3: Extract or Synthesize the transcript data ---
-    // In a real scenario, this would be a list of { begin: seconds, end: seconds, text: "line" }
-    const dummyTranscript = [
-        { begin: 1.5, end: 4.5, text: "Hello, and welcome to Language Stream." },
-        { begin: 5.0, end: 8.2, text: "Today, we are testing the new YouTube integration feature." },
-        { begin: 9.0, end: 12.0, text: "Click the generate button to see the translation." },
-        { begin: 12.5, end: 15.0, text: "We hope you enjoy your language learning journey." }
-    ];
-    
-    if (dummyTranscript.length > 0) {
-        return { success: true, data: dummyTranscript, baseLangCode: baseLangCode };
+    // Select all individual transcript segments
+    const transcriptElements = transcriptPanel.querySelectorAll('ytd-transcript-segment-renderer');
+    const fullTranscript = [];
+    let previousEndTime = 0;
+
+    transcriptElements.forEach((segment, index) => {
+        const timeElement = segment.querySelector('.segment-timestamp');
+        const textElement = segment.querySelector('.segment-text');
+
+        if (timeElement && textElement) {
+            // Convert MM:SS or H:MM:SS to seconds
+            const timeParts = timeElement.textContent.trim().split(':').map(p => parseInt(p, 10));
+            let beginTime = 0;
+            if (timeParts.length === 3) {
+                beginTime = timeParts[0] * 3600 + timeParts[1] * 60 + timeParts[2];
+            } else if (timeParts.length === 2) {
+                beginTime = timeParts[0] * 60 + timeParts[1];
+            } else if (timeParts.length === 1) {
+                beginTime = timeParts[0];
+            }
+
+            const text = textElement.textContent.trim();
+
+            if (text) {
+                // Determine the end time: use the next segment's start time, 
+                // or a default duration if it's the last segment.
+                let endTime = 0;
+                if (index < transcriptElements.length - 1) {
+                    // Try to peek at the next segment's start time
+                    const nextTimeElement = transcriptElements[index + 1].querySelector('.segment-timestamp');
+                    if (nextTimeElement) {
+                        const nextTimeParts = nextTimeElement.textContent.trim().split(':').map(p => parseInt(p, 10));
+                        if (nextTimeParts.length === 3) {
+                            endTime = nextTimeParts[0] * 3600 + nextTimeParts[1] * 60 + nextTimeParts[2];
+                        } else if (nextTimeParts.length === 2) {
+                            endTime = nextTimeParts[0] * 60 + nextTimeParts[1];
+                        } else if (nextTimeParts.length === 1) {
+                            endTime = nextTimeParts[0];
+                        }
+                    }
+                }
+                
+                // If endTime couldn't be determined from the next segment, estimate it
+                if (endTime <= beginTime) {
+                    endTime = beginTime + 3.0; // Assume 3-second duration if no explicit end time
+                }
+
+                // Ensure timing consistency (prevents negative durations if scraping is slightly off)
+                if (beginTime < previousEndTime) {
+                    beginTime = previousEndTime;
+                }
+                
+                fullTranscript.push({
+                    begin: beginTime,
+                    end: endTime,
+                    text: text
+                });
+                previousEndTime = endTime;
+            }
+        }
+    });
+
+    if (fullTranscript.length > 0) {
+        return { success: true, data: fullTranscript, baseLangCode: baseLangCode };
     } else {
-        return { success: false, error: "Error: Transcript not found on the page.", data: null, baseLangCode: null };
+        return { success: false, error: "Error: No text or segments found in the transcript panel.", data: null, baseLangCode: null };
     }
 }
+// --- END MODIFICATION ---
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -677,15 +739,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // --- END NEW LISTENER ---
     
     if (request.command === "check_language_pair") {
-        // ... (existing code for check_language_pair) ...
-        // ... (no changes needed in the content of this block) ...
-        return true;
+        // This function checks language availability (requires external translation API)
+        
+        // Placeholder implementation for language check
+        const isAvailable = (request.baseLang && request.targetLang && request.baseLang !== request.targetLang);
+
+        sendResponse({
+            isAvailable: isAvailable,
+            baseLang: request.baseLang,
+            targetLang: request.targetLang
+        });
+        return true; 
     }
 
     if (request.command === "detect_language") {
-        // ... (existing code for detect_language) ...
-        // ... (no changes needed in the content of this block) ...
-        return true;
+        // This function is for Netflix (detecting language from a fetched XML)
+        
+        // Asynchronously parse XML to detect language
+        (async () => {
+            const xmlContent = await fetchXmlContent(request.url);
+            if (!xmlContent) {
+                sendResponse({ url: request.url, baseLangCode: null });
+                return;
+            }
+            if (!parseTtmlXml(xmlContent, request.url)) {
+                sendResponse({ url: request.url, baseLangCode: null });
+                return;
+            }
+            const baseLangCode = await detectBaseLanguage();
+            sendResponse({ url: request.url, baseLangCode: baseLangCode });
+        })();
+        return true; 
     }
 
     // --- MODIFICATION: Updated fetch_and_process_url to handle YouTube mode ---
@@ -783,8 +867,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.command === "cancel_processing") {
-        // ... (existing code for cancel_processing) ...
-        // ... (no changes needed in the content of this block) ...
+        console.log("Processing cancelled by user command.");
+        isCancelled = true;
+        isProcessing = false;
+        if (syncInterval) clearInterval(syncInterval);
+        
+        // Remove the custom subtitle window
+        const windowDiv = document.getElementById('language-stream-window');
+        if (windowDiv) {
+            windowDiv.remove();
+        }
+        
+        // Clear status storage
+        chrome.storage.local.remove(['ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code', 'youtube_transcript_data', 'youtube_base_lang_code']);
+        
+        // Placeholder: If Netflix observer was disabled, re-enable if possible (complex for this scope)
+
         return false;
     }
 
