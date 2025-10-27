@@ -760,6 +760,10 @@ async function handleDetectTranscript(elements) {
                 command: "detect_youtube_transcript"
             }).then(async (response) => {
                 if (response && response.success) {
+                    // --- NEW CONSOLE LOG ADDED HERE ---
+                    console.log("[POPUP] Detected Transcript Data:", response.data);
+                    // --- END NEW CONSOLE LOG ---
+                    
                     await chrome.storage.local.set({ 
                         'youtube_transcript_data': response.data,
                         'youtube_base_lang_code': response.baseLangCode
