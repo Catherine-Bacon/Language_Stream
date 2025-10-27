@@ -68,8 +68,8 @@ function updateGenerateButtonState(elements) {
         const isLangValid = elements.langStatusText.style.color === 'green';
         elements.confirmButton.disabled = !(isUrlValid && isLangValid);
     } else { // YouTube Mode
-        // MODIFICATION: Check if the raw transcript input has content
-        const isTranscriptPresent = elements.youtubeTranscriptInput.value.trim().length > 0;
+        // MODIFICATION: Check if the raw transcript input has content AND if base language has been detected (green status)
+        const isTranscriptPresent = elements.youtubeUrlStatusText.style.color === 'green';
         const isLangValid = elements.youtubeLangStatusText.style.color === 'green';
         elements.youtubeConfirmButton.disabled = !(isTranscriptPresent && isLangValid);
     }
@@ -102,7 +102,9 @@ async function resetStatus(elements) {
         'ui_temp_state_netflix', // Updated for Netflix
         'ui_temp_state_youtube', // Added for YouTube
         'youtube_raw_transcript_data', // MODIFICATION: New key for raw text to clear
-        'youtube_base_lang_code' // New YouTube data to clear
+        'youtube_base_lang_code', // New YouTube data to clear
+        'detected_youtube_base_lang_code', // MODIFICATION: Clear new YouTube detection keys
+        'detected_youtube_base_lang_name' // MODIFICATION: Clear new YouTube detection keys
     ]);
 
     // Reset Netflix settings to default
@@ -275,11 +277,14 @@ async function stopProcessingUI(elements) {
         // Re-check detection status for YouTube
         const transcriptText = currentElements.youtubeTranscriptInput.value.trim(); // MODIFIED
         if (transcriptText.length > 0) {
-             currentElements.urlStatusText.textContent = `Transcript ready for validation.`; // MODIFIED
-             currentElements.urlStatusText.style.color = "green";
+            // Rerun detection only if status is not already green
+            if (currentElements.urlStatusText.style.color !== 'green') {
+                detectYoutubeBaseLanguage(elements, transcriptText);
+            }
         } else {
              currentElements.urlStatusText.textContent = "Paste transcript with timestamps above."; // MODIFIED
              currentElements.urlStatusText.style.color = "#e50914";
+             chrome.storage.local.remove(['detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
         }
         checkYoutubeLanguagePairAvailability(elements);
     }
@@ -325,21 +330,62 @@ async function getLangCodeFromInput(inputLang) {
     return targetLangCode;
 }
 
+// --- NEW FUNCTION: Detects base language of the raw transcript via content script ---
+async function detectYoutubeBaseLanguage(elements, rawTranscript) {
+    if (!rawTranscript) {
+        await chrome.storage.local.remove(['detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
+        return;
+    }
+
+    elements.youtubeUrlStatusText.textContent = `Detecting base language...`;
+    elements.youtubeUrlStatusText.style.color = "#e50914";
+
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs[0] && tabs[0].id) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+            command: "detect_transcript_language",
+            rawTranscript: rawTranscript
+        }).then(async (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn("YouTube base language detection error:", chrome.runtime.lastError.message);
+                elements.youtubeUrlStatusText.textContent = "Language detection failed. Assuming English ('en').";
+                await chrome.storage.local.set({ 'detected_youtube_base_lang_code': 'en', 'detected_youtube_base_lang_name': 'English' });
+            } else if (response && response.baseLangCode) {
+                const baseLangName = getLanguageName(response.baseLangCode);
+                elements.youtubeUrlStatusText.textContent = `Detected: ${baseLangName} subtitles ready to translate!`;
+                elements.youtubeUrlStatusText.style.color = "green";
+            } else {
+                elements.youtubeUrlStatusText.textContent = "Language detection failed. Assuming English ('en').";
+                await chrome.storage.local.set({ 'detected_youtube_base_lang_code': 'en', 'detected_youtube_base_lang_name': 'English' });
+            }
+            checkYoutubeLanguagePairAvailability(elements);
+        }).catch(e => {
+            console.warn("Could not send detection message, content script not ready:", e);
+            elements.youtubeUrlStatusText.textContent = "Cannot check: please reload the YouTube tab.";
+            elements.youtubeUrlStatusText.style.color = "#e50914";
+            checkYoutubeLanguagePairAvailability(elements);
+        });
+    }
+}
+// --- END NEW FUNCTION ---
+
 // --- MODIFICATION: New function to check raw transcript input ---
 function checkYoutubeTranscriptInput(elements) {
     const transcriptText = elements.youtubeTranscriptInput.value.trim();
     if (transcriptText.length > 0) {
-        elements.youtubeUrlStatusText.textContent = `Transcript ready for validation.`;
-        elements.youtubeUrlStatusText.style.color = "green";
+        // MODIFICATION: Trigger base language detection from the raw text
+        detectYoutubeBaseLanguage(elements, transcriptText);
     } else {
         elements.youtubeUrlStatusText.textContent = "Paste transcript with timestamps above.";
         elements.youtubeUrlStatusText.style.color = "#e50914";
+        // Also clear stored detection when the box is empty
+        chrome.storage.local.remove(['detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
+        updateGenerateButtonState(elements);
     }
-    updateGenerateButtonState(elements);
 }
 // --- END NEW FUNCTION ---
 
-// --- MODIFICATION: New YouTube Language Check ---
+// --- MODIFICATION: New YouTube Language Check uses detected code ---
 async function checkYoutubeLanguagePairAvailability(elements) {
     const inputLang = elements.youtubeTargetLanguage.value.trim().toLowerCase();
     if (inputLang === '') {
@@ -358,13 +404,12 @@ async function checkYoutubeLanguagePairAvailability(elements) {
         return;
     }
     
-    // MODIFICATION: For raw text input, we assume the base language is English ('en') 
-    // or rely on a stored value if complex detection was performed earlier.
-    // We will use a hardcoded 'en' for now, as there's no way to detect the base lang from raw text in the popup.
-    const baseLangCode = 'en'; // Assuming copied transcript is in English for compatibility check.
+    // MODIFICATION: Get detected base language code from storage
+    const data = await chrome.storage.local.get(['detected_youtube_base_lang_code']);
+    const baseLangCode = data.detected_youtube_base_lang_code;
     
     if (!baseLangCode) {
-        elements.youtubeLangStatusText.textContent = "Waiting for transcript input to check compatibility...";
+        elements.youtubeLangStatusText.textContent = "Waiting for base language detection from transcript..."; // MODIFIED text
         elements.youtubeLangStatusText.style.color = "#777";
         updateGenerateButtonState(elements);
         return;
@@ -610,9 +655,11 @@ function loadSavedStatus(elements) {
 
         const keysToLoad = [
             'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
-            'detected_base_lang_name', 'ui_temp_state_netflix', 'ui_temp_state_youtube',
+            'detected_base_lang_name', 'detected_base_lang_code', 'ui_temp_state_netflix', 'ui_temp_state_youtube',
             'youtube_raw_transcript_data', // MODIFIED: New key for raw text storage
-            'youtube_base_lang_code'
+            'youtube_base_lang_code',
+            'detected_youtube_base_lang_code', // NEW KEY
+            'detected_youtube_base_lang_name' // NEW KEY
         ];
 
         chrome.storage.local.get(keysToLoad, (data) => {
@@ -744,8 +791,14 @@ function loadSavedStatus(elements) {
                     // MODIFIED: Check transcript input instead of stored data
                     const transcriptText = currentElements.youtubeTranscriptInput.value.trim();
                     if (transcriptText.length > 0) {
-                        currentElements.urlStatusText.textContent = `Transcript ready for validation.`;
-                        currentElements.urlStatusText.style.color = "green";
+                        // Display the detected base language name if available
+                        if (data.detected_youtube_base_lang_name) {
+                            currentElements.urlStatusText.textContent = `Detected: ${data.detected_youtube_base_lang_name} subtitles ready to translate!`;
+                            currentElements.urlStatusText.style.color = "green";
+                        } else {
+                            // If not in storage, trigger detection/fallback via checkInput
+                            checkYoutubeTranscriptInput(elements);
+                        }
                     } else {
                         currentElements.urlStatusText.textContent = "Paste transcript with timestamps above.";
                         currentElements.urlStatusText.style.color = "#e50914";
@@ -874,7 +927,7 @@ async function handleConfirmClick(elements) {
             return;
         }
     } else {
-        // MODIFICATION START: Use raw input box instead of stored data
+        // MODIFICATION START: Use raw input box and detected language
         const rawTranscript = currentElements.youtubeTranscriptInput.value.trim();
         if (!rawTranscript) {
             currentElements.statusText.textContent = "Error: Transcript box is empty. Please paste the transcript.";
@@ -885,11 +938,14 @@ async function handleConfirmClick(elements) {
             return;
         }
         
+        // Retrieve the language detected during input check (or fallback to 'en')
+        const data = await chrome.storage.local.get(['detected_youtube_base_lang_code']);
+        const baseLangCode = data.detected_youtube_base_lang_code || 'en'; 
+        
         // --- Store the raw text and base language for content.js to process ---
-        // Hardcoding to 'en' as base language for the input, as detection is not possible here.
         await chrome.storage.local.set({ 
             'youtube_raw_transcript_data': rawTranscript,
-            'youtube_base_lang_code': 'en'
+            'youtube_base_lang_code': baseLangCode // Use the detected code
         });
         // MODIFICATION END
     }
@@ -901,7 +957,8 @@ async function handleConfirmClick(elements) {
         translated_only_pref: translatedOnly,
         subtitle_style_pref: selectedStyle,
     });
-    await chrome.storage.local.remove([isNetflix ? 'ui_temp_state_netflix' : 'ui_temp_state_youtube']);
+    // MODIFICATION: Remove temporary UI state keys including temp transcript data
+    await chrome.storage.local.remove([isNetflix ? 'ui_temp_state_netflix' : 'ui_temp_state_youtube']); 
         
     
     currentElements.statusText.textContent = isNetflix ? "URL accepted. Initializing content script..." : "Transcript found. Initializing content script...";
@@ -1264,11 +1321,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     checkLanguagePairAvailability(elements);
                 } else {
-                    // MODIFIED: Check transcript input instead of stored data
+                    // MODIFIED: Check transcript input status from storage
+                    const { detected_youtube_base_lang_name } = await chrome.storage.local.get('detected_youtube_base_lang_name');
                     const transcriptText = currentElements.youtubeTranscriptInput.value.trim();
                     if (!transcriptText) {
                          currentElements.urlStatusText.textContent = "Paste transcript with timestamps above.";
                          currentElements.urlStatusText.style.color = "#e50914";
+                    } else if (!detected_youtube_base_lang_name) {
+                        currentElements.urlStatusText.textContent = "Detecting base language...";
+                        currentElements.urlStatusText.style.color = "#e50914";
                     }
                     checkYoutubeLanguagePairAvailability(elements);
                 }

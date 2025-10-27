@@ -110,7 +110,10 @@ function parseRawTextTranscript(rawText) {
     parsedSubtitles = [];
     if (!rawText) return false;
 
-    const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    // Use a slice of text to avoid loading massive transcripts for detection, while still maintaining structure for parsing
+    const textForParsing = rawText; 
+    
+    const lines = textForParsing.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     let currentBeginTime = 0;
     let textBuffer = [];
     const timestampRegex = /^(\d+:\d{2}:\d{2}|\d+:\d{2})$/; // Matches M:SS or H:MM:SS
@@ -160,14 +163,40 @@ function parseRawTextTranscript(rawText) {
     // Process any remaining text after the last timestamp
     processBuffer(currentBeginTime + 5.0); // Use a default end time for the last segment
 
+    // If this function is called specifically for detection (only Netflix mode needs 
+    // to check the whole content here), we only need a sample. 
+    // If called from the YouTube processing pipeline, the whole list is needed.
+    if (parsedSubtitles.length === 0) {
+        console.warn("No valid subtitle lines found in raw transcript.");
+        return false;
+    }
+    
+    // For detection purposes, a smaller sample is enough to feed detectBaseLanguage
+    // We rely on the internal logic of detectBaseLanguage to sample the text.
     console.log(`Successfully parsed ${parsedSubtitles.length} subtitles from raw text input.`);
     return parsedSubtitles.length > 0;
 }
 // --- END NEW FUNCTION ---
 
 
+function getLanguageName(langCode) {
+    const LANGUAGE_MAP = {
+        "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
+    };
+    const langKey = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === langCode);
+    return langKey ? langKey.charAt(0).toUpperCase() + langKey.slice(1) : langCode.toUpperCase();
+}
+
+
 function detectBaseLanguage() {
+    // Only sample the first 50 lines to detect the language.
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
+    
+    // Clear the global state of parsedSubtitles if it was only used for detection
+    // to ensure only the final full set is used later.
+    const subsForDetection = [...parsedSubtitles];
+    parsedSubtitles = []; 
+
     return new Promise((resolve) => {
         if (!chrome.i18n || !chrome.i18n.detectLanguage) {
             console.error("Chrome i18n.detectLanguage API not available. Defaulting to 'en'.");
@@ -714,6 +743,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         return true; 
     }
+    
+    // --- NEW MODIFICATION: Language Detection for Raw Transcript Input (YouTube Mode) ---
+    if (request.command === "detect_transcript_language") {
+        (async () => {
+            // Use the existing Netflix parser's helper to extract text from a sample of the raw input
+            if (!parseRawTextTranscript(request.rawTranscript)) { 
+                sendResponse({ baseLangCode: null });
+                return;
+            }
+            // Use the same detection function as Netflix mode
+            const baseLangCode = await detectBaseLanguage();
+            // Store the detected language and send it back
+            await chrome.storage.local.set({ 
+                'detected_youtube_base_lang_code': baseLangCode,
+                'detected_youtube_base_lang_name': baseLangCode ? getLanguageName(baseLangCode) : null
+            });
+            sendResponse({ baseLangCode: baseLangCode });
+        })();
+        return true; 
+    }
+    // --- END NEW MODIFICATION ---
 
     // --- MODIFICATION: Updated fetch_and_process_url to handle YouTube mode's raw input ---
     if (request.command === "fetch_and_process_url" && request.targetLang) {
@@ -773,8 +823,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 subtitleLanguages.base = data.youtube_base_lang_code;
                 parseSuccess = parseRawTextTranscript(rawTranscript); // MODIFIED: Call new parser function
                 
-                // Clear raw text after loading
-                await chrome.storage.local.remove(['youtube_raw_transcript_data']); 
+                // Clear raw text and temporary detection keys after loading
+                await chrome.storage.local.remove(['youtube_raw_transcript_data', 'detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
             }
             
             createFloatingWindow(mode);
@@ -786,6 +836,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     sendStatusUpdate("Detecting language...", 30, url, 'main', mode);
                     subtitleLanguages.base = await detectBaseLanguage();
                 }
+                // NOTE: For YouTube mode, subtitleLanguages.base is already set using the result from detect_transcript_language in popup.js
                 
                 if (isCancelled) {
                     isProcessing = false;
@@ -828,7 +879,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         // Clear status storage (MODIFIED to include new key)
-        chrome.storage.local.remove(['ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code', 'youtube_raw_transcript_data', 'youtube_base_lang_code']);
+        chrome.storage.local.remove(['ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref', 'detected_base_lang_name', 'detected_base_lang_code', 'youtube_raw_transcript_data', 'youtube_base_lang_code', 'detected_youtube_base_lang_code', 'detected_youtube_base_lang_name']);
         
         // Placeholder: If Netflix observer was disabled, re-enable if possible (complex for this scope)
 
