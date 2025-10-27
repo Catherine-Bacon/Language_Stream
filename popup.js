@@ -329,137 +329,145 @@ function checkUrlAndDetectLanguage(elements) {
     }
 }
 
+// --- MODIFICATION: Re-ordered function ---
 function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
-    chrome.storage.local.get([
-        'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
-        'detected_base_lang_name', 'ui_temp_state',
-        'ui_mode' // --- MODIFICATION: Load saved mode ---
-    ], (data) => {
-        const status = data.ls_status;
-        const detectedBaseLangName = data.detected_base_lang_name;
-        
-        if (status && status.progress >= 100 && status.message && status.message.startsWith("Translation complete!")) {
-            const popcornEmoji = "\u{1F37F}";
-            status.message = `Enjoy your show !${popcornEmoji}`;
-            chrome.storage.local.set({ 'ls_status': status });
-        }
-        
-        elements.progressBar.style.width = '0%';
-        elements.targetLanguageInput.disabled = false;
-        elements.subtitleUrlInput.disabled = false;
-        elements.cancelButton.classList.add('hidden-no-space');
-        elements.cancelButton.textContent = "Cancel Subtitle Generation";
-        elements.statusBox.classList.add('hidden-no-space'); // *MODIFICATION: Ensure statusBox is hidden initially unless status requires it*
-        
-        if (data.translated_only_pref === true) {
-            elements.subtitleModeTranslatedOnly.checked = true;
-        } else {
-            elements.subtitleModeDual.checked = true;
-        }
-        
-        const savedStyle = data.subtitle_style_pref || 'netflix';
-        const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
-        if (styleElement) styleElement.checked = true;
-        
-        // --- MODIFICATION: Updated to exclude 'grammar' ---
-        const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(savedStyle);
-        elements.editStyleSettingsButton.disabled = !hasSettings;
-        elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
+    
+    // --- MODIFICATION START: Load UI mode FIRST ---
+    chrome.storage.local.get(['ui_mode'], (modeData) => {
+        const savedMode = modeData.ui_mode || 'netflix'; // Default to Netflix
+        updateUIMode(savedMode, elements);
+    // --- MODIFICATION END ---
 
-        const isProcessing = status && status.progress > 0 && status.progress < 100;
-        if (!isProcessing) {
-            if (data.ui_temp_state) {
-                elements.targetLanguageInput.value = data.ui_temp_state.targetLang || '';
-                elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
+        chrome.storage.local.get([
+            'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
+            'detected_base_lang_name', 'ui_temp_state'
+            // 'ui_mode' is already loaded above
+        ], (data) => {
+            const status = data.ls_status;
+            const detectedBaseLangName = data.detected_base_lang_name;
+            
+            if (status && status.progress >= 100 && status.message && status.message.startsWith("Translation complete!")) {
+                const popcornEmoji = "\u{1F37F}";
+                status.message = `Enjoy your show !${popcornEmoji}`;
+                chrome.storage.local.set({ 'ls_status': status });
+            }
+            
+            elements.progressBar.style.width = '0%';
+            elements.targetLanguageInput.disabled = false;
+            elements.subtitleUrlInput.disabled = false;
+            elements.cancelButton.classList.add('hidden-no-space');
+            elements.cancelButton.textContent = "Cancel Subtitle Generation";
+            elements.statusBox.classList.add('hidden-no-space'); // *MODIFICATION: Ensure statusBox is hidden initially unless status requires it*
+            
+            if (data.translated_only_pref === true) {
+                elements.subtitleModeTranslatedOnly.checked = true;
+            } else {
+                elements.subtitleModeDual.checked = true;
+            }
+            
+            const savedStyle = data.subtitle_style_pref || 'netflix';
+            const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
+            if (styleElement) styleElement.checked = true;
+            
+            // --- MODIFICATION: Updated to exclude 'grammar' ---
+            const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(savedStyle);
+            elements.editStyleSettingsButton.disabled = !hasSettings;
+            elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
+
+            const isProcessing = status && status.progress > 0 && status.progress < 100;
+            if (!isProcessing) {
+                if (data.ui_temp_state) {
+                    elements.targetLanguageInput.value = data.ui_temp_state.targetLang || '';
+                    elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
+                } else if (data.last_input) {
+                    const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
+                    elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
+                    elements.subtitleUrlInput.value = data.last_input.url || '';
+                }
             } else if (data.last_input) {
                 const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                 elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
                 elements.subtitleUrlInput.value = data.last_input.url || '';
             }
-        } else if (data.last_input) {
-            const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
-            elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
-            elements.subtitleUrlInput.value = data.last_input.url || '';
-        }
 
-        let currentBaseLangName = null;
-        if (status && status.baseLang) {
-             currentBaseLangName = getLanguageName(status.baseLang);
-        }
-
-        if (status && status.progress > 0) {
-            // Processing/Complete State
-            document.body.style.height = PROCESSING_POPUP_HEIGHT;
-
-            elements.statusBox.classList.remove('hidden-no-space');
-            elements.statusText.textContent = status.message;
-            elements.progressBar.style.width = status.progress + '%';
-            
-            elements.urlInstructions.classList.add('hidden-no-space');
-            elements.urlStatusText.classList.add('hidden-no-space');
-            elements.langStatusText.classList.add('hidden-no-space');
-            
-            elements.confirmButton.classList.add('hidden-no-space');
-            
-            if (status.progress < 100) {
-                elements.targetLanguageInput.disabled = true;
-                elements.subtitleUrlInput.disabled = true;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                
-            } else {
-                elements.targetLanguageInput.disabled = true;
-                elements.subtitleUrlInput.disabled = true;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Subtitles";
+            let currentBaseLangName = null;
+            if (status && status.baseLang) {
+                currentBaseLangName = getLanguageName(status.baseLang);
             }
-        } else {
-             // Initial/Error State
-             document.body.style.height = INITIAL_POPUP_HEIGHT;
-             
-             elements.urlStatusText.classList.remove('hidden-no-space');
-             elements.langStatusText.classList.remove('hidden-no-space');
-             checkLanguagePairAvailability(elements);
-             const urlValue = elements.subtitleUrlInput.value.trim();
-             if (urlValue && urlValue.startsWith('http')) {
-                 checkUrlAndDetectLanguage(elements);
-                 if (status && status.message && (status.message.includes("Old subtitle URL used") || status.message.includes("Error fetching subtitles") || status.message.includes("Invalid URL retrieved"))) {
-                     elements.urlStatusText.textContent = message;
-                     elements.urlStatusText.style.color = "#e50914";
-                 }
-             } else {
-                 elements.urlStatusText.textContent = "Waiting for URL...";
-                 elements.urlStatusText.style.color = "#e50914";
-                 elements.confirmButton.disabled = true;
-                 elements.subtitleUrlInput.value = '';
-             }
-             if (status && status.message && !status.message.includes("Old subtitle URL used") && !status.message.includes("Error fetching subtitles") && !status.message.includes("Invalid URL retrieved")) {
+
+            if (status && status.progress > 0) {
+                // Processing/Complete State
+                document.body.style.height = PROCESSING_POPUP_HEIGHT;
+
                 elements.statusBox.classList.remove('hidden-no-space');
                 elements.statusText.textContent = status.message;
-             } else {
-                elements.statusText.textContent = "";
-             }
-             elements.cancelButton.classList.add('hidden-no-space');
-             elements.targetLanguageInput.disabled = false;
-             elements.subtitleUrlInput.disabled = false;
-             elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.editStyleSettingsButton.disabled = !hasSettings;
-             
-             updateGenerateButtonState(elements);
-        }
-
-        // --- MODIFICATION START: Set UI mode after loading status ---
-        const savedMode = data.ui_mode || 'netflix'; // Default to Netflix
-        updateUIMode(savedMode, elements);
-        // --- MODIFICATION END ---
+                elements.progressBar.style.width = status.progress + '%';
+                
+                elements.urlInstructions.classList.add('hidden-no-space');
+                elements.urlStatusText.classList.add('hidden-no-space');
+                elements.langStatusText.classList.add('hidden-no-space');
+                
+                elements.confirmButton.classList.add('hidden-no-space');
+                
+                if (status.progress < 100) {
+                    elements.targetLanguageInput.disabled = true;
+                    elements.subtitleUrlInput.disabled = true;
+                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.editStyleSettingsButton.disabled = true;
+                    elements.cancelButton.classList.remove('hidden-no-space');
+                    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+                    
+                } else {
+                    elements.targetLanguageInput.disabled = true;
+                    elements.subtitleUrlInput.disabled = true;
+                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                    elements.editStyleSettingsButton.disabled = true;
+                    elements.cancelButton.classList.remove('hidden-no-space');
+                    elements.cancelButton.textContent = "Clear Subtitles";
+                }
+            } else {
+                // Initial/Error State
+                document.body.style.height = INITIAL_POPUP_HEIGHT;
+                
+                elements.urlStatusText.classList.remove('hidden-no-space');
+                elements.langStatusText.classList.remove('hidden-no-space');
+                checkLanguagePairAvailability(elements);
+                const urlValue = elements.subtitleUrlInput.value.trim();
+                if (urlValue && urlValue.startsWith('http')) {
+                    checkUrlAndDetectLanguage(elements);
+                    if (status && status.message && (status.message.includes("Old subtitle URL used") || status.message.includes("Error fetching subtitles") || status.message.includes("Invalid URL retrieved"))) {
+                        elements.urlStatusText.textContent = message;
+                        elements.urlStatusText.style.color = "#e50914";
+                    }
+                } else {
+                    elements.urlStatusText.textContent = "Waiting for URL...";
+                    elements.urlStatusText.style.color = "#e50914";
+                    elements.confirmButton.disabled = true;
+                    elements.subtitleUrlInput.value = '';
+                }
+                if (status && status.message && !status.message.includes("Old subtitle URL used") && !status.message.includes("Error fetching subtitles") && !status.message.includes("Invalid URL retrieved")) {
+                    elements.statusBox.classList.remove('hidden-no-space');
+                    elements.statusText.textContent = status.message;
+                } else {
+                    elements.statusText.textContent = "";
+                }
+                elements.cancelButton.classList.add('hidden-no-space');
+                elements.targetLanguageInput.disabled = false;
+                elements.subtitleUrlInput.disabled = false;
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+                elements.editStyleSettingsButton.disabled = !hasSettings;
+                
+                updateGenerateButtonState(elements);
+            }
+            
+            // --- MODIFICATION: This is now handled at the start of the function ---
+            // const savedMode = data.ui_mode || 'netflix'; // Default to Netflix
+            // updateUIMode(savedMode, elements);
+        });
     });
 }
 
@@ -697,7 +705,7 @@ async function handleConfirmClick(elements) {
         elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (e.target.checked) {
-                    chrome.storage.local.set({ 'translated_only_pref': (e.target.value === 'translated_only') });
+                    chrome.storage.local.set({ 'translated_only_pref': (e.targe.value === 'translated_only') });
                 }
             });
         });
