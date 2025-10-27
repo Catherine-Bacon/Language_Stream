@@ -8,7 +8,30 @@
         /* --- CRITICAL: Shorter height is the new CSS default --- */
         height: 360px; 
         overflow-y: hidden; 
+        position: relative; /* Needed for absolute positioning */
       }
+      /* --- MODIFICATION START: Icon Bar Styles --- */
+      #icon-bar {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+      #icon-bar span {
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+      #icon-bar span:hover {
+        opacity: 1;
+      }
+      #icon-bar svg {
+        width: 24px;
+        height: 24px;
+      }
+      /* --- MODIFICATION END --- */
       h1 {
         color: #e50914; /* Netflix Red */
         font-size: 1.5em;
@@ -216,6 +239,18 @@
     </style>
   </head>
   <body>
+    <div id="icon-bar">
+      <span id="netflix-icon" title="Switch to Netflix Mode (coming soon)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#E50914">
+          <path d="M19.344 24H15.25v-8.656l-3.328 8.656H8.094v-8.656L4.766 24H.656V0h4.125v8.031l3.218-8.031h3.813v8.031L15.25 0h4.094v24z"/>
+        </svg>
+      </span>
+      <span id="youtube-icon" title="Switch to YouTube Mode (coming soon)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#FF0000">
+          <path d="M21.582 7.187c-.23-.836-.893-1.498-1.729-1.729C18.257 5 12 5 12 5s-6.257 0-7.853.458c-.836.23-1.498.893-1.729 1.729C2 8.783 2 12 2 12s0 3.217.458 4.813c.23.836.893 1.498 1.729 1.729C5.743 19 12 19 12 19s6.257 0 7.853-.458c.836-.23 1.498.893 1.729-1.729C22 15.217 22 12 22 12s0-3.217-.418-4.813zM9.5 15.5V8.5l6 3.5-6 3.5z"/>
+        </svg>
+      </span>
+    </div>
     <h1>Language Stream</h1>
 
     <h2>1. Retrieve Subtitle URL</h2>
