@@ -7,13 +7,53 @@
         width: 350px;
         /* --- CRITICAL: Shorter height is the new CSS default --- */
         height: 360px; 
-        overflow-y: hidden; 
+        overflow-y: hidden;
+        /* Added for mode switcher */
+        padding-top: 50px;
+        position: relative;
       }
+      /* --- START: Mode Switcher Styles --- */
+      .mode-switcher {
+        position: absolute;
+        top: 10px;
+        right: 15px;
+        display: flex;
+        gap: 8px;
+      }
+      .mode-icon {
+        width: 30px;
+        height: 30px;
+        cursor: pointer;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid transparent;
+        transition: border-color 0.2s, background-color 0.2s;
+        fill: #777;
+      }
+      .mode-icon:hover {
+        background-color: #f0f0f0;
+      }
+      .mode-icon.active {
+        border-color: #e50914;
+        fill: #e50914;
+      }
+      .mode-icon.active#youtubeModeButton {
+        border-color: #FF0000;
+        fill: #FF0000;
+      }
+      /* --- END: Mode Switcher Styles --- */
+
       h1 {
         color: #e50914; /* Netflix Red */
         font-size: 1.5em;
         margin-top: 0px;
         margin-bottom: 0px; 
+        /* Added for mode switcher */
+        position: absolute;
+        top: 12px;
+        left: 15px;
       }
       h2 {
         font-size: 1.1em;
@@ -216,30 +256,47 @@
     </style>
   </head>
   <body>
-    <h1>Language Stream</h1>
-
-    <h2>1. Retrieve Subtitle URL</h2>
-    <div id="urlInstructions">
-      <p>Open Netflix's player and  set subtitles to your Base Language</p>
-      <p>Right click video player > Inspect</p>    
-      <p>Press Network > Reload Page</p>
-      <p>Search ?o= > Sort by name (descending)</p>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-          <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+    <!-- New Title and Mode Switcher -->
+    <h1 id="titleHeader">Language Stream - Netflix</h1>
+    <div class="mode-switcher">
+      <div class="mode-icon active" id="netflixModeButton" title="Netflix Mode">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="24" height="24">
+          <path d="M145.5 145.5v733h145.6V602.8l78.4 78.4 78.3-78.4v275.7h145.6V145.5H547.8l-78.4 78.4-78.3-78.4H145.5z"/>
+        </svg>
+      </div>
+      <div class="mode-icon" id="youtubeModeButton" title="YouTube Mode">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+          <path d="M21.582 7.004C21.357 6.202 20.798 5.643 20 5.418 18.264 5 12 5 12 5s-6.264 0-8 .418C3.202 5.643 2.643 6.202 2.418 7.004 2 8.736 2 12 2 12s0 3.264.418 5.004c.225.802.784 1.36 1.582 1.585C5.736 19 12 19 12 19s6.264 0 8-.411c.802-.224 1.36-.784 1.585-1.585C22 15.264 22 12 22 12s0-3.264-.418-4.996zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/>
+        </svg>
       </div>
     </div>
-    <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
-           value="">
-    
-    <p id="urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
-    
-    <h2>2. Select Language</h2>
+
+    <!-- Netflix-Specific Inputs -->
+    <div id="netflixInputs">
+      <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
+      <div id="urlInstructions">
+        <p>Open Netflix's player and  set subtitles to your Base Language</p>
+        <p>Right click video player > Inspect</p>    
+        <p>Press Network > Reload Page</p>
+        <p>Search ?o= > Sort by name (descending)</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+        </div>
+      </div>
+      <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
+             value="">
+      
+      <p id="urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
+    </div>
+
+    <!-- Shared Inputs -->
+    <h2 id="languageHeader">2. Select Language</h2>
     <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
 
     <p id="langStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
 
     
-    <h3>3. Select Subtitle Preferences</h3>
+    <h3 id="preferencesHeader">3. Select Subtitle Preferences</h3>
     
     <div class="preference-row">
         <p>Mode:</p>

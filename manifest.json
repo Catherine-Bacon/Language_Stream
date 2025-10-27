@@ -1,6 +1,6 @@
 {
   "name": "Language Stream",
-  "description": "Netflix extension to generate and stream subtitles in multiple languages",
+  "description": "Netflix and YouTube extension to generate and stream subtitles in multiple languages",
   "version": "1.0",
   "manifest_version": 3,
   "action": {
@@ -14,12 +14,16 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.netflix.com/*"],
+      "matches": ["*://*.netflix.com/*", "*://*.youtube.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "permissions": ["scripting", "storage", "activeTab", "tabs", "webRequest"],
-  "host_permissions": ["*://*.netflix.com/*", "https://*.nflxvideo.net/*"],
+  "host_permissions": [
+    "*://*.netflix.com/*", 
+    "https://*.nflxvideo.net/*",
+    "*://*.youtube.com/*"
+  ],
   "web_accessible_resources": []
 }
