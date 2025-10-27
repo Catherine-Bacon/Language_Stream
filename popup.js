@@ -28,6 +28,24 @@ const LANGUAGE_MAP = {
     "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
 };
 
+// --- MODIFICATION START: Added UI Mode function ---
+function updateUIMode(mode, elements) {
+    if (mode === 'youtube') {
+        elements.title.textContent = "Language Stream - YouTube";
+        elements.netflixContent.classList.add('hidden-no-space');
+        elements.youtubeContent.classList.remove('hidden-no-space');
+        elements.youtubeIcon.classList.add('active');
+        elements.netflixIcon.classList.remove('active');
+    } else { // Default to 'netflix'
+        elements.title.textContent = "Language Stream - Netflix";
+        elements.netflixContent.classList.remove('hidden-no-space');
+        elements.youtubeContent.classList.add('hidden-no-space');
+        elements.youtubeIcon.classList.remove('active');
+        elements.netflixIcon.classList.add('active');
+    }
+}
+// --- MODIFICATION END ---
+
 let isCancelledByPopup = false;
 
 function updateGenerateButtonState(elements) {
@@ -315,7 +333,8 @@ function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     chrome.storage.local.get([
         'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
-        'detected_base_lang_name', 'ui_temp_state'
+        'detected_base_lang_name', 'ui_temp_state',
+        'ui_mode' // --- MODIFICATION: Load saved mode ---
     ], (data) => {
         const status = data.ls_status;
         const detectedBaseLangName = data.detected_base_lang_name;
@@ -436,6 +455,11 @@ function loadSavedStatus(elements) {
              
              updateGenerateButtonState(elements);
         }
+
+        // --- MODIFICATION START: Set UI mode after loading status ---
+        const savedMode = data.ui_mode || 'netflix'; // Default to Netflix
+        updateUIMode(savedMode, elements);
+        // --- MODIFICATION END ---
     });
 }
 
@@ -645,6 +669,13 @@ async function handleConfirmClick(elements) {
             // --- REMOVED: grammar reference ---
             editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
             urlInstructions: document.getElementById('urlInstructions'),
+            // --- MODIFICATION START: Added new elements ---
+            title: document.getElementById('title'),
+            netflixIcon: document.getElementById('netflix-icon'),
+            youtubeIcon: document.getElementById('youtube-icon'),
+            netflixContent: document.getElementById('netflix-content'),
+            youtubeContent: document.getElementById('youtube-content')
+            // --- MODIFICATION END ---
         };
         
         let languageInputTimer;
@@ -703,10 +734,22 @@ async function handleConfirmClick(elements) {
             }, 500);
         });
 
+        // --- MODIFICATION START: Added icon click listeners ---
+        elements.netflixIcon.addEventListener('click', () => {
+            chrome.storage.local.set({ 'ui_mode': 'netflix' });
+            updateUIMode('netflix', elements);
+        });
+
+        elements.youtubeIcon.addEventListener('click', () => {
+            chrome.storage.local.set({ 'ui_mode': 'youtube' });
+            updateUIMode('youtube', elements);
+        });
+        // --- MODIFICATION END ---
+
         chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
             if (request.command === "update_status") {
                 if (isCancelledByPopup) {
-                    console.log("Popup is in cancelled state. Ignoring status update.");
+                    console.log("Popup is in 'cancelled' state. Ignoring status update.");
                     return;
                 }
                 

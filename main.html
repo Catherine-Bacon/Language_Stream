@@ -21,11 +21,18 @@
       }
       #icon-bar span {
         cursor: pointer;
-        opacity: 0.6;
+        opacity: 0.5; /* Default inactive state */
         transition: opacity 0.2s;
       }
       #icon-bar span:hover {
-        opacity: 1;
+        opacity: 0.8; /* Hover state */
+      }
+      #icon-bar span.active {
+        opacity: 1; /* Active state */
+        cursor: default;
+      }
+      #icon-bar span.active:hover {
+        opacity: 1; /* Active state hover */
       }
       #icon-bar svg {
         width: 24px;
@@ -240,88 +247,96 @@
   </head>
   <body>
     <div id="icon-bar">
-      <span id="netflix-icon" title="Switch to Netflix Mode (coming soon)">
+      <span id="netflix-icon" title="Switch to Netflix Mode">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#E50914">
-          <path d="M19.344 24H15.25v-8.656l-3.328 8.656H8.094v-8.656L4.766 24H.656V0h4.125v8.031l3.218-8.031h3.813v8.031L15.25 0h4.094v24z"/>
+          <path d="M5 0V24H9V12.1L15.1 24H19V0H15V11.9L8.9 0H5Z"/>
         </svg>
       </span>
-      <span id="youtube-icon" title="Switch to YouTube Mode (coming soon)">
+      <span id="youtube-icon" title="Switch to YouTube Mode">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#FF0000">
           <path d="M21.582 7.187c-.23-.836-.893-1.498-1.729-1.729C18.257 5 12 5 12 5s-6.257 0-7.853.458c-.836.23-1.498.893-1.729 1.729C2 8.783 2 12 2 12s0 3.217.458 4.813c.23.836.893 1.498 1.729 1.729C5.743 19 12 19 12 19s6.257 0 7.853-.458c.836-.23 1.498.893 1.729-1.729C22 15.217 22 12 22 12s0-3.217-.418-4.813zM9.5 15.5V8.5l6 3.5-6 3.5z"/>
         </svg>
       </span>
     </div>
-    <h1>Language Stream</h1>
 
-    <h2>1. Retrieve Subtitle URL</h2>
-    <div id="urlInstructions">
-      <p>Open Netflix's player and  set subtitles to your Base Language</p>
-      <p>Right click video player > Inspect</p>    
-      <p>Press Network > Reload Page</p>
-      <p>Search ?o= > Sort by name (descending)</p>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-          <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+    <h1 id="title">Language Stream</h1>
+
+    <div id="netflix-content">
+      <h2>1. Retrieve Subtitle URL</h2>
+      <div id="urlInstructions">
+        <p>Open Netflix's player and  set subtitles to your Base Language</p>
+        <p>Right click video player > Inspect</p>    
+        <p>Press Network > Reload Page</p>
+        <p>Search ?o= > Sort by name (descending)</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+        </div>
+      </div>
+      <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
+            value="">
+      
+      <p id="urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
+      
+      <h2>2. Select Language</h2>
+      <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
+
+      <p id="langStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
+
+      
+      <h3>3. Select Subtitle Preferences</h3>
+      
+      <div class="preference-row">
+          <p>Mode:</p>
+          <div id="subtitleModeGroup" class="radio-group">
+              <label>
+                  <input type="radio" name="subtitleMode" value="dual" id="subtitleModeDual" checked>
+                  Dual
+              </label>
+              <label>
+                  <input type="radio" name="subtitleMode" value="translated_only" id="subtitleModeTranslatedOnly">
+                  Translated
+              </label>
+          </div>
+      </div>
+      
+      <div class="preference-row" style="margin-bottom: 0;">
+          <p>Style:</p>
+          <div class="style-selection-group">
+              <div id="subtitleStyleGroup" class="style-radio-group">
+                  <label>
+                      <input type="radio" name="subtitleStyle" value="netflix" id="subtitleStyleNetflix" checked>
+                      Netflix
+                  </label>
+                  <label>
+                      <input type="radio" name="subtitleStyle" value="custom" id="subtitleStyleCustom">
+                      Custom
+                  </label>
+                  <label>
+                      <input type="radio" name="subtitleStyle" value="vocabulary" id="subtitleStyleVocabulary">
+                      Vocab
+                  </label>
+                  </div>
+              <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
+          </div>
+      </div>
+      
+      <button id="confirmButton">Generate Subtitles</button>
+      
+      <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
+
+      <div id="statusBox" class="hidden-no-space">
+        <p id="statusText">Waiting for URL...</p>
+        <div id="progressBarContainer">
+          <div id="progressBar"></div>
+        </div>
       </div>
     </div>
-    <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
-           value="">
-    
-    <p id="urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
-    
-    <h2>2. Select Language</h2>
-    <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
 
-    <p id="langStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
-
-    
-    <h3>3. Select Subtitle Preferences</h3>
-    
-    <div class="preference-row">
-        <p>Mode:</p>
-        <div id="subtitleModeGroup" class="radio-group">
-            <label>
-                <input type="radio" name="subtitleMode" value="dual" id="subtitleModeDual" checked>
-                Dual
-            </label>
-            <label>
-                <input type="radio" name="subtitleMode" value="translated_only" id="subtitleModeTranslatedOnly">
-                Translated
-            </label>
-        </div>
+    <div id="youtube-content" class="hidden-no-space">
+      <h2>YouTube Mode</h2>
+      <p>YouTube-specific instructions and features will go here.</p>
+      <p style="font-weight: bold; color: #555;">This feature is coming soon!</p>
     </div>
-    
-    <div class="preference-row" style="margin-bottom: 0;">
-        <p>Style:</p>
-        <div class="style-selection-group">
-            <div id="subtitleStyleGroup" class="style-radio-group">
-                <label>
-                    <input type="radio" name="subtitleStyle" value="netflix" id="subtitleStyleNetflix" checked>
-                    Netflix
-                </label>
-                <label>
-                    <input type="radio" name="subtitleStyle" value="custom" id="subtitleStyleCustom">
-                    Custom
-                </label>
-                <label>
-                    <input type="radio" name="subtitleStyle" value="vocabulary" id="subtitleStyleVocabulary">
-                    Vocab
-                </label>
-                </div>
-            <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
-        </div>
-    </div>
-    
-    <button id="confirmButton">Generate Subtitles</button>
-    
-    <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
-
-    <div id="statusBox" class="hidden-no-space">
-      <p id="statusText">Waiting for URL...</p>
-      <div id="progressBarContainer">
-        <div id="progressBar"></div>
-      </div>
-    </div>
-    
     <script src="popup.js"></script>
   </body>
 </html>
