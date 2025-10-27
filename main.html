@@ -56,7 +56,7 @@
         font-size: 0.9em;
         color: #333;
       }
-      select, button, input[type="text"] {
+      select, button, input[type="text"], textarea {
         width: 100%;
         padding: 8px;
         margin-top: 5px;
@@ -333,14 +333,12 @@
     </div>
 
     <div id="youtube-content" class="hidden-no-space">
-      <h2>1. Retrieve Transcript</h2>
+      <h2>1. Enter Transcript</h2>
       <div id="youtube-urlInstructions">
-        <p>Open a YouTube video with subtitles.</p>
-        <p>Click the '...' (More) button below the video.</p>
-        <p>Click 'Show transcript'.</p>
-        <p>Then, click the button below to retrieve the transcript with timings.</p>
+        <p>Copy the transcript text, including the timestamps (format: M:SS or H:MM:SS), and paste it below.</p>
+        <p>Example: <code>0:00<br>Is this what she does? ...<br>0:05<br>way hard. We didn't get a ...</code></p>
       </div>
-      <button id="detectTranscriptButton">Detect Transcript</button>
+      <textarea id="youtubeTranscriptInput" placeholder="Paste YouTube transcript with timestamps here..." rows="5"></textarea>
       
       <p id="youtube-urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
       

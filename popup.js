@@ -43,6 +43,7 @@ function updateUIMode(mode, elements) {
         elements.youtubeIcon.classList.add('active');
         elements.netflixIcon.classList.remove('active');
         // Initial setup for YouTube mode
+        checkYoutubeTranscriptInput(elements); // MODIFIED: Check transcript input
         checkYoutubeLanguagePairAvailability(elements);
     } else { // Default to 'netflix'
         elements.title.textContent = "Language Stream - Netflix";
@@ -67,9 +68,10 @@ function updateGenerateButtonState(elements) {
         const isLangValid = elements.langStatusText.style.color === 'green';
         elements.confirmButton.disabled = !(isUrlValid && isLangValid);
     } else { // YouTube Mode
-        const isTranscriptDetected = elements.youtubeUrlStatusText.style.color === 'green';
+        // MODIFICATION: Check if the raw transcript input has content
+        const isTranscriptPresent = elements.youtubeTranscriptInput.value.trim().length > 0;
         const isLangValid = elements.youtubeLangStatusText.style.color === 'green';
-        elements.youtubeConfirmButton.disabled = !(isTranscriptDetected && isLangValid);
+        elements.youtubeConfirmButton.disabled = !(isTranscriptPresent && isLangValid);
     }
 }
 
@@ -83,8 +85,8 @@ function saveCurrentInputs(elements) {
         chrome.storage.local.set({ 'ui_temp_state_netflix': currentState });
     } else {
         const currentState = {
-            targetLang: elements.youtubeTargetLanguage.value.trim()
-            // URL/Transcript is stored separately after detection
+            targetLang: elements.youtubeTargetLanguage.value.trim(),
+            rawTranscript: elements.youtubeTranscriptInput.value.trim() // MODIFICATION: Save raw transcript
         };
         chrome.storage.local.set({ 'ui_temp_state_youtube': currentState });
     }
@@ -99,7 +101,7 @@ async function resetStatus(elements) {
         'detected_base_lang_code',
         'ui_temp_state_netflix', // Updated for Netflix
         'ui_temp_state_youtube', // Added for YouTube
-        'youtube_transcript_data', // New YouTube data to clear
+        'youtube_raw_transcript_data', // MODIFICATION: New key for raw text to clear
         'youtube_base_lang_code' // New YouTube data to clear
     ]);
 
@@ -130,7 +132,7 @@ async function resetStatus(elements) {
         urlStatusText: elements.youtubeUrlStatusText,
         langStatusText: elements.youtubeLangStatusText,
         // New YouTube-specific elements
-        detectTranscriptButton: elements.detectTranscriptButton,
+        youtubeTranscriptInput: elements.youtubeTranscriptInput, // MODIFIED
         subtitleModeGroup: elements.youtubeSubtitleModeGroup,
         subtitleStyleGroup: elements.youtubeSubtitleStyleGroup
     } : {
@@ -156,7 +158,11 @@ async function resetStatus(elements) {
     document.body.style.height = INITIAL_POPUP_HEIGHT; 
 
     currentElements.targetLanguageInput.value = '';
-    if (mode === 'netflix') currentElements.subtitleUrlInput.value = '';
+    if (mode === 'netflix') {
+        currentElements.subtitleUrlInput.value = '';
+    } else { // YouTube specific reset
+        currentElements.youtubeTranscriptInput.value = ''; // MODIFIED
+    }
 
     currentElements.subtitleModeDual.checked = true;
     currentElements.subtitleStyleNetflix.checked = true;
@@ -166,6 +172,7 @@ async function resetStatus(elements) {
     currentElements.confirmButton.disabled = true;
     currentElements.targetLanguageInput.disabled = false;
     if (mode === 'netflix') currentElements.subtitleUrlInput.disabled = false;
+    if (mode === 'youtube') currentElements.youtubeTranscriptInput.disabled = false; // MODIFIED
 
     currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -179,8 +186,7 @@ async function resetStatus(elements) {
     
     // YouTube specific reset
     if (mode === 'youtube') {
-        currentElements.detectTranscriptButton.disabled = false;
-        currentElements.urlStatusText.textContent = "Click 'Detect Transcript' above.";
+        currentElements.urlStatusText.textContent = "Paste transcript with timestamps above."; // MODIFIED
     } else { // Netflix specific reset
         currentElements.urlStatusText.textContent = "Waiting for URL...";
     }
@@ -216,7 +222,7 @@ async function stopProcessingUI(elements) {
         urlStatusText: elements.youtubeUrlStatusText,
         langStatusText: elements.youtubeLangStatusText,
         // New YouTube-specific elements
-        detectTranscriptButton: elements.detectTranscriptButton,
+        youtubeTranscriptInput: elements.youtubeTranscriptInput, // MODIFIED
         subtitleUrlInput: null // Not applicable
     } : {
         confirmButton: elements.confirmButton,
@@ -233,12 +239,12 @@ async function stopProcessingUI(elements) {
         urlStatusText: elements.urlStatusText,
         langStatusText: elements.langStatusText,
         // Not applicable
-        detectTranscriptButton: null,
+        youtubeTranscriptInput: null, // MODIFIED
     };
     
     currentElements.targetLanguageInput.disabled = false;
     if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = false;
-    if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = false;
+    if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = false; // MODIFIED
     
     currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -267,12 +273,12 @@ async function stopProcessingUI(elements) {
         checkLanguagePairAvailability(elements);
     } else {
         // Re-check detection status for YouTube
-        const data = await chrome.storage.local.get(['youtube_transcript_data']);
-        if (data.youtube_transcript_data) {
-             currentElements.urlStatusText.textContent = `Transcript retrieved (${data.youtube_transcript_data.length} lines)!`;
+        const transcriptText = currentElements.youtubeTranscriptInput.value.trim(); // MODIFIED
+        if (transcriptText.length > 0) {
+             currentElements.urlStatusText.textContent = `Transcript ready for validation.`; // MODIFIED
              currentElements.urlStatusText.style.color = "green";
         } else {
-             currentElements.urlStatusText.textContent = "Click 'Detect Transcript' above.";
+             currentElements.urlStatusText.textContent = "Paste transcript with timestamps above."; // MODIFIED
              currentElements.urlStatusText.style.color = "#e50914";
         }
         checkYoutubeLanguagePairAvailability(elements);
@@ -319,6 +325,20 @@ async function getLangCodeFromInput(inputLang) {
     return targetLangCode;
 }
 
+// --- MODIFICATION: New function to check raw transcript input ---
+function checkYoutubeTranscriptInput(elements) {
+    const transcriptText = elements.youtubeTranscriptInput.value.trim();
+    if (transcriptText.length > 0) {
+        elements.youtubeUrlStatusText.textContent = `Transcript ready for validation.`;
+        elements.youtubeUrlStatusText.style.color = "green";
+    } else {
+        elements.youtubeUrlStatusText.textContent = "Paste transcript with timestamps above.";
+        elements.youtubeUrlStatusText.style.color = "#e50914";
+    }
+    updateGenerateButtonState(elements);
+}
+// --- END NEW FUNCTION ---
+
 // --- MODIFICATION: New YouTube Language Check ---
 async function checkYoutubeLanguagePairAvailability(elements) {
     const inputLang = elements.youtubeTargetLanguage.value.trim().toLowerCase();
@@ -337,12 +357,14 @@ async function checkYoutubeLanguagePairAvailability(elements) {
         updateGenerateButtonState(elements);
         return;
     }
-
-    const data = await chrome.storage.local.get(['youtube_base_lang_code']);
-    const baseLangCode = data.youtube_base_lang_code;
+    
+    // MODIFICATION: For raw text input, we assume the base language is English ('en') 
+    // or rely on a stored value if complex detection was performed earlier.
+    // We will use a hardcoded 'en' for now, as there's no way to detect the base lang from raw text in the popup.
+    const baseLangCode = 'en'; // Assuming copied transcript is in English for compatibility check.
     
     if (!baseLangCode) {
-        elements.youtubeLangStatusText.textContent = "Waiting for transcript detection to check compatibility...";
+        elements.youtubeLangStatusText.textContent = "Waiting for transcript input to check compatibility...";
         elements.youtubeLangStatusText.style.color = "#777";
         updateGenerateButtonState(elements);
         return;
@@ -562,7 +584,7 @@ function loadSavedStatus(elements) {
             langStatusText: elements.youtubeLangStatusText,
             subtitleModeGroup: elements.youtubeSubtitleModeGroup,
             subtitleStyleGroup: elements.youtubeSubtitleStyleGroup,
-            detectTranscriptButton: elements.detectTranscriptButton,
+            youtubeTranscriptInput: elements.youtubeTranscriptInput, // MODIFIED
             subtitleUrlInput: null
         } : {
             confirmButton: elements.confirmButton,
@@ -583,13 +605,14 @@ function loadSavedStatus(elements) {
             langStatusText: elements.langStatusText,
             subtitleModeGroup: elements.subtitleModeGroup,
             subtitleStyleGroup: elements.subtitleStyleGroup,
-            detectTranscriptButton: null
+            youtubeTranscriptInput: null // MODIFIED
         };
 
         const keysToLoad = [
             'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
             'detected_base_lang_name', 'ui_temp_state_netflix', 'ui_temp_state_youtube',
-            'youtube_transcript_data', 'youtube_base_lang_code'
+            'youtube_raw_transcript_data', // MODIFIED: New key for raw text storage
+            'youtube_base_lang_code'
         ];
 
         chrome.storage.local.get(keysToLoad, (data) => {
@@ -604,7 +627,7 @@ function loadSavedStatus(elements) {
             currentElements.progressBar.style.width = '0%';
             currentElements.targetLanguageInput.disabled = false;
             if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = false;
-            if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = false;
+            if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = false; // MODIFIED
             
             currentElements.cancelButton.classList.add('hidden-no-space');
             currentElements.cancelButton.textContent = "Cancel Subtitle Generation";
@@ -636,6 +659,7 @@ function loadSavedStatus(elements) {
                 if (tempState) {
                     currentElements.targetLanguageInput.value = tempState.targetLang || '';
                     if (mode === 'netflix') currentElements.subtitleUrlInput.value = tempState.url || '';
+                    if (mode === 'youtube') currentElements.youtubeTranscriptInput.value = tempState.rawTranscript || ''; // MODIFIED
                 } else if (data.last_input) {
                     const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                     currentElements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
@@ -646,6 +670,11 @@ function loadSavedStatus(elements) {
                 const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                 currentElements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
                 if (mode === 'netflix') currentElements.subtitleUrlInput.value = data.last_input.url || '';
+            }
+            
+            // MODIFICATION: Load saved raw transcript text if available (for processing state visibility)
+            if (mode === 'youtube' && (data.ui_temp_state_youtube?.rawTranscript || data.youtube_raw_transcript_data)) {
+                 currentElements.youtubeTranscriptInput.value = data.ui_temp_state_youtube?.rawTranscript || data.youtube_raw_transcript_data || '';
             }
 
 
@@ -662,12 +691,12 @@ function loadSavedStatus(elements) {
                 currentElements.langStatusText.classList.add('hidden-no-space');
                 
                 currentElements.confirmButton.classList.add('hidden-no-space');
-                if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.classList.add('hidden-no-space');
+                // MODIFIED: No detectTranscriptButton to hide
                 
                 if (status.progress < 100) {
                     currentElements.targetLanguageInput.disabled = true;
                     if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = true;
-                    if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = true;
+                    if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = true; // MODIFIED
                     currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                     currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                     currentElements.editStyleSettingsButton.disabled = true;
@@ -677,7 +706,7 @@ function loadSavedStatus(elements) {
                 } else {
                     currentElements.targetLanguageInput.disabled = true;
                     if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = true;
-                    if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = true;
+                    if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = true; // MODIFIED
                     currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                     currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                     currentElements.editStyleSettingsButton.disabled = true;
@@ -694,7 +723,7 @@ function loadSavedStatus(elements) {
                 
                 currentElements.targetLanguageInput.disabled = false;
                 if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = false;
-                if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = false;
+                if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = false; // MODIFIED
                 
                 currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -712,11 +741,13 @@ function loadSavedStatus(elements) {
                     }
                     checkLanguagePairAvailability(elements);
                 } else { // YouTube Mode
-                    if (data.youtube_transcript_data) {
-                        currentElements.urlStatusText.textContent = `Transcript retrieved (${data.youtube_transcript_data.length} lines)!`;
+                    // MODIFIED: Check transcript input instead of stored data
+                    const transcriptText = currentElements.youtubeTranscriptInput.value.trim();
+                    if (transcriptText.length > 0) {
+                        currentElements.urlStatusText.textContent = `Transcript ready for validation.`;
                         currentElements.urlStatusText.style.color = "green";
                     } else {
-                        currentElements.urlStatusText.textContent = "Click 'Detect Transcript' above.";
+                        currentElements.urlStatusText.textContent = "Paste transcript with timestamps above.";
                         currentElements.urlStatusText.style.color = "#e50914";
                     }
                     checkYoutubeLanguagePairAvailability(elements);
@@ -734,72 +765,6 @@ function loadSavedStatus(elements) {
         });
     });
 }
-
-// --- MODIFICATION: Handle transcript button click ---
-async function handleDetectTranscript(elements) {
-    elements.detectTranscriptButton.disabled = true;
-    elements.youtubeUrlStatusText.textContent = "Attempting to retrieve transcript...";
-    elements.youtubeUrlStatusText.style.color = "#777";
-    
-    // Clear old data first
-    await chrome.storage.local.remove(['youtube_transcript_data', 'youtube_base_lang_code']);
-    
-    try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0] && tabs[0].id) {
-            const tabId = tabs[0].id;
-            
-            // 1. Ensure content script is injected
-            await chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                files: ['content.js']
-            });
-            
-            // 2. Send command to content script
-            chrome.tabs.sendMessage(tabId, {
-                command: "detect_youtube_transcript"
-            }).then(async (response) => {
-                if (response && response.success) {
-                    // --- NEW CONSOLE LOG ADDED HERE ---
-                    console.log("[POPUP] Detected Transcript Data:", response.data);
-                    // --- END NEW CONSOLE LOG ---
-                    
-                    await chrome.storage.local.set({ 
-                        'youtube_transcript_data': response.data,
-                        'youtube_base_lang_code': response.baseLangCode
-                    });
-                    
-                    elements.youtubeUrlStatusText.textContent = `Transcript retrieved (${response.data.length} lines)!`;
-                    elements.youtubeUrlStatusText.style.color = "green";
-                    
-                    // Re-run language check now that base language is known
-                    checkYoutubeLanguagePairAvailability(elements);
-                    
-                } else {
-                    elements.youtubeUrlStatusText.textContent = response ? response.error : "Failed to retrieve transcript. Check console.";
-                    elements.youtubeUrlStatusText.style.color = "#e50914";
-                }
-                elements.detectTranscriptButton.disabled = false;
-                updateGenerateButtonState(elements);
-            }).catch(e => {
-                elements.youtubeUrlStatusText.textContent = "Error communicating with tab. Are you on a YouTube video page?";
-                elements.youtubeUrlStatusText.style.color = "#e50914";
-                elements.detectTranscriptButton.disabled = false;
-                updateGenerateButtonState(elements);
-                console.error("Transcript detection message failed:", e);
-            });
-        } else {
-            throw new Error("No active tab found.");
-        }
-    } catch (e) {
-        elements.youtubeUrlStatusText.textContent = "Error: Could not access tab. Reload page.";
-        elements.youtubeUrlStatusText.style.color = "#e50914";
-        elements.detectTranscriptButton.disabled = false;
-        updateGenerateButtonState(elements);
-        console.error("Scripting or tab error:", e);
-    }
-}
-// --- END NEW FUNCTION ---
 
 // --- MODIFICATION: Updated handleConfirmClick for YouTube mode ---
 async function handleConfirmClick(elements) {
@@ -820,7 +785,7 @@ async function handleConfirmClick(elements) {
         urlInstructions: elements.urlInstructions,
         urlStatusText: elements.urlStatusText,
         langStatusText: elements.langStatusText,
-        detectTranscriptButton: null
+        youtubeTranscriptInput: null // MODIFIED
     } : {
         confirmButton: elements.youtubeConfirmButton,
         targetLanguageInput: elements.youtubeTargetLanguage,
@@ -835,7 +800,7 @@ async function handleConfirmClick(elements) {
         urlInstructions: elements.youtubeUrlInstructions,
         urlStatusText: elements.youtubeUrlStatusText,
         langStatusText: elements.youtubeLangStatusText,
-        detectTranscriptButton: elements.detectTranscriptButton
+        youtubeTranscriptInput: elements.youtubeTranscriptInput // MODIFIED
     };
 
     console.log(`[POPUP] 'Generate Subtitles' button clicked for ${mode} mode. Starting process.`);
@@ -847,7 +812,7 @@ async function handleConfirmClick(elements) {
     currentElements.urlStatusText.classList.add('hidden-no-space');
     currentElements.langStatusText.classList.add('hidden-no-space');
     currentElements.confirmButton.classList.add('hidden-no-space');
-    if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.classList.add('hidden-no-space');
+    // MODIFIED: Removed hide for detectTranscriptButton
     
     // 2. Show status/control UI
     isCancelledByPopup = false;
@@ -862,6 +827,7 @@ async function handleConfirmClick(elements) {
     // 4. Disable inputs
     currentElements.targetLanguageInput.disabled = true;
     if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = true;
+    if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = true; // MODIFIED
     currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     currentElements.editStyleSettingsButton.disabled = true;
@@ -908,15 +874,24 @@ async function handleConfirmClick(elements) {
             return;
         }
     } else {
-        const youtubeData = await chrome.storage.local.get(['youtube_transcript_data', 'youtube_base_lang_code']);
-        if (!youtubeData.youtube_transcript_data) {
-            currentElements.statusText.textContent = "Error: Transcript not detected. Please click 'Detect Transcript'.";
+        // MODIFICATION START: Use raw input box instead of stored data
+        const rawTranscript = currentElements.youtubeTranscriptInput.value.trim();
+        if (!rawTranscript) {
+            currentElements.statusText.textContent = "Error: Transcript box is empty. Please paste the transcript.";
             currentElements.progressBar.style.width = '0%';
             await stopProcessingUI(elements); 
-            currentElements.urlStatusText.textContent = "Transcript not found. Click 'Detect Transcript' above.";
+            currentElements.urlStatusText.textContent = "Transcript box is empty. Paste transcript above.";
             currentElements.urlStatusText.style.color = "#e50914";
             return;
         }
+        
+        // --- Store the raw text and base language for content.js to process ---
+        // Hardcoding to 'en' as base language for the input, as detection is not possible here.
+        await chrome.storage.local.set({ 
+            'youtube_raw_transcript_data': rawTranscript,
+            'youtube_base_lang_code': 'en'
+        });
+        // MODIFICATION END
     }
         
     // 5. Save state and proceed
@@ -1049,8 +1024,8 @@ document.addEventListener('DOMContentLoaded', () => {
         netflixContent: document.getElementById('netflix-content'),
         youtubeContent: document.getElementById('youtube-content'),
         
-        // YouTube Elements
-        detectTranscriptButton: document.getElementById('detectTranscriptButton'), // NEW
+        // YouTube Elements (MODIFIED)
+        youtubeTranscriptInput: document.getElementById('youtubeTranscriptInput'), // MODIFIED: New input field
         youtubeConfirmButton: document.getElementById('youtube-confirmButton'),
         youtubeTargetLanguage: document.getElementById('youtube-targetLanguage'),
         youtubeUrlStatusText: document.getElementById('youtube-urlStatusText'),
@@ -1101,8 +1076,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     });
     
-    // --- YOUTUBE LISTENERS (NEW) ---
-    elements.detectTranscriptButton.addEventListener('click', () => handleDetectTranscript(elements));
+    // --- YOUTUBE LISTENERS (MODIFIED) ---
+    elements.youtubeTranscriptInput.addEventListener('input', () => {
+        checkYoutubeTranscriptInput(elements); // MODIFIED: Check new input instead of detecting
+        saveCurrentInputs(elements);
+    });
     elements.youtubeConfirmButton.addEventListener('click', () => handleConfirmClick(elements));
     elements.youtubeCancelButton.addEventListener('click', () => handleCancelClick(elements));
     
@@ -1205,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText: elements.youtubeStatusText,
                 progressBar: elements.youtubeProgressBar,
                 urlStatusText: elements.youtubeUrlStatusText,
-                detectTranscriptButton: elements.detectTranscriptButton,
+                youtubeTranscriptInput: elements.youtubeTranscriptInput, // MODIFIED
                 langStatusText: elements.youtubeLangStatusText
             } : {
                 confirmButton: elements.confirmButton,
@@ -1219,7 +1197,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusText: elements.statusText,
                 progressBar: elements.progressBar,
                 urlStatusText: elements.urlStatusText,
-                detectTranscriptButton: null,
+                youtubeTranscriptInput: null, // MODIFIED
                 langStatusText: elements.langStatusText
             };
             
@@ -1227,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Handle URL/Detection Errors (Route: 'url' used for both Netflix URL errors and YouTube detection errors)
             if (route === 'url' || progress === 0) {
-                if (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved") || message.includes("Error: Transcript not found")) {
+                if (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved") || message.includes("Error: Transcript not found") || message.includes("Transcript box is empty")) { // MODIFIED: Added check for empty box
                     currentElements.urlStatusText.textContent = message;
                     currentElements.urlStatusText.style.color = "#e50914";
                     currentElements.urlStatusText.classList.remove('hidden-no-space');
@@ -1255,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 currentElements.targetLanguageInput.disabled = true;
                 if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = true;
-                if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = true;
+                if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = true; // MODIFIED
                 currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 currentElements.editStyleSettingsButton.disabled = true;
@@ -1269,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 currentElements.targetLanguageInput.disabled = true;
                 if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = true;
-                if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = true;
+                if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = true; // MODIFIED
                 currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 currentElements.editStyleSettingsButton.disabled = true;
@@ -1286,9 +1264,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     checkLanguagePairAvailability(elements);
                 } else {
-                    const data = await chrome.storage.local.get(['youtube_transcript_data']);
-                    if (!data.youtube_transcript_data) {
-                         currentElements.urlStatusText.textContent = "Click 'Detect Transcript' above.";
+                    // MODIFIED: Check transcript input instead of stored data
+                    const transcriptText = currentElements.youtubeTranscriptInput.value.trim();
+                    if (!transcriptText) {
+                         currentElements.urlStatusText.textContent = "Paste transcript with timestamps above.";
                          currentElements.urlStatusText.style.color = "#e50914";
                     }
                     checkYoutubeLanguagePairAvailability(elements);
@@ -1296,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 currentElements.targetLanguageInput.disabled = false;
                 if (currentElements.subtitleUrlInput) currentElements.subtitleUrlInput.disabled = false;
-                if (currentElements.detectTranscriptButton) currentElements.detectTranscriptButton.disabled = false;
+                if (currentElements.youtubeTranscriptInput) currentElements.youtubeTranscriptInput.disabled = false; // MODIFIED
                 
                 currentElements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
                 currentElements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
