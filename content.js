@@ -708,7 +708,11 @@ function disableNetflixSubObserver() {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
-    // --- MODIFICATION: Removed listener for detect_youtube_transcript ---
+    // --- NEW HANDLER: Added for robust script detection (ping) ---
+    if (request.command === "ping") {
+        sendResponse({ status: "pong" });
+        return false; 
+    }
     
     if (request.command === "check_language_pair") {
         (async () => {

@@ -330,6 +330,42 @@ async function getLangCodeFromInput(inputLang) {
     return targetLangCode;
 }
 
+// --- NEW HELPER: Robustly runs a function on the active tab, injecting content.js if necessary ---
+function runOnActiveTab(callback) {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0] || !tabs[0].id) {
+            console.error("No active tab found.");
+            return;
+        }
+        const tabId = tabs[0].id;
+        
+        // 1. Try sending a simple ping message to check if content.js is already running
+        chrome.tabs.sendMessage(tabId, { command: "ping" })
+            .then(() => {
+                // Success: Script is running, execute callback immediately
+                callback(tabId);
+            })
+            .catch((e) => {
+                // Failure: Script is not running (Receiving end does not exist)
+                console.log("Content script not detected. Injecting...");
+                
+                // 2. Inject content.js programmatically
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    files: ['content.js']
+                }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Script injection failed:", chrome.runtime.lastError.message);
+                        return;
+                    }
+                    // 3. Script injected, execute callback
+                    callback(tabId);
+                });
+            });
+    });
+}
+
+
 // --- NEW FUNCTION: Detects base language of the raw transcript via content script ---
 async function detectYoutubeBaseLanguage(elements, rawTranscript) {
     if (!rawTranscript) {
@@ -340,9 +376,9 @@ async function detectYoutubeBaseLanguage(elements, rawTranscript) {
     elements.youtubeUrlStatusText.textContent = `Detecting base language...`;
     elements.youtubeUrlStatusText.style.color = "#e50914";
 
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tabs[0] && tabs[0].id) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+    // MODIFICATION: Use runOnActiveTab helper
+    runOnActiveTab((tabId) => {
+        chrome.tabs.sendMessage(tabId, {
             command: "detect_transcript_language",
             rawTranscript: rawTranscript
         }).then(async (response) => {
@@ -365,7 +401,7 @@ async function detectYoutubeBaseLanguage(elements, rawTranscript) {
             elements.youtubeUrlStatusText.style.color = "#e50914";
             checkYoutubeLanguagePairAvailability(elements);
         });
-    }
+    });
 }
 // --- END NEW FUNCTION ---
 
@@ -418,57 +454,50 @@ async function checkYoutubeLanguagePairAvailability(elements) {
     elements.youtubeLangStatusText.textContent = "Checking language pair availability...";
     elements.youtubeLangStatusText.style.color = "#777";
 
-    try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0] && tabs[0].id) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-                command: "check_language_pair",
-                baseLang: baseLangCode,
-                targetLang: targetLangCode
-            }).then(response => {
-                if (chrome.runtime.lastError) {
-                    console.warn("Language check error:", chrome.runtime.lastError.message);
-                    elements.youtubeLangStatusText.textContent = "Cannot check: please reload the YouTube tab.";
-                    elements.youtubeLangStatusText.style.color = "#e50914";
-                    updateGenerateButtonState(elements);
-                    return;
-                }
-                
-                // Re-validate the input in case the user typed quickly
-                const currentTargetLangCode = getLangCodeFromInput(elements.youtubeTargetLanguage.value);
-
-                if (currentTargetLangCode === response.targetLang) {
-                    // MODIFICATION: Check response.isAvailable instead of relying on simple logic
-                    if (response.isAvailable) { 
-                        elements.youtubeLangStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
-                        elements.youtubeLangStatusText.style.color = "green";
-                    } else {
-                        // Display a more helpful message based on the issue
-                        let message = "Language pair not yet available, please retry with different inputs.";
-                        if (response.status === 'downloadable') {
-                            message = "Translation model is downloading. Try again shortly.";
-                        } else if (response.status === 'error' || response.status === 'missing_api') {
-                            message = "Compatibility check failed. Please reload the tab.";
-                        }
-                        
-                        elements.youtubeLangStatusText.textContent = message;
-                        elements.youtubeLangStatusText.style.color = "#e50914";
-                    }
-                }
-                updateGenerateButtonState(elements);
-            }).catch(e => {
-                console.warn("Could not send language pair check message:", e);
+    // MODIFICATION: Use runOnActiveTab helper
+    runOnActiveTab((tabId) => {
+        chrome.tabs.sendMessage(tabId, {
+            command: "check_language_pair",
+            baseLang: baseLangCode,
+            targetLang: targetLangCode
+        }).then(response => {
+            if (chrome.runtime.lastError) {
+                console.warn("Language check error:", chrome.runtime.lastError.message);
                 elements.youtubeLangStatusText.textContent = "Cannot check: please reload the YouTube tab.";
                 elements.youtubeLangStatusText.style.color = "#e50914";
                 updateGenerateButtonState(elements);
-            });
-        }
-    } catch (e) {
-        console.warn("Could not query tabs for language pair check:", e);
-        elements.youtubeLangStatusText.textContent = "Cannot check: please reload the YouTube tab.";
-        elements.youtubeLangStatusText.style.color = "#e50914";
-        updateGenerateButtonState(elements);
-    }
+                return;
+            }
+            
+            // Re-validate the input in case the user typed quickly
+            const currentTargetLangCode = getLangCodeFromInput(elements.youtubeTargetLanguage.value);
+
+            if (currentTargetLangCode === response.targetLang) {
+                // MODIFICATION: Check response.isAvailable instead of relying on simple logic
+                if (response.isAvailable) { 
+                    elements.youtubeLangStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
+                    elements.youtubeLangStatusText.style.color = "green";
+                } else {
+                    // Display a more helpful message based on the issue
+                    let message = "Language pair not yet available, please retry with different inputs.";
+                    if (response.status === 'downloadable') {
+                        message = "Translation model is downloading. Try again shortly.";
+                    } else if (response.status === 'error' || response.status === 'missing_api') {
+                        message = "Compatibility check failed. Please reload the tab.";
+                    }
+                    
+                    elements.youtubeLangStatusText.textContent = message;
+                    elements.youtubeLangStatusText.style.color = "#e50914";
+                }
+            }
+            updateGenerateButtonState(elements);
+        }).catch(e => {
+            console.warn("Could not send language pair check message:", e);
+            elements.youtubeLangStatusText.textContent = "Cannot check: please reload the YouTube tab.";
+            elements.youtubeLangStatusText.style.color = "#e50914";
+            updateGenerateButtonState(elements);
+        });
+    });
 }
 
 
@@ -502,57 +531,50 @@ async function checkLanguagePairAvailability(elements) {
     elements.langStatusText.textContent = "Checking language pair availability...";
     elements.langStatusText.style.color = "#777";
 
-    try {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs[0] && tabs[0].id) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-                command: "check_language_pair",
-                baseLang: baseLangCode,
-                targetLang: targetLangCode
-            }).then(response => {
-                if (chrome.runtime.lastError) {
-                    console.warn("Language check error:", chrome.runtime.lastError.message);
-                    elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
-                    elements.langStatusText.style.color = "#e50914";
-                    updateGenerateButtonState(elements);
-                    return;
-                }
-                
-                const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
-                let currentTargetLangCode = getLangCodeFromInput(currentInputLang);
-                
-                if (currentTargetLangCode === response.targetLang) {
-                    // MODIFICATION: Check response.isAvailable instead of relying on simple logic
-                    if (response.isAvailable) { 
-                        elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
-                        elements.langStatusText.style.color = "green";
-                    } else {
-                        // Display a more helpful message based on the issue
-                        let message = "Language pair not yet available, please retry with different inputs.";
-                        if (response.status === 'downloadable') {
-                            message = "Translation model is downloading. Try again shortly.";
-                        } else if (response.status === 'error' || response.status === 'missing_api') {
-                            message = "Compatibility check failed. Please reload the tab.";
-                        }
-                        
-                        elements.langStatusText.textContent = message;
-                        elements.langStatusText.style.color = "#e50914";
-                    }
-                }
-                updateGenerateButtonState(elements);
-            }).catch(e => {
-                console.warn("Could not send language pair check message:", e);
+    // MODIFICATION: Use runOnActiveTab helper
+    runOnActiveTab((tabId) => {
+        chrome.tabs.sendMessage(tabId, {
+            command: "check_language_pair",
+            baseLang: baseLangCode,
+            targetLang: targetLangCode
+        }).then(response => {
+            if (chrome.runtime.lastError) {
+                console.warn("Language check error:", chrome.runtime.lastError.message);
                 elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
                 elements.langStatusText.style.color = "#e50914";
                 updateGenerateButtonState(elements);
-            });
-        }
-    } catch (e) {
-        console.warn("Could not query tabs for language pair check:", e);
-        elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
-        elements.langStatusText.style.color = "#e50914";
-        updateGenerateButtonState(elements);
-    }
+                return;
+            }
+            
+            const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
+            let currentTargetLangCode = getLangCodeFromInput(currentInputLang);
+            
+            if (currentTargetLangCode === response.targetLang) {
+                // MODIFICATION: Check response.isAvailable instead of relying on simple logic
+                if (response.isAvailable) { 
+                    elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
+                    elements.langStatusText.style.color = "green";
+                } else {
+                    // Display a more helpful message based on the issue
+                    let message = "Language pair not yet available, please retry with different inputs.";
+                    if (response.status === 'downloadable') {
+                        message = "Translation model is downloading. Try again shortly.";
+                    } else if (response.status === 'error' || response.status === 'missing_api') {
+                        message = "Compatibility check failed. Please reload the tab.";
+                    }
+                    
+                    elements.langStatusText.textContent = message;
+                    elements.langStatusText.style.color = "#e50914";
+                }
+            }
+            updateGenerateButtonState(elements);
+        }).catch(e => {
+            console.warn("Could not send language pair check message:", e);
+            elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
+            elements.langStatusText.style.color = "#e50914";
+            updateGenerateButtonState(elements);
+        });
+    });
 }
 
 function checkUrlAndDetectLanguage(elements) {
@@ -571,6 +593,8 @@ function checkUrlAndDetectLanguage(elements) {
             updateGenerateButtonState(elements); 
         });
         
+        // No change needed here, as the script injection is already handled implicitly by the static manifest
+        // and explicitly by runOnActiveTab for subsequent checks.
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
