@@ -714,6 +714,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         (async () => {
             let isAvailable = false;
             let status = 'unavailable';
+            
+            console.log(`[Content Script] Checking compatibility for ${request.baseLang} -> ${request.targetLang}...`); // DEBUG
 
             if ('Translator' in self) {
                 try {
@@ -725,13 +727,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     
                     status = capabilities;
                     isAvailable = (capabilities === 'available');
+                    console.log(`[Content Script] Translator.availability status: ${status}`); // DEBUG
 
                 } catch (e) {
-                    console.error("Translator.availability check failed:", e);
+                    console.error("[Content Script] Translator.availability check failed:", e); // DEBUG
                     status = 'error';
                 }
             } else {
                 // If API is missing, assume unavailable for safety
+                console.error("[Content Script] Translator API ('Translator' in self) is not available."); // DEBUG
                 status = 'missing_api';
             }
 
