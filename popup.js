@@ -50,7 +50,7 @@ function updateUIMode(mode, elements) {
     const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
 
     if (mode === 'netflix') {
-        elements.titleHeader.textContent = 'Language Stream - Netflix';
+        elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#e50914';
         
         elements.netflixInputs.classList.remove('hidden-no-space');
@@ -71,7 +71,7 @@ function updateUIMode(mode, elements) {
         }
 
     } else if (mode === 'youtube') {
-        elements.titleHeader.textContent = 'Language Stream - YouTube';
+        elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#FF0000';
 
         elements.netflixInputs.classList.add('hidden-no-space');
@@ -91,7 +91,7 @@ function updateUIMode(mode, elements) {
             checkTranscriptAndDetectLanguage(elements); // Check YouTube transcript
         }
     } else if (mode === 'disney') { // NEW DISNEY MODE
-        elements.titleHeader.textContent = 'Language Stream - Disney+';
+        elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#0d8199'; // Disney+ Teal
 
         elements.netflixInputs.classList.add('hidden-no-space');
