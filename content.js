@@ -95,20 +95,30 @@ function parseTtmlXml(xmlString, url) {
     }
 }
 
-function detectBaseLanguage() {
-    const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
+// --- NEW HELPER FUNCTION ---
+// Detects language from a provided text snippet
+function detectLanguageFromText(sampleText) {
     return new Promise((resolve) => {
         if (!chrome.i18n || !chrome.i18n.detectLanguage) {
             console.error("Chrome i18n.detectLanguage API not available. Defaulting to 'en'.");
-            resolve('en');
+            resolve('en'); // Default fallback
             return;
         }
         chrome.i18n.detectLanguage(sampleText, (result) => {
             const detectedCode = (result.languages && result.languages.length > 0 && result.languages[0].language !== 'und') ? result.languages[0].language : null;
-            resolve(detectedCode);
+            resolve(detectedCode); // Resolves with language code (e.g., 'en') or null
         });
     });
 }
+// --- END NEW HELPER FUNCTION ---
+
+// Detects language from the globally parsed subtitles (for Netflix)
+function detectBaseLanguage() {
+    const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
+    // Uses the new helper function
+    return detectLanguageFromText(sampleText); 
+}
+
 
 function createFloatingWindow() {
     let existingWindow = document.getElementById('language-stream-window');
@@ -123,10 +133,23 @@ function createFloatingWindow() {
         windowDiv.id = 'language-stream-window';
         windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
         makeDraggable(windowDiv);
-        const playerContainer = getNetflixPlayerContainer();
+        
+        // --- MODIFICATION: Find correct player container for Netflix or YouTube ---
+        let playerContainer = getNetflixPlayerContainer(); // Try Netflix first
+        if (!playerContainer) {
+            // Fallback for YouTube
+            playerContainer = document.getElementById('movie_player'); 
+        }
+        
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
-        if (playerContainer) playerContainer.style.position = 'relative';
+        
+        // Only make relative if it's a known container
+        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player')) {
+            playerContainer.style.position = 'relative';
+        }
+        // --- END MODIFICATION ---
+
         floatingWindow = windowDiv;
     }
 }
@@ -449,7 +472,8 @@ function getIndexedColor(index, alpha) {
         'white', 'red', 'green', 'blue', 'magenta', 'yellow', 
         'cyan', 'orange', 'lime', 'pink', 'teal'
     ];
-    const colorName = colors[index % colors.length] || 'white';
+    // Use index - 1 because our color codes start at 1 (0 is default/white)
+    const colorName = colors[(index - 1) % colors.length] || 'white';
     return colorNameToRgba(colorName, alpha);
 }
 
@@ -484,8 +508,8 @@ function startSubtitleSync(videoElement) {
 
     const buildColorCodedHtml = (text, colorCodes, defaultColor, isBaseLanguage) => {
         if (!colorCodes || subtitleStylePref !== 'vocabulary') {
-            const finalColor = isBaseLanguage ? defaultColor : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
-            return `<span style="${finalColor}">${text}</span>`;
+            const finalStyle = isBaseLanguage ? getSpanStyle(defaultColor) : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
+            return `<span style="${finalStyle}">${text}</span>`;
         }
 
         const words = text.split(/\s+/).filter(w => w.length > 0);
@@ -605,6 +629,80 @@ function disableNetflixSubObserver() {
     }
 }
 
+// --- MODIFICATION: Find correct video element for Netflix or YouTube ---
+function getVideoElement() {
+    let video = getNetflixVideoElement(); // Try Netflix
+    if (video) return video;
+    
+    // Fallback for YouTube
+    video = document.querySelector('#movie_player video.html5-main-video');
+    return video;
+}
+// --- END MODIFICATION ---
+
+// --- MODIFICATION: Simple YouTube transcript parser ---
+function parseYouTubeTranscript(transcriptText) {
+    parsedSubtitles = [];
+    const lines = transcriptText.split('\n');
+    let currentTime = 0;
+    
+    // Regex to find timestamps like 0:00, 1:23, 10:45, 1:02:03
+    const timeRegex = /^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/;
+
+    let buffer = { text: "", begin: 0, end: 0 };
+    let lineCount = 0;
+
+    for (const line of lines) {
+        const trimmedLine = line.trim();
+        const timeMatch = trimmedLine.match(timeRegex);
+
+        if (timeMatch) {
+            lineCount++;
+            // This is a timestamp line.
+            // First, save the previous buffered text, if any.
+            if (buffer.text) {
+                buffer.end = currentTime; // The new timestamp marks the end of the previous subtitle.
+                // Only save if the duration is reasonable (avoids empty/flicker subs)
+                if (buffer.end > buffer.begin) {
+                    parsedSubtitles.push(buffer);
+                }
+            }
+
+            // Now, process the new timestamp.
+            const hours = parseInt(timeMatch[1] || '0', 10);
+            const minutes = parseInt(timeMatch[2], 10);
+            const seconds = parseInt(timeMatch[3], 10);
+            currentTime = (hours * 3600) + (minutes * 60) + seconds;
+
+            // Start a new buffer
+            buffer = {
+                text: "",
+                begin: currentTime,
+                end: 0 // We don't know the end time yet
+            };
+            
+        } else if (trimmedLine && buffer.begin > 0) {
+            // This is a text line. Append it to the current buffer.
+            buffer.text = (buffer.text + " " + trimmedLine).trim();
+        }
+    }
+
+    // Push the very last subtitle buffer
+    if (buffer.text) {
+        // Estimate end time (e.g., 5 seconds after start) as we don't have a final timestamp.
+        // This can be refined, but it's a simple approach.
+        buffer.end = buffer.begin + 5; 
+        parsedSubtitles.push(buffer);
+    }
+    
+    console.log(`Successfully parsed ${parsedSubtitles.length} subtitles from YouTube transcript.`);
+    
+    // Return true if parsing found at least one subtitle line
+    return parsedSubtitles.length > 0;
+}
+// --- END MODIFICATION ---
+
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "check_language_pair") {
         console.log(`[DEBUG] Received check_language_pair. Base: ${request.baseLang}, Target: ${request.targetLang}`);
@@ -637,6 +735,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    // --- NEW COMMAND HANDLER ---
+    if (request.command === "detect_language_from_text") {
+        (async () => {
+            const baseLangCode = await detectLanguageFromText(request.text);
+            sendResponse({
+                baseLangCode: baseLangCode
+            });
+        })();
+        return true; // Indicates asynchronous response
+    }
+    // --- END NEW COMMAND HANDLER ---
+
     if (request.command === "detect_language") {
         (async () => {
             parsedSubtitles = [];
@@ -653,6 +763,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else {
                     sendResponse({ url: request.url, baseLangCode: null });
                 }
+            } else {
+                 sendResponse({ url: request.url, baseLangCode: null });
             }
         })();
         return true;
@@ -681,7 +793,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         (async () => {
-            const videoElement = getNetflixVideoElement();
+            const videoElement = getVideoElement(); // Use generic function
             if (!videoElement) {
                 sendStatusUpdate("Video player not found.", 0);
                 isProcessing = false;
@@ -722,6 +834,79 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         return false;
     }
+    
+    // --- NEW COMMAND HANDLER FOR YOUTUBE ---
+    if (request.command === "process_youtube_subtitles" && request.transcript) {
+        if (isProcessing) return false;
+        isProcessing = true;
+        isCancelled = false;
+        subtitleLanguages.target = request.targetLang;
+        isTranslatedOnly = request.translatedOnly;
+        fontSizeEm = request.fontSize;
+        backgroundColorPref = request.backgroundColor;
+        backgroundAlphaPref = request.backgroundAlpha;
+        fontShadowPref = request.fontShadow;
+        fontColorPref = request.fontColor;
+        fontColorAlphaPref = request.fontColorAlpha;
+        subtitleStylePref = request.colourCoding;
+        translationCache = {};
+        if (syncInterval) clearInterval(syncInterval);
+        
+        if (!('Translator' in self)) {
+            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, null, 'transcript');
+            isProcessing = false;
+            return false;
+        }
+        
+        (async () => {
+            const videoElement = getVideoElement(); // Use generic function
+            if (!videoElement) {
+                sendStatusUpdate("Video player not found.", 0, null, 'transcript');
+                isProcessing = false;
+                return;
+            }
+            
+            createFloatingWindow();
+            
+            // Parse the provided transcript
+            const parseSuccess = parseYouTubeTranscript(request.transcript);
+            
+            if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
+                sendStatusUpdate("Detecting language...", 30, null, 'transcript');
+                
+                // Detect language from the parsed subs
+                subtitleLanguages.base = await detectBaseLanguage(); 
+                
+                if (isCancelled) {
+                    isProcessing = false;
+                    return;
+                }
+                if (!subtitleLanguages.base) {
+                    sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, null, 'transcript');
+                    subtitleLanguages.base = 'en';
+                } else {
+                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, null, 'transcript');
+                }
+                
+                startSubtitleSync(videoElement);
+                
+                try {
+                    // Pass null for URL as it's not needed for YouTube status
+                    await translateAllSubtitles(null); 
+                } catch (e) {
+                    if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e);
+                }
+                isProcessing = false;
+            } else {
+                if (!isCancelled) sendStatusUpdate("Invalid transcript. Please re-paste.", 0, null, 'transcript');
+                isProcessing = false;
+            }
+        })();
+        
+        sendResponse({ status: "processing_started" }); // Acknowledge message received
+        return true; // Indicate async work
+    }
+    // --- END NEW COMMAND HANDLER ---
 
     if (request.command === "cancel_processing") {
         isCancelled = true;
