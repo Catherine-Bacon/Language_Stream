@@ -722,8 +722,11 @@ function getVideoElement() {
     video = document.querySelector('#movie_player video.html5-main-video');
     if (video) return video;
 
-    // Fallback for Disney+
+    // Fallback for Disney+ (checking both known containers)
     video = document.querySelector('.btm-media-player-container video');
+    if (video) return video;
+    
+    video = document.querySelector('#vader_Player video'); // NEW: Check the other container
     if (video) return video;
 
     return null;
