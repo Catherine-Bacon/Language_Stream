@@ -5,10 +5,9 @@
         font-family: Arial, sans-serif;
         padding: 15px 15px 10px 15px;
         width: 350px;
-        /* --- CRITICAL: Shorter height is the new CSS default --- */
-        height: 360px; 
+        /* Start with Netflix height, JS will adjust */
+        height: 485px; 
         overflow-y: hidden;
-        /* Added for mode switcher */
         padding-top: 50px;
         position: relative;
       }
@@ -50,7 +49,6 @@
         font-size: 1.5em;
         margin-top: 0px;
         margin-bottom: 0px; 
-        /* Added for mode switcher */
         position: absolute;
         top: 12px;
         left: 15px;
@@ -66,7 +64,7 @@
         font-size: 0.9em;
         color: #333;
       }
-      select, button, input[type="text"] {
+      select, button, input[type="text"], textarea {
         width: 100%;
         padding: 8px;
         margin-top: 5px;
@@ -74,6 +72,13 @@
         border-radius: 4px;
         border: 1px solid #ddd;
         box-sizing: border-box;
+        font-family: Arial, sans-serif; /* Ensure textarea matches */
+      }
+      /* --- NEW: Textarea styling --- */
+      textarea {
+        resize: none;
+        height: 100px; /* Give it some height */
+        margin-top: 0;
       }
       #subtitleUrlInput {
         margin-top: 0;
@@ -97,7 +102,6 @@
       button:hover {
         background-color: #f40a16;
       }
-      /* Style for the Cancel button */
       button#cancelButton { 
         background-color: #777; 
         margin-top: 15px; 
@@ -107,7 +111,6 @@
       button#cancelButton:hover {
         background-color: #999;
       }
-
       button:disabled,
       button[disabled]{
         background-color: #cccccc;
@@ -137,15 +140,12 @@
         border-radius: 4px;
         text-align: center;
       }
-      /* Simple Loading Bar CSS */
       #progressBarContainer {
         width: 100%;
         background-color: #ddd;
         border-radius: 5px;
         margin-top: 10px;
-        /* --- MODIFICATION START --- */
-        margin-bottom: 10px; /* Added margin to push content below the bar */
-        /* --- MODIFICATION END --- */
+        margin-bottom: 10px;
         overflow: hidden;
       }
       #progressBar {
@@ -166,7 +166,6 @@
         margin-bottom: 10px;
       }
 
-      /* Preference Rows - Main Popup */
       .preference-row {
           display: flex;
           align-items: center;
@@ -208,13 +207,8 @@
           height: 28px; 
           padding: 0; 
           margin-left: 10px;
-          
-          /* Ensures perfect vertical centering in the flex container */
           align-self: center; 
-          
-          /* Visual Nudge: Shifts the button down slightly to align with text baseline */
           margin-top: 2px;
-          
           background-color: #555;
           line-height: 1; 
           font-size: 1em;
@@ -252,11 +246,17 @@
           width: auto;
           margin-right: 5px;
       }
+      /* Status text formatting */
+      .status-text {
+        margin-top: 5px;
+        color: #e50914;
+        font-weight: bold;
+      }
 
     </style>
   </head>
   <body>
-    <!-- New Title and Mode Switcher -->
+    <!-- Title and Mode Switcher -->
     <h1 id="titleHeader">Language Stream - Netflix</h1>
     <div class="mode-switcher">
       <div class="mode-icon active" id="netflixModeButton" title="Netflix Mode">
@@ -283,17 +283,30 @@
             <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
         </div>
       </div>
-      <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" 
-             value="">
+      <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" value="">
       
-      <p id="urlStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
+      <p id="urlStatusText" class="status-text">&nbsp;</p>
     </div>
+    
+    <!-- YouTube-Specific Inputs (NEW) -->
+    <div id="youtubeInputs" class="hidden-no-space">
+      <h2 id="transcriptHeader">1. Retrieve Transcript</h2>
+      <div id="transcriptInstructions">
+        <p>Click the '...' below the video > Show transcript.</p>
+        <p>Click '...' in transcript > Toggle timestamps.</p>
+        <p>Copy and paste the entire transcript here.</p>
+      </div>
+      <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
+      
+      <p id="transcriptStatusText" class="status-text">&nbsp;</p>
+    </div>
+
 
     <!-- Shared Inputs -->
     <h2 id="languageHeader">2. Select Language</h2>
     <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
 
-    <p id="langStatusText" style="margin-top: 5px; color: #e50914; font-weight: bold;">&nbsp;</p>
+    <p id="langStatusText" class="status-text">&nbsp;</p>
 
     
     <h3 id="preferencesHeader">3. Select Subtitle Preferences</h3>

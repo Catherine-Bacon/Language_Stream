@@ -1,10 +1,9 @@
 console.log("1. popup.js script file loaded.");
 
-// --- MODIFICATION START: Define fixed heights ---
+// --- MODIFICATION: Define heights for both modes ---
 const NETFLIX_SETUP_HEIGHT = '485px'; // Taller height for setup state (Netflix)
-const YOUTUBE_SETUP_HEIGHT = '360px'; // Shorter height for setup state (YouTube)
-const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state (This is the CSS default)
-// --- MODIFICATION END ---
+const YOUTUBE_SETUP_HEIGHT = '510px'; // NEW: Taller height for YouTube w/ transcript
+const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state
 
 const NETFLIX_PRESET = {
     font_size: 'medium',
@@ -30,17 +29,18 @@ const LANGUAGE_MAP = {
 };
 
 let isCancelledByPopup = false;
-let currentMode = 'netflix'; // NEW: Track current mode
+let currentMode = 'netflix'; 
 
 function updateGenerateButtonState(elements) {
-    // MODIFIED: YouTube mode doesn't need URL validation
-    const isUrlValid = currentMode === 'youtube' || elements.urlStatusText.style.color === 'green';
+    // MODIFIED: Check transcript status for YouTube
+    const isInputValid = (currentMode === 'netflix' && elements.urlStatusText.style.color === 'green') ||
+                         (currentMode === 'youtube' && elements.transcriptStatusText.style.color === 'green');
     const isLangValid = elements.langStatusText.style.color === 'green';
     
-    elements.confirmButton.disabled = !(isUrlValid && isLangValid);
+    elements.confirmButton.disabled = !(isInputValid && isLangValid);
 }
 
-// NEW: Function to update UI based on mode
+// Function to update UI based on mode
 function updateUIMode(mode, elements) {
     currentMode = mode;
     chrome.storage.local.set({ 'ls_mode': mode });
@@ -50,34 +50,44 @@ function updateUIMode(mode, elements) {
     if (mode === 'netflix') {
         elements.titleHeader.textContent = 'Language Stream - Netflix';
         elements.titleHeader.style.color = '#e50914';
-        elements.netflixInputs.style.display = 'block';
+        
+        elements.netflixInputs.classList.remove('hidden-no-space');
+        elements.youtubeInputs.classList.add('hidden-no-space');
+        
+        elements.urlHeader.textContent = '1. Retrieve Subtitle URL';
         elements.languageHeader.textContent = '2. Select Language';
         elements.preferencesHeader.textContent = '3. Select Subtitle Preferences';
+        
         elements.netflixModeButton.classList.add('active');
         elements.youtubeModeButton.classList.remove('active');
         
-        // Set height only if NOT processing
         if (!isProcessing) {
              document.body.style.height = NETFLIX_SETUP_HEIGHT;
+             checkUrlAndDetectLanguage(elements); // Re-check Netflix URL
         }
 
     } else if (mode === 'youtube') {
         elements.titleHeader.textContent = 'Language Stream - YouTube';
         elements.titleHeader.style.color = '#FF0000';
-        elements.netflixInputs.style.display = 'none';
-        elements.languageHeader.textContent = '1. Select Language';
-        elements.preferencesHeader.textContent = '2. Select Subtitle Preferences';
+
+        elements.netflixInputs.classList.add('hidden-no-space');
+        elements.youtubeInputs.classList.remove('hidden-no-space');
+
+        elements.transcriptHeader.textContent = '1. Retrieve Transcript';
+        elements.languageHeader.textContent = '2. Select Language';
+        elements.preferencesHeader.textContent = '3. Select Subtitle Preferences';
+
         elements.netflixModeButton.classList.remove('active');
         elements.youtubeModeButton.classList.add('active');
         
-        // Set height only if NOT processing
         if (!isProcessing) {
             document.body.style.height = YOUTUBE_SETUP_HEIGHT;
+            checkTranscriptAndDetectLanguage(elements); // Check YouTube transcript
         }
     }
     
     // Re-validate language and button state for the new mode
-    checkLanguagePairAvailability(elements);
+    checkLanguagePairAvailability(elements); // This will use the detected language
     updateGenerateButtonState(elements);
 }
 
@@ -85,7 +95,8 @@ function updateUIMode(mode, elements) {
 function saveCurrentInputs(elements) {
     const currentState = {
         url: elements.subtitleUrlInput.value.trim(),
-        targetLang: elements.targetLanguageInput.value.trim()
+        targetLang: elements.targetLanguageInput.value.trim(),
+        youtubeTranscript: elements.youtubeTranscriptInput.value // NEW: Save transcript
     };
     chrome.storage.local.set({ 'ui_temp_state': currentState });
 }
@@ -108,11 +119,12 @@ async function resetStatus(elements) {
 
     if (!elements.confirmButton) return;
     
-    // --- MODIFIED: Set height based on current mode ---
+    // Set height based on current mode
     const setupHeight = (currentMode === 'netflix') ? NETFLIX_SETUP_HEIGHT : YOUTUBE_SETUP_HEIGHT;
     document.body.style.height = setupHeight;
 
     elements.subtitleUrlInput.value = '';
+    elements.youtubeTranscriptInput.value = ''; // NEW: Clear transcript
     elements.targetLanguageInput.value = '';
 
     await chrome.storage.local.set({
@@ -128,6 +140,7 @@ async function resetStatus(elements) {
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
+    elements.youtubeTranscriptInput.disabled = false; // NEW: Enable transcript input
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -139,31 +152,35 @@ async function resetStatus(elements) {
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
 
-    // MODIFIED: Only show URL status for Netflix
+    // NEW: Show correct status text based on mode
     if (currentMode === 'netflix') {
         elements.urlStatusText.textContent = "Waiting for URL...";
         elements.urlStatusText.style.color = "#e50914";
         elements.urlStatusText.classList.remove('hidden-no-space');
+        elements.transcriptStatusText.classList.add('hidden-no-space');
     } else {
+        elements.transcriptStatusText.textContent = "Waiting for transcript...";
+        elements.transcriptStatusText.style.color = "#FF0000"; // YouTube red
+        elements.transcriptStatusText.classList.remove('hidden-no-space');
         elements.urlStatusText.classList.add('hidden-no-space');
     }
 
     elements.langStatusText.classList.remove('hidden-no-space');
+    elements.langStatusText.textContent = "Waiting for language...";
+    elements.langStatusText.style.color = "#e50914";
     
-    // NEW: Update UI just in case
-    updateUIMode(currentMode, elements);
-
     console.log("Processing status reset completed. Fields cleared.");
     await checkLanguagePairAvailability(elements);
 }
 
 async function stopProcessingUI(elements) {
-    // --- MODIFIED: Set height based on current mode ---
+    // Set height based on current mode
     const setupHeight = (currentMode === 'netflix') ? NETFLIX_SETUP_HEIGHT : YOUTUBE_SETUP_HEIGHT;
     document.body.style.height = setupHeight;
 
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
+    elements.youtubeTranscriptInput.disabled = false; // NEW: Enable transcript
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
 
@@ -179,16 +196,21 @@ async function stopProcessingUI(elements) {
     
     elements.confirmButton.classList.remove('hidden-no-space');
 
-    // MODIFIED: Show Netflix-specific UI only if in Netflix mode
+    // NEW: Show correct inputs/status based on mode
     if (currentMode === 'netflix') {
-        elements.urlInstructions.classList.remove('hidden-no-space');
+        elements.netflixInputs.classList.remove('hidden-no-space');
         elements.urlStatusText.classList.remove('hidden-no-space');
+        elements.youtubeInputs.classList.add('hidden-no-space');
         checkUrlAndDetectLanguage(elements);
+    } else {
+        elements.youtubeInputs.classList.remove('hidden-no-space');
+        elements.transcriptStatusText.classList.remove('hidden-no-space');
+        elements.netflixInputs.classList.add('hidden-no-space');
+        checkTranscriptAndDetectLanguage(elements);
     }
+    
     elements.langStatusText.classList.remove('hidden-no-space');
-    
     checkLanguagePairAvailability(elements);
-    
     updateGenerateButtonState(elements);
 
     console.log("Processing stopped. UI reset.");
@@ -242,85 +264,143 @@ async function checkLanguagePairAvailability(elements) {
         return;
     }
 
-    // --- MODIFICATION: Logic branching for Netflix vs YouTube ---
-    if (currentMode === 'netflix') {
-        const data = await chrome.storage.local.get(['detected_base_lang_code']);
-        const baseLangCode = data.detected_base_lang_code;
-        if (!baseLangCode) {
-            elements.langStatusText.textContent = "Waiting for URL to check translation compatibility...";
-            elements.langStatusText.style.color = "#777";
-            updateGenerateButtonState(elements);
-            return;
-        }
+    // --- MODIFICATION: Both modes now check storage for base lang ---
+    const data = await chrome.storage.local.get(['detected_base_lang_code']);
+    const baseLangCode = data.detected_base_lang_code;
 
-        elements.langStatusText.textContent = "Checking language pair availability...";
+    if (!baseLangCode) {
+        const waitMessage = currentMode === 'netflix' ? "Waiting for URL..." : "Waiting for transcript...";
+        elements.langStatusText.textContent = `${waitMessage} to check compatibility.`;
         elements.langStatusText.style.color = "#777";
+        updateGenerateButtonState(elements);
+        return;
+    }
 
-        try {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs[0] && tabs[0].id) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "check_language_pair",
-                    baseLang: baseLangCode,
-                    targetLang: targetLangCode
-                }).then(response => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("Language check error:", chrome.runtime.lastError.message);
-                        elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
-                        elements.langStatusText.style.color = "#e50914";
-                        updateGenerateButtonState(elements);
-                        return;
-                    }
-                    
-                    const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
-                    let currentTargetLangCode = null;
-                    if(currentInputLang.length === 2) {
-                        currentTargetLangCode = currentInputLang;
-                    } else if (currentInputLang.length > 2) {
-                        currentTargetLangCode = LANGUAGE_MAP[currentInputLang] || (Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang)) ? LANGUAGE_MAP[Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang))] : null);
-                    }
+    elements.langStatusText.textContent = "Checking language pair availability...";
+    elements.langStatusText.style.color = "#777";
 
-                    if (currentTargetLangCode === response.targetLang) {
-                        if (response.isAvailable) {
-                            elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
-                            elements.langStatusText.style.color = "green";
-                        } else {
-                            elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                            elements.langStatusText.style.color = "#e50914";
-                        }
-                    }
-                    updateGenerateButtonState(elements);
-                }).catch(e => {
-                    console.warn("Could not send language pair check message:", e);
-                    elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0] && tabs[0].id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                command: "check_language_pair",
+                baseLang: baseLangCode,
+                targetLang: targetLangCode
+            }).then(response => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Language check error:", chrome.runtime.lastError.message);
+                    const tabType = currentMode === 'netflix' ? 'Netflix' : 'YouTube';
+                    elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
                     elements.langStatusText.style.color = "#e50914";
                     updateGenerateButtonState(elements);
-                });
-            }
-        } catch (e) {
-            console.warn("Could not query tabs for language pair check:", e);
-            elements.langStatusText.textContent = "Cannot check: please reload the Netflix tab.";
-            elements.langStatusText.style.color = "#e50914";
-            updateGenerateButtonState(elements);
+                    return;
+                }
+                
+                // Check if the input is still the same
+                const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
+                let currentTargetLangCode = null;
+                if(currentInputLang.length === 2) {
+                    currentTargetLangCode = currentInputLang;
+                } else if (currentInputLang.length > 2) {
+                    currentTargetLangCode = LANGUAGE_MAP[currentInputLang] || (Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang)) ? LANGUAGE_MAP[Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang))] : null);
+                }
+
+                if (currentTargetLangCode === response.targetLang) {
+                    if (response.isAvailable) {
+                        elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
+                        elements.langStatusText.style.color = "green";
+                    } else {
+                        elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
+                        elements.langStatusText.style.color = "#e50914";
+                    }
+                }
+                updateGenerateButtonState(elements);
+            }).catch(e => {
+                console.warn("Could not send language pair check message:", e);
+                const tabType = currentMode === 'netflix' ? 'Netflix' : 'YouTube';
+                elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
+                elements.langStatusText.style.color = "#e50914";
+                updateGenerateButtonState(elements);
+            });
         }
-    } else if (currentMode === 'youtube') {
-        // For YouTube, we can't check the base language yet from the popup.
-        // We will assume the pair is valid if the target language is spelled correctly.
-        // The content script will handle the base language detection.
-        elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(targetLangCode)}!`;
-        elements.langStatusText.style.color = "green";
+    } catch (e) {
+        console.warn("Could not query tabs for language pair check:", e);
+        const tabType = currentMode === 'netflix' ? 'Netflix' : 'YouTube';
+        elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
+        elements.langStatusText.style.color = "#e50914";
         updateGenerateButtonState(elements);
     }
 }
 
+// NEW: Function to detect language from transcript text
+function checkTranscriptAndDetectLanguage(elements) {
+    if (currentMode !== 'youtube') return;
+
+    const transcript = elements.youtubeTranscriptInput.value.trim();
+
+    if (transcript) {
+        elements.transcriptStatusText.textContent = `Detecting language...`;
+        elements.transcriptStatusText.style.color = "#FF0000"; // YouTube Red
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0] && tabs[0].id) {
+                // Use a snippet for detection
+                const transcriptSnippet = transcript.substring(0, 1000);
+                
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    command: "detect_language_from_text",
+                    text: transcriptSnippet
+                }).then(async (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn("Detection error:", chrome.runtime.lastError.message);
+                        elements.transcriptStatusText.textContent = `Language detection failed.`;
+                        elements.transcriptStatusText.style.color = "#FF0000";
+                        await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                        return;
+                    }
+                    
+                    // Check if transcript is still the same
+                    if (response && elements.youtubeTranscriptInput.value.trim().startsWith(transcriptSnippet)) {
+                        if (response.baseLangCode) {
+                            const baseLangName = getLanguageName(response.baseLangCode);
+                            elements.transcriptStatusText.textContent = `${baseLangName} transcript ready to translate!`;
+                            elements.transcriptStatusText.style.color = "green";
+                            await chrome.storage.local.set({
+                                'detected_base_lang_name': baseLangName,
+                                'detected_base_lang_code': response.baseLangCode
+                            });
+                            checkLanguagePairAvailability(elements); // Trigger lang pair check
+                        } else {
+                            elements.transcriptStatusText.textContent = `Language detection failed.`;
+                            elements.transcriptStatusText.style.color = "#FF0000";
+                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                        }
+                        updateGenerateButtonState(elements);
+                    }
+                }).catch(e => {
+                   if (!e.message.includes('Receiving end does not exist')) {
+                        console.warn("Could not send detection message, content script not ready:", e);
+                   }
+                   updateGenerateButtonState(elements);
+                });
+            }
+        });
+    } else {
+         elements.transcriptStatusText.textContent = "Waiting for transcript...";
+         elements.transcriptStatusText.style.color = "#FF0000";
+         chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+         updateGenerateButtonState(elements);
+    }
+}
+
 function checkUrlAndDetectLanguage(elements) {
-    // This function is now only for Netflix
     if (currentMode !== 'netflix') return;
 
     const url = elements.subtitleUrlInput.value.trim();
     const urlLooksValid = (url && url.startsWith('http'));
 
     if (urlLooksValid) {
+        // Optimistic UI based on stored data
         chrome.storage.local.get(['detected_base_lang_name'], (data) => {
             if (!data.detected_base_lang_name) {
                 elements.urlStatusText.textContent = `Detecting language...`;
@@ -332,10 +412,11 @@ function checkUrlAndDetectLanguage(elements) {
             updateGenerateButtonState(elements); 
         });
         
+        // Send message to content script to verify/detect
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "detect_language",
+                    command: "detect_language", // This is for Netflix URL
                     url: url
                 }).then(async (response) => {
                     if (chrome.runtime.lastError) {
@@ -385,15 +466,13 @@ function loadSavedStatus(elements) {
     console.log("3. Loading saved status from storage.");
     chrome.storage.local.get([
         'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
-        'detected_base_lang_name', 'ui_temp_state', 'ls_mode' // NEW: Load saved mode
+        'detected_base_lang_name', 'ui_temp_state', 'ls_mode'
     ], (data) => {
         
-        // NEW: Set mode first
         currentMode = data.ls_mode || 'netflix';
-        updateUIMode(currentMode, elements);
+        updateUIMode(currentMode, elements); // Set mode first
 
         const status = data.ls_status;
-        const detectedBaseLangName = data.detected_base_lang_name;
         
         if (status && status.progress >= 100 && status.message && status.message.startsWith("Translation complete!")) {
             const popcornEmoji = "\u{1F37F}";
@@ -404,6 +483,7 @@ function loadSavedStatus(elements) {
         elements.progressBar.style.width = '0%';
         elements.targetLanguageInput.disabled = false;
         elements.subtitleUrlInput.disabled = false;
+        elements.youtubeTranscriptInput.disabled = false; // NEW
         elements.cancelButton.classList.add('hidden-no-space');
         elements.cancelButton.textContent = "Cancel Subtitle Generation";
         elements.statusBox.classList.add('hidden-no-space');
@@ -423,24 +503,24 @@ function loadSavedStatus(elements) {
         elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
 
         const isProcessing = status && status.progress > 0 && status.progress < 100;
+        
+        // Load inputs
         if (!isProcessing) {
             if (data.ui_temp_state) {
                 elements.targetLanguageInput.value = data.ui_temp_state.targetLang || '';
                 elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
+                elements.youtubeTranscriptInput.value = data.ui_temp_state.youtubeTranscript || ''; // NEW
             } else if (data.last_input) {
                 const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                 elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
                 elements.subtitleUrlInput.value = data.last_input.url || '';
+                elements.youtubeTranscriptInput.value = data.last_input.youtubeTranscript || ''; // NEW
             }
         } else if (data.last_input) {
             const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
             elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
             elements.subtitleUrlInput.value = data.last_input.url || '';
-        }
-
-        let currentBaseLangName = null;
-        if (status && status.baseLang) {
-             currentBaseLangName = getLanguageName(status.baseLang);
+            elements.youtubeTranscriptInput.value = data.last_input.youtubeTranscript || ''; // NEW
         }
 
         if (status && status.progress > 0) {
@@ -451,54 +531,41 @@ function loadSavedStatus(elements) {
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
             
+            // Hide all setup-related UI
             elements.urlInstructions.classList.add('hidden-no-space');
             elements.urlStatusText.classList.add('hidden-no-space');
+            elements.transcriptInstructions.classList.add('hidden-no-space'); // NEW
+            elements.transcriptStatusText.classList.add('hidden-no-space'); // NEW
             elements.langStatusText.classList.add('hidden-no-space');
-            
             elements.confirmButton.classList.add('hidden-no-space');
             
-            if (status.progress < 100) {
-                elements.targetLanguageInput.disabled = true;
-                elements.subtitleUrlInput.disabled = true;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                
-            } else {
-                elements.targetLanguageInput.disabled = true;
-                elements.subtitleUrlInput.disabled = true;
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Subtitles";
-            }
+            elements.targetLanguageInput.disabled = true;
+            elements.subtitleUrlInput.disabled = true;
+            elements.youtubeTranscriptInput.disabled = true; // NEW
+            elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+            elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+            elements.editStyleSettingsButton.disabled = true;
+            
+            elements.cancelButton.classList.remove('hidden-no-space');
+            elements.cancelButton.textContent = (status.progress < 100) ? "Cancel Subtitle Generation" : "Clear Subtitles";
+
         } else {
              // Initial/Error State
-             // MODIFIED: Set height based on mode
              const setupHeight = (currentMode === 'netflix') ? NETFLIX_SETUP_HEIGHT : YOUTUBE_SETUP_HEIGHT;
              document.body.style.height = setupHeight;
              
              elements.langStatusText.classList.remove('hidden-no-space');
-             checkLanguagePairAvailability(elements);
              
              if (currentMode === 'netflix') {
                 elements.urlStatusText.classList.remove('hidden-no-space');
-                const urlValue = elements.subtitleUrlInput.value.trim();
-                if (urlValue && urlValue.startsWith('http')) {
-                    checkUrlAndDetectLanguage(elements);
-                    if (status && status.message && (status.message.includes("Old subtitle URL used") || status.message.includes("Error fetching subtitles") || status.message.includes("Invalid URL retrieved"))) {
-                        elements.urlStatusText.textContent = message;
-                        elements.urlStatusText.style.color = "#e50914";
-                    }
-                } else {
-                    elements.urlStatusText.textContent = "Waiting for URL...";
+                checkUrlAndDetectLanguage(elements); // This handles all URL states
+                if (status && status.message && (status.message.includes("Old subtitle URL used") || status.message.includes("Error fetching subtitles") || status.message.includes("Invalid URL retrieved"))) {
+                    elements.urlStatusText.textContent = status.message;
                     elements.urlStatusText.style.color = "#e50914";
-                    elements.confirmButton.disabled = true;
-                    elements.subtitleUrlInput.value = '';
                 }
+             } else {
+                elements.transcriptStatusText.classList.remove('hidden-no-space');
+                checkTranscriptAndDetectLanguage(elements); // This handles all transcript states
              }
 
              if (status && status.message && !status.message.includes("Old subtitle URL used") && !status.message.includes("Error fetching subtitles") && !status.message.includes("Invalid URL retrieved")) {
@@ -507,14 +574,9 @@ function loadSavedStatus(elements) {
              } else {
                 elements.statusText.textContent = "";
              }
-             elements.cancelButton.classList.add('hidden-no-space');
-             elements.targetLanguageInput.disabled = false;
-             elements.subtitleUrlInput.disabled = false;
-             elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-             elements.editStyleSettingsButton.disabled = !hasSettings;
              
-             updateGenerateButtonState(elements);
+             checkLanguagePairAvailability(elements); // Check lang status
+             updateGenerateButtonState(elements); // Update button
         }
     });
 }
@@ -522,35 +584,37 @@ function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log(`[POPUP] 'Generate Subtitles' button clicked for mode: ${currentMode}.`);
     
-    // --- CRITICAL FIX: Set height to processing height ---
     document.body.style.height = PROCESSING_POPUP_HEIGHT; 
     
-    // 1. Hide irrelevant setup UI
+    // Hide setup UI
     elements.urlInstructions.classList.add('hidden-no-space');
     elements.urlStatusText.classList.add('hidden-no-space');
+    elements.transcriptInstructions.classList.add('hidden-no-space'); // NEW
+    elements.transcriptStatusText.classList.add('hidden-no-space'); // NEW
     elements.langStatusText.classList.add('hidden-no-space');
     elements.confirmButton.classList.add('hidden-no-space');
     
-    // 2. Show status/control UI
     isCancelledByPopup = false;
     elements.statusBox.classList.remove('hidden-no-space');
     elements.cancelButton.classList.remove('hidden-no-space');
     elements.cancelButton.textContent = "Cancel Subtitle Generation";
     
-    // 3. Set initial status
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
     
-    // 4. Disable inputs
+    // Disable inputs
     elements.targetLanguageInput.disabled = true;
     elements.subtitleUrlInput.disabled = true;
+    elements.youtubeTranscriptInput.disabled = true; // NEW
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.editStyleSettingsButton.disabled = true;
 
+    // Clear detected lang from previous run (it's re-detected on input change anyway)
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
     const url = elements.subtitleUrlInput.value.trim();
+    const transcript = elements.youtubeTranscriptInput.value.trim(); // NEW
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
     
     const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
@@ -558,9 +622,7 @@ async function handleConfirmClick(elements) {
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     
     const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
-    
     const stylePrefix = `${selectedStyle}_`;
-    
     const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
     const storedData = await chrome.storage.local.get(keysToLoad);
     
@@ -573,325 +635,329 @@ async function handleConfirmClick(elements) {
     let targetLang = null;
     if (inputLangName.length === 2) {
         if (Object.values(LANGUAGE_MAP).includes(inputLangName)) targetLang = inputLangName;
-        } else if (inputLangName.length > 2) {
-            targetLang = LANGUAGE_MAP[inputLangName];
-            if (!targetLang) {
-                const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLangName));
-                if (matchingKey) targetLang = LANGUAGE_MAP[matchingKey];
-            }
-        }
-        
+    } else if (inputLangName.length > 2) {
+        targetLang = LANGUAGE_MAP[inputLangName];
         if (!targetLang) {
-            // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
-            elements.statusText.textContent = "Error: Please check language spelling.";
+            const matchingKey = Object.keys(LANGUAGE_MAP).find(key => key.startsWith(inputLangName));
+            if (matchingKey) targetLang = LANGUAGE_MAP[matchingKey];
+        }
+    }
+        
+    if (!targetLang) {
+        elements.statusText.textContent = "Error: Please check language spelling.";
+        elements.progressBar.style.width = '0%';
+        await stopProcessingUI(elements); 
+        elements.langStatusText.textContent = `Please check language spelling`;
+        elements.langStatusText.style.color = "#e50914";
+        return;
+    }
+        
+    // --- MODIFICATION: Validate correct input based on mode ---
+    if (currentMode === 'netflix' && (!url || !url.startsWith('http'))) {
+        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
+        elements.progressBar.style.width = '0%';
+        await stopProcessingUI(elements); 
+        elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
+        elements.urlStatusText.style.color = "#e50914";
+        return;
+    }
+    
+    if (currentMode === 'youtube' && !transcript) {
+        elements.statusText.textContent = "Error: Transcript is empty. Please paste the transcript.";
+        elements.progressBar.style.width = '0%';
+        await stopProcessingUI(elements); 
+        elements.transcriptStatusText.textContent = "Transcript is empty. Please paste the transcript.";
+        elements.transcriptStatusText.style.color = "#FF0000";
+        return;
+    }
+        
+    await chrome.storage.local.remove(['ls_status']);
+    await chrome.storage.local.set({
+        last_input: { url, targetLang: targetLang, youtubeTranscript: transcript }, // NEW
+        translated_only_pref: translatedOnly,
+        subtitle_style_pref: selectedStyle,
+    });
+    await chrome.storage.local.remove(['ui_temp_state']);
+        
+    elements.statusText.textContent = "Input accepted. Initializing content script...";
+    elements.progressBar.style.width = '10%';
+        
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0] || !tabs[0].id) {
+            elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
+            console.error("[POPUP] Failed to retrieve active tab information.");
             elements.progressBar.style.width = '0%';
-            await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
-            elements.langStatusText.textContent = `Please check language spelling`; // Re-display error
-            elements.langStatusText.style.color = "#e50914";
+            stopProcessingUI(elements);
             return;
         }
-        
-        // --- MODIFICATION: URL validation only for Netflix ---
-        if (currentMode === 'netflix' && (!url || !url.startsWith('http'))) {
-            // --- ERROR BLOCK: If validation fails, reset UI to setup state ---
-            elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Netflix TTML URL.";
-            elements.progressBar.style.width = '0%';
-            await stopProcessingUI(elements); // Reset UI to re-enable inputs/instructions
-            elements.urlStatusText.textContent = "Invalid URL retrieved - please repeat URL retrieval steps";
-            elements.urlStatusText.style.color = "#e50914";
-            return;
+            
+        const currentTabId = tabs[0].id;
+        console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
+            
+        let message;
+        if (currentMode === 'netflix') {
+            message = {
+                command: "fetch_and_process_url",
+                url: url,
+                targetLang: targetLang,
+                translatedOnly: translatedOnly,
+                ...finalStylePrefs,
+                colourCoding: selectedStyle
+            };
+        } else {
+            message = {
+                command: "process_youtube_subtitles",
+                transcript: transcript, // NEW: Send the transcript
+                targetLang: targetLang,
+                translatedOnly: translatedOnly,
+                ...finalStylePrefs,
+                colourCoding: selectedStyle
+            };
+            console.log("[POPUP] Sending 'process_youtube_subtitles' command with transcript.");
         }
-        
-        // 5. Save state and proceed
-        await chrome.storage.local.remove(['ls_status']);
-        await chrome.storage.local.set({
-            last_input: { url, targetLang: targetLang },
-            translated_only_pref: translatedOnly,
-            subtitle_style_pref: selectedStyle,
-        });
-        await chrome.storage.local.remove(['ui_temp_state']);
-        
-        
-        elements.statusText.textContent = "URL accepted. Initializing content script...";
-        elements.progressBar.style.width = '10%';
-        
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs[0] || !tabs[0].id) {
-                elements.statusText.textContent = "FATAL ERROR: Could not find the active tab ID. Reload page.";
-                console.error("[POPUP] Failed to retrieve active tab information.");
+
+        chrome.scripting.executeScript({
+            target: { tabId: currentTabId },
+            files: ['content.js']
+        }, () => {
+            if (chrome.runtime.lastError) {
+                elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
+                console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
                 elements.progressBar.style.width = '0%';
                 stopProcessingUI(elements);
                 return;
             }
-            
-            const currentTabId = tabs[0].id;
-            console.log(`[POPUP] Target Tab ID: ${currentTabId}. Executing chrome.scripting.executeScript...`);
-            
-            // --- MODIFICATION: Send different command based on mode ---
-            let message;
-            if (currentMode === 'netflix') {
-                message = {
-                    command: "fetch_and_process_url",
-                    url: url,
-                    targetLang: targetLang,
-                    translatedOnly: translatedOnly,
-                    fontSize: finalStylePrefs.font_size,
-                    backgroundColor: finalStylePrefs.background_color,
-                    backgroundAlpha: finalStylePrefs.background_alpha,
-                    fontShadow: finalStylePrefs.font_shadow,
-                    fontColor: finalStylePrefs.font_color,
-                    fontColorAlpha: finalStylePrefs.font_color_alpha,
-                    colourCoding: selectedStyle
-                };
-            } else {
-                // YouTube Mode
-                message = {
-                    command: "process_youtube_subtitles", // NEW Command
-                    targetLang: targetLang,
-                    translatedOnly: translatedOnly,
-                    fontSize: finalStylePrefs.font_size,
-                    backgroundColor: finalStylePrefs.background_color,
-                    backgroundAlpha: finalStylePrefs.background_alpha,
-                    fontShadow: finalStylePrefs.font_shadow,
-                    fontColor: finalStylePrefs.font_color,
-                    fontColorAlpha: finalStylePrefs.font_color_alpha,
-                    colourCoding: selectedStyle
-                };
-                console.log("[POPUP] Sending 'process_youtube_subtitles' command. Your content.js needs to handle this.");
-            }
-            // --- END MODIFICATION ---
+            elements.statusText.textContent = "Content script injected. Sending start command...";
+            chrome.tabs.sendMessage(currentTabId, message, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn("[POPUP] Error sending message (might be ok if script is just injecting):", chrome.runtime.lastError.message);
+                }
+                if (currentMode === 'youtube' && !response) {
+                    console.log("[POPUP] No response from content script for 'process_youtube_subtitles'. You need to add a listener for this command in content.js.");
+                }
+            });
+        });
+    });
+}
 
+async function handleCancelClick(elements) {
+    isCancelledByPopup = true;
+
+    if (elements.cancelButton.textContent === "Clear Subtitles") {
+        console.log("[POPUP] 'Clear Subtitles' clicked. Performing full reset.");
+        await resetStatus(elements); // resetStatus is now mode-aware
+            
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0] && tabs[0].id) {
+                chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {
+                    if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending final clear message:", e);
+                });
+            }
+        });
+        return;
+    }
+
+    if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (!tabs[0] || !tabs[0].id) {
+                console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
+                return;
+            }
+            const currentTabId = tabs[0].id;
             chrome.scripting.executeScript({
                 target: { tabId: currentTabId },
                 files: ['content.js']
             }, () => {
-                if (chrome.runtime.lastError) {
-                    elements.statusText.textContent = `FATAL ERROR: Script injection failed: ${chrome.runtime.lastError.message}.`;
-                    console.error("[POPUP] Scripting FAILED. Error:", chrome.runtime.lastError.message);
-                    elements.progressBar.style.width = '0%';
-                    stopProcessingUI(elements);
-                    return;
-                }
-                elements.statusText.textContent = "Content script injected. Sending start command...";
-                chrome.tabs.sendMessage(currentTabId, message, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("[POPUP] Error sending message (might be ok if script is just injecting):", chrome.runtime.lastError.message);
-                    }
-                    if (currentMode === 'youtube' && !response) {
-                        console.log("[POPUP] No response from content script for 'process_youtube_subtitles'. You need to add a listener for this command in content.js.");
-                        // You could optionally update the UI here
-                        // elements.statusText.textContent = "Error: YouTube processing not implemented in content script.";
-                        // elements.progressBar.style.width = '0%';
-                        // stopProcessingUI(elements);
-                    }
+                if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
+                chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
+                    if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending cancel message:", e);
                 });
             });
         });
     }
 
-    async function handleCancelClick(elements) {
-        isCancelledByPopup = true;
+    await stopProcessingUI(elements);
+}
 
-        if (elements.cancelButton.textContent === "Clear Subtitles") {
-            console.log("[POPUP] 'Clear Subtitles' clicked. Performing full reset.");
-            await resetStatus(elements); // resetStatus is now mode-aware
-            
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                 if (tabs[0] && tabs[0].id) {
-                     chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {
-                        if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending final clear message:", e);
-                    });
-                 }
-            });
-            return;
-        }
 
-        if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
-            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                if (!tabs[0] || !tabs[0].id) {
-                    console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
-                    return;
-                }
-                const currentTabId = tabs[0].id;
-                chrome.scripting.executeScript({
-                    target: { tabId: currentTabId },
-                    files: ['content.js']
-                }, () => {
-                    if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before cancel failed:", chrome.runtime.lastError.message);
-                    chrome.tabs.sendMessage(currentTabId, { command: "cancel_processing" }).catch(e => {
-                        if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending cancel message:", e);
-                    });
-                });
-            });
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    const elements = {
+        confirmButton: document.getElementById('confirmButton'),
+        targetLanguageInput: document.getElementById('targetLanguage'),
+        subtitleUrlInput: document.getElementById('subtitleUrlInput'),
+        statusBox: document.getElementById('statusBox'),
+        statusText: document.getElementById('statusText'),
+        progressBar: document.getElementById('progressBar'),
+        cancelButton: document.getElementById('cancelButton'),
+        urlStatusText: document.getElementById('urlStatusText'),
+        langStatusText: document.getElementById('langStatusText'),
+        subtitleModeGroup: document.getElementById('subtitleModeGroup'),
+        subtitleModeDual: document.getElementById('subtitleModeDual'),
+        subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'),
+        subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
+        subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
+        subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
+        subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
+        editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
+        urlInstructions: document.getElementById('urlInstructions'),
+        // Mode switcher elements
+        titleHeader: document.getElementById('titleHeader'),
+        netflixModeButton: document.getElementById('netflixModeButton'),
+        youtubeModeButton: document.getElementById('youtubeModeButton'),
+        // Section headers
+        urlHeader: document.getElementById('urlHeader'),
+        languageHeader: document.getElementById('languageHeader'),
+        preferencesHeader: document.getElementById('preferencesHeader'),
+        // Netflix inputs
+        netflixInputs: document.getElementById('netflixInputs'),
+        // YouTube inputs (NEW)
+        youtubeInputs: document.getElementById('youtubeInputs'),
+        transcriptHeader: document.getElementById('transcriptHeader'),
+        transcriptInstructions: document.getElementById('transcriptInstructions'),
+        youtubeTranscriptInput: document.getElementById('youtubeTranscriptInput'),
+        transcriptStatusText: document.getElementById('transcriptStatusText'),
+    };
+        
+    let languageInputTimer;
+    let transcriptInputTimer; // NEW
 
-        await stopProcessingUI(elements);
+    if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
+        console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
+        return;
     }
-
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const elements = {
-            confirmButton: document.getElementById('confirmButton'),
-            targetLanguageInput: document.getElementById('targetLanguage'),
-            subtitleUrlInput: document.getElementById('subtitleUrlInput'),
-            statusBox: document.getElementById('statusBox'),
-            statusText: document.getElementById('statusText'),
-            progressBar: document.getElementById('progressBar'),
-            cancelButton: document.getElementById('cancelButton'),
-            urlStatusText: document.getElementById('urlStatusText'),
-            langStatusText: document.getElementById('langStatusText'),
-            subtitleModeGroup: document.getElementById('subtitleModeGroup'),
-            subtitleModeDual: document.getElementById('subtitleModeDual'),
-            subtitleModeTranslatedOnly: document.getElementById('subtitleModeTranslatedOnly'),
-            subtitleStyleGroup: document.getElementById('subtitleStyleGroup'),
-            subtitleStyleNetflix: document.getElementById('subtitleStyleNetflix'),
-            subtitleStyleCustom: document.getElementById('subtitleStyleCustom'),
-            subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
-            editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
-            urlInstructions: document.getElementById('urlInstructions'),
-            // --- NEW: Added mode switcher elements ---
-            titleHeader: document.getElementById('titleHeader'),
-            netflixModeButton: document.getElementById('netflixModeButton'),
-            youtubeModeButton: document.getElementById('youtubeModeButton'),
-            netflixInputs: document.getElementById('netflixInputs'),
-            languageHeader: document.getElementById('languageHeader'),
-            preferencesHeader: document.getElementById('preferencesHeader'),
-        };
+    console.log("2. All DOM elements found. Attaching listeners.");
         
-        let languageInputTimer;
+    loadSavedStatus(elements); // Load status *first*
 
-        if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
-            console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
-            return;
-        }
-        console.log("2. All DOM elements found. Attaching listeners.");
+    elements.netflixModeButton.addEventListener('click', () => updateUIMode('netflix', elements));
+    elements.youtubeModeButton.addEventListener('click', () => updateUIMode('youtube', elements));
+
+    elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
+    elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
         
-        // Load status *first* to establish mode and processing state
-        loadSavedStatus(elements);
-
-        // --- NEW: Add listeners for mode switcher ---
-        elements.netflixModeButton.addEventListener('click', () => updateUIMode('netflix', elements));
-        elements.youtubeModeButton.addEventListener('click', () => updateUIMode('youtube', elements));
-        // --- END NEW ---
-
-        elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
-        elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
-        
-        elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    chrome.storage.local.set({ 'translated_only_pref': (e.target.value === 'translated_only') });
-                }
-            });
-        });
-        
-        elements.subtitleStyleGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    const selectedStyle = e.target.value;
-                    chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
-                        const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
-                        elements.editStyleSettingsButton.disabled = !hasSettings;
-                        elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
-                    });
-                }
-            });
-        });
-        
-        elements.editStyleSettingsButton.addEventListener('click', () => {
-            const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-            openCustomSettingsWindow(selectedStyle);
-        });
-
-        elements.subtitleUrlInput.addEventListener('input', () => {
-            checkUrlAndDetectLanguage(elements);
-            saveCurrentInputs(elements);
-        });
-
-        elements.targetLanguageInput.addEventListener('input', () => {
-            clearTimeout(languageInputTimer);
-            languageInputTimer = setTimeout(() => {
-                checkLanguagePairAvailability(elements);
-                saveCurrentInputs(elements);
-            }, 500);
-        });
-
-        chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-            if (request.command === "update_status") {
-                if (isCancelledByPopup) {
-                    console.log("Popup is in cancelled state. Ignoring status update.");
-                    return;
-                }
-                
-                // Ensure processing height is set
-                document.body.style.height = PROCESSING_POPUP_HEIGHT;
-
-                const { progress, message, route } = request;
-                elements.statusBox.classList.remove('hidden-no-space');
-                
-                if (route === 'url' || progress === 0) {
-                     // Only show URL errors if in Netflix mode
-                    if (currentMode === 'netflix' && (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved"))) {
-                        elements.urlStatusText.textContent = message;
-                        elements.urlStatusText.style.color = "#e50914";
-                        elements.urlStatusText.classList.remove('hidden-no-space');
-                    }
-                } 
-                
-                if (progress > 0 && progress < 100) {
-                    elements.statusText.textContent = message;
-                } else if (progress === 0) {
-                    elements.statusText.textContent = message;
-                }
-                
-                elements.progressBar.style.width = progress + '%';
-                
-                if (progress >= 100) {
-                    const popcornEmoji = "\u{1F37F}";
-                    const completionMessage = `Enjoy your show !${popcornEmoji}`;
-                    elements.statusText.textContent = completionMessage;
-
-                    const { ls_status } = await chrome.storage.local.get('ls_status');
-                    if (ls_status) {
-                        ls_status.message = completionMessage;
-                        await chrome.storage.local.set({ ls_status });
-                    }
-                    
-                    elements.targetLanguageInput.disabled = true;
-                    elements.subtitleUrlInput.disabled = true;
-                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                    elements.editStyleSettingsButton.disabled = true;
-                    
-                    elements.confirmButton.classList.add('hidden-no-space');
-                    elements.cancelButton.classList.remove('hidden-no-space');
-                    elements.cancelButton.textContent = "Clear Subtitles";
-                    
-                } else if (progress > 0) {
-                    elements.confirmButton.classList.add('hidden-no-space');
-                    
-                    elements.targetLanguageInput.disabled = true;
-                    elements.subtitleUrlInput.disabled = true;
-                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                    elements.editStyleSettingsButton.disabled = true;
-                    elements.cancelButton.classList.remove('hidden-no-space');
-                    elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                } else {
-                    elements.confirmButton.disabled = false;
-                    
-                    if (currentMode === 'netflix' && !elements.subtitleUrlInput.value.trim().startsWith('http')) {
-                        elements.urlStatusText.textContent = "Waiting for URL...";
-                        elements.urlStatusText.style.color = "#e50914";
-                    }
-                    elements.targetLanguageInput.disabled = false;
-                    elements.subtitleUrlInput.disabled = false;
-                    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-                    elements.cancelButton.classList.add('hidden-no-space');
-                    elements.cancelButton.textContent = "Cancel Subtitle Generation";
-                    checkLanguagePairAvailability(elements);
-                }
+    elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                chrome.storage.local.set({ 'translated_only_pref': (e.target.value === 'translated_only') });
             }
         });
     });
+        
+    elements.subtitleStyleGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const selectedStyle = e.target.value;
+                chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
+                    const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
+                    elements.editStyleSettingsButton.disabled = !hasSettings;
+                    elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
+                });
+            }
+        });
+    });
+        
+    elements.editStyleSettingsButton.addEventListener('click', () => {
+        const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
+        openCustomSettingsWindow(selectedStyle);
+    });
+
+    // Netflix URL input listener
+    elements.subtitleUrlInput.addEventListener('input', () => {
+        checkUrlAndDetectLanguage(elements);
+        saveCurrentInputs(elements);
+    });
+    
+    // NEW: YouTube transcript input listener
+    elements.youtubeTranscriptInput.addEventListener('input', () => {
+        clearTimeout(transcriptInputTimer);
+        // Debounce to avoid spamming detector
+        transcriptInputTimer = setTimeout(() => {
+            checkTranscriptAndDetectLanguage(elements);
+            saveCurrentInputs(elements);
+        }, 500);
+    });
+
+    // Target language input listener
+    elements.targetLanguageInput.addEventListener('input', () => {
+        clearTimeout(languageInputTimer);
+        languageInputTimer = setTimeout(() => {
+            checkLanguagePairAvailability(elements);
+            saveCurrentInputs(elements);
+        }, 500);
+    });
+
+    chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+        if (request.command === "update_status") {
+            if (isCancelledByPopup) {
+                console.log("Popup is in cancelled state. Ignoring status update.");
+                return;
+            }
+                
+            document.body.style.height = PROCESSING_POPUP_HEIGHT;
+
+            const { progress, message, route } = request;
+            elements.statusBox.classList.remove('hidden-no-space');
+                
+            // Show input-specific errors
+            if (route === 'url' || progress === 0) {
+                if (currentMode === 'netflix' && (message.includes("Old subtitle URL used") || message.includes("Error fetching subtitles") || message.includes("Invalid URL retrieved"))) {
+                    elements.urlStatusText.textContent = message;
+                    elements.urlStatusText.style.color = "#e50914";
+                    elements.urlStatusText.classList.remove('hidden-no-space');
+                }
+                // NEW: Show transcript errors
+                if (currentMode === 'youtube' && (message.includes("Invalid transcript") || message.includes("Transcript parsing failed"))) {
+                    elements.transcriptStatusText.textContent = message;
+                    elements.transcriptStatusText.style.color = "#FF0000";
+                    elements.transcriptStatusText.classList.remove('hidden-no-space');
+                }
+            } 
+                
+            if (progress > 0 && progress < 100) {
+                elements.statusText.textContent = message;
+            } else if (progress === 0) {
+                elements.statusText.textContent = message;
+            }
+                
+            elements.progressBar.style.width = progress + '%';
+                
+            if (progress >= 100) {
+                const popcornEmoji = "\u{1F37F}";
+                const completionMessage = `Enjoy your show !${popcornEmoji}`;
+                elements.statusText.textContent = completionMessage;
+
+                const { ls_status } = await chrome.storage.local.get('ls_status');
+                if (ls_status) {
+                    ls_status.message = completionMessage;
+                    await chrome.storage.local.set({ ls_status });
+                }
+                    
+                elements.targetLanguageInput.disabled = true;
+                elements.subtitleUrlInput.disabled = true;
+                elements.youtubeTranscriptInput.disabled = true; // NEW
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.editStyleSettingsButton.disabled = true;
+                    
+                elements.confirmButton.classList.add('hidden-no-space');
+                elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Clear Subtitles";
+                    
+            } else if (progress > 0) {
+                elements.confirmButton.classList.add('hidden-no-space');
+                    
+                elements.targetLanguageInput.disabled = true;
+                elements.subtitleUrlInput.disabled = true;
+                elements.youtubeTranscriptInput.disabled = true; // NEW
+                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
+                elements.editStyleSettingsButton.disabled = true;
+                elements.cancelButton.classList.remove('hidden-no-space');
+                elements.cancelButton.textContent = "Cancel Subtitle Generation";
+            } else {
+                // Error state (progress 0)
+                await stopProcessingUI(elements); // Reset UI
+            }
+        }
+    });
+});
