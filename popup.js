@@ -450,37 +450,41 @@ async function checkLanguagePairAvailability(elements) {
     }
 }
 
-// --- NEW: Function to check Prime file status from storage ---
+// --- NEW: Function to check Prime file status from storage (MODIFIED FOR ASYNC) ---
 async function checkPrimeFileStatus(elements) {
     if (currentMode !== 'prime') return;
 
-    chrome.storage.local.get(['prime_file_content', 'detected_base_lang_name'], (data) => {
-        if (data.prime_file_content && data.detected_base_lang_name) {
-            elements.primeUrlStatusText.textContent = `${data.detected_base_lang_name} file ready to translate!`;
-            elements.primeUrlStatusText.style.color = "green";
-        } else if (data.prime_file_content) {
-            // This case might happen if detection failed but file is loaded
-            elements.primeUrlStatusText.textContent = "File uploaded. Detecting language...";
-            elements.primeUrlStatusText.style.color = "#00A8E1";
-            // We should re-trigger detection
-            checkPrimeFileAndDetectLanguage(elements, data.prime_file_content);
-        } else {
-            elements.primeUrlStatusText.textContent = "Waiting for file upload...";
-            elements.primeUrlStatusText.style.color = "#00A8E1";
-        }
-        updateGenerateButtonState(elements);
-    });
+    // MODIFICATION: Use await for storage.get
+    const data = await chrome.storage.local.get(['prime_file_content', 'detected_base_lang_name']);
+    
+    if (data.prime_file_content && data.detected_base_lang_name) {
+        elements.primeUrlStatusText.textContent = `${data.detected_base_lang_name} file ready to translate!`;
+        elements.primeUrlStatusText.style.color = "green";
+    } else if (data.prime_file_content) {
+        // This case might happen if detection failed but file is loaded
+        elements.primeUrlStatusText.textContent = "File uploaded. Detecting language...";
+        elements.primeUrlStatusText.style.color = "#00A8E1";
+        // We should re-trigger detection
+        // This is an async call, but we don't need to await it here, it will update UI when done
+        checkPrimeFileAndDetectLanguage(elements, data.prime_file_content);
+    } else {
+        elements.primeUrlStatusText.textContent = "Waiting for file upload...";
+        elements.primeUrlStatusText.style.color = "#00A8E1";
+    }
+    updateGenerateButtonState(elements);
 }
 
-// --- NEW: Function for Prime Video file detection ---
+// --- NEW: Function for Prime Video file detection (MODIFIED FOR ASYNC) ---
 async function checkPrimeFileAndDetectLanguage(elements, ttmlString) {
     if (currentMode !== 'prime') return;
 
     elements.primeUrlStatusText.textContent = `Detecting language...`;
     elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
     
-    // Send message to content script to verify/detect
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    try {
+        // MODIFICATION: Use await for tabs.query
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        
         if (tabs[0] && tabs[0].id) {
             chrome.tabs.sendMessage(tabs[0].id, {
                 command: "detect_language_from_ttml", // New command
@@ -522,11 +526,16 @@ async function checkPrimeFileAndDetectLanguage(elements, ttmlString) {
                updateGenerateButtonState(elements);
             });
         }
-    });
+    } catch (e) {
+        console.warn("Could not query tabs for Prime detection:", e);
+        elements.primeUrlStatusText.textContent = `Detection failed. Reload tab.`;
+        elements.primeUrlStatusText.style.color = "#00A8E1";
+        updateGenerateButtonState(elements);
+    }
 }
 
 
-// --- UPDATED: This function now calls content.js for real ---
+// --- UPDATED: (MODIFIED FOR ASYNC) ---
 async function checkDisneyUrlAndDetectLanguage(elements) {
     if (currentMode !== 'disney') return;
 
@@ -534,20 +543,22 @@ async function checkDisneyUrlAndDetectLanguage(elements) {
     const urlLooksValid = (url && (url.startsWith('http') || url.startsWith('blob:'))); // Disney+ sometimes uses blob URLs
 
     if (urlLooksValid) {
-        // Optimistic UI based on stored data
-        chrome.storage.local.get(['detected_base_lang_name'], (data) => {
-            if (!data.detected_base_lang_name) {
-                elements.disneyUrlStatusText.textContent = `Detecting language...`;
-                elements.disneyUrlStatusText.style.color = "#0d8199";
-            } else {
-                elements.disneyUrlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
-                elements.disneyUrlStatusText.style.color = "green";
-            }
-            updateGenerateButtonState(elements); 
-        });
+        // MODIFICATION: Use await for storage.get
+        const data = await chrome.storage.local.get(['detected_base_lang_name']);
         
-        // Send message to content script to verify/detect
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!data.detected_base_lang_name) {
+            elements.disneyUrlStatusText.textContent = `Detecting language...`;
+            elements.disneyUrlStatusText.style.color = "#0d8199";
+        } else {
+            elements.disneyUrlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
+            elements.disneyUrlStatusText.style.color = "green";
+        }
+        updateGenerateButtonState(elements); 
+        
+        try {
+            // MODIFICATION: Use await for tabs.query
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     command: "detect_language_disney", // The new command
@@ -582,18 +593,22 @@ async function checkDisneyUrlAndDetectLanguage(elements) {
                    updateGenerateButtonState(elements);
                 });
             }
-        });
+        } catch (e) {
+            console.warn("Could not query tabs for Disney detection:", e);
+            updateGenerateButtonState(elements);
+        }
     } else {
          elements.disneyUrlStatusText.textContent = "Waiting for URL...";
          elements.disneyUrlStatusText.style.color = "#0d8199";
+         // MODIFICATION: Use await for storage.remove
          await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
          updateGenerateButtonState(elements);
     }
 }
 
 
-// NEW: Function to detect language from transcript text
-function checkTranscriptAndDetectLanguage(elements) {
+// NEW: Function to detect language from transcript text (MODIFIED FOR ASYNC)
+async function checkTranscriptAndDetectLanguage(elements) {
     if (currentMode !== 'youtube') return;
 
     const transcript = elements.youtubeTranscriptInput.value.trim();
@@ -602,7 +617,10 @@ function checkTranscriptAndDetectLanguage(elements) {
         elements.transcriptStatusText.textContent = `Detecting language...`;
         elements.transcriptStatusText.style.color = "#FF0000"; // YouTube Red
         
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        try {
+            // MODIFICATION: Use await for tabs.query
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            
             if (tabs[0] && tabs[0].id) {
                 // Use a snippet for detection
                 const transcriptSnippet = transcript.substring(0, 1000);
@@ -644,36 +662,43 @@ function checkTranscriptAndDetectLanguage(elements) {
                    updateGenerateButtonState(elements);
                 });
             }
-        });
+        } catch (e) {
+            console.warn("Could not query tabs for YouTube detection:", e);
+            updateGenerateButtonState(elements);
+        }
     } else {
          elements.transcriptStatusText.textContent = "Waiting for transcript...";
          elements.transcriptStatusText.style.color = "#FF0000";
-         chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+         // MODIFICATION: Use await for storage.remove
+         await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
          updateGenerateButtonState(elements);
     }
 }
 
-function checkUrlAndDetectLanguage(elements) {
+// (MODIFIED FOR ASYNC)
+async function checkUrlAndDetectLanguage(elements) {
     if (currentMode !== 'netflix') return;
 
     const url = elements.subtitleUrlInput.value.trim();
     const urlLooksValid = (url && url.startsWith('http'));
 
     if (urlLooksValid) {
-        // Optimistic UI based on stored data
-        chrome.storage.local.get(['detected_base_lang_name'], (data) => {
-            if (!data.detected_base_lang_name) {
-                elements.urlStatusText.textContent = `Detecting language...`;
-                elements.urlStatusText.style.color = "#e50914";
-            } else {
-                elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
-                elements.urlStatusText.style.color = "green";
-            }
-            updateGenerateButtonState(elements); 
-        });
+        // MODIFICATION: Use await for storage.get
+        const data = await chrome.storage.local.get(['detected_base_lang_name']);
         
-        // Send message to content script to verify/detect
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!data.detected_base_lang_name) {
+            elements.urlStatusText.textContent = `Detecting language...`;
+            elements.urlStatusText.style.color = "#e50914";
+        } else {
+            elements.urlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
+            elements.urlStatusText.style.color = "green";
+        }
+        updateGenerateButtonState(elements); 
+        
+        try {
+            // MODIFICATION: Use await for tabs.query
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     command: "detect_language", // This is for Netflix URL
@@ -707,11 +732,15 @@ function checkUrlAndDetectLanguage(elements) {
                    updateGenerateButtonState(elements);
                 });
             }
-        });
+        } catch (e) {
+            console.warn("Could not query tabs for Netflix detection:", e);
+            updateGenerateButtonState(elements);
+        }
     } else {
          elements.urlStatusText.textContent = "Waiting for URL...";
          elements.urlStatusText.style.color = "#e50914";
-         chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+         // MODIFICATION: Use await for storage.remove
+         await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
          updateGenerateButtonState(elements);
     }
     
