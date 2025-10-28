@@ -51,6 +51,25 @@ function vttTimeToSeconds(timeString) {
     }
 }
 
+// --- NEW HELPER FUNCTION TO GET CORRECT PLAYER TIME ---
+function getPlayerCurrentTime(videoElement) {
+    // 1. Try to find the Disney+ UI time element
+    // This is more reliable than video.currentTime which can be for a segment
+    const disneyTimeElement = document.querySelector('.btm-time-current');
+    if (disneyTimeElement && disneyTimeElement.textContent) {
+        const timeString = disneyTimeElement.textContent.trim();
+        // Use our existing vttTimeToSeconds to parse UI time like "1:05:30" or "05:30"
+        const uiTime = vttTimeToSeconds(timeString);
+        if (!isNaN(uiTime) && uiTime > 0) {
+            return uiTime;
+        }
+    }
+
+    // 2. Fallback for Netflix, YouTube, or if Disney UI not found
+    return videoElement.currentTime;
+}
+// --- END NEW HELPER FUNCTION ---
+
 
 function getNetflixVideoElement() {
     const playerView = document.querySelector('.watch-video--player-view');
@@ -633,7 +652,11 @@ function startSubtitleSync(videoElement) {
     }
 
     const syncLoop = () => {
-        const currentTime = videoElement.currentTime;
+        // --- THIS IS THE FIX ---
+        // Get the reliable player time instead of the video segment time
+        const currentTime = getPlayerCurrentTime(videoElement);
+        // --- END FIX ---
+        
         if (videoElement.paused && currentTime === lastTime) return;
         lastTime = currentTime;
 
