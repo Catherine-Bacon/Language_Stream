@@ -177,7 +177,7 @@
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-bottom: 10px;
+          margin-bottom: 15px; /* Increased from 10px */
       }
       .preference-row p {
           flex-shrink: 0; 
@@ -307,7 +307,7 @@
     </div>
     
     <div id="disneyInputs" class="hidden-no-space">
-      <h2 id="disneyHeader">1. Retrieve Subtitle URL</h2>
+      <h2 id="disneyHeader">1. Retrieve Subtitle URL </h2>
       <div id="disneyInstructions">
         <p>Open Disney+'s player and  set subtitles to your Base Language</p>
         <p>Right click video player > Inspect</p>    
@@ -328,12 +328,12 @@
         <p>Open Prime Video's player and set subtitles to your Base Language</p>
         <p>Right click video player > Inspect</p>    
         <p>Press Network > Reload Page</p>
-        <p>Search ttml2</p>
+        <p>Search **ttml2**</p>
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top result > Copy > Copy URL</p>
         </div>
       </div>
-      <input type="text" id="primeUrlInput" placeholder="Paste Prime Video Subtitle URL here" value="">
+      <input type="text" id="primeUrlInput" placeholder="Paste Prime Video TTML URL here" value="">
       
       <p id="primeUrlStatusText" class="status-text" style="color: #00A8E1;">&nbsp;</p>
     </div>
