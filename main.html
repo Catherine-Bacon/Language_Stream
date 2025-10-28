@@ -11,7 +11,7 @@
         padding-top: 50px;
         position: relative;
       }
-      /* --- START: Mode Switcher Styles --- */
+      /* --- START: Mode Switcher Styles (MODIFIED) --- */
       .mode-switcher {
         position: absolute;
         top: 10px;
@@ -29,18 +29,18 @@
         justify-content: center;
         border: 2px solid transparent;
         transition: border-color 0.2s, background-color 0.2s;
-        fill: #777;
+        /* 'fill' property removed */
       }
       .mode-icon:hover {
         background-color: #f0f0f0;
       }
       .mode-icon.active {
         border-color: #e50914;
-        fill: #e50914;
+        /* 'fill' property removed */
       }
       .mode-icon.active#youtubeModeButton {
         border-color: #FF0000;
-        fill: #FF0000;
+        /* 'fill' property removed */
       }
       /* --- END: Mode Switchter Styles --- */
 
@@ -256,24 +256,16 @@
     </style>
   </head>
   <body>
-    <!-- Title and Mode Switcher -->
     <h1 id="titleHeader">Language Stream - Netflix</h1>
     <div class="mode-switcher">
-      <!-- === MODIFICATION: Replaced SVG with a simpler "N" icon === -->
       <div class="mode-icon active" id="netflixModeButton" title="Netflix Mode">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="red" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8.19999 20.8145H5.89999V3.18555H8.19999V20.8145Z M18.1 20.8145H15.8V3.18555H18.1V20.8145Z M11.1999 3.18555L8.19999 3.18555L15.8 20.8145H18.1L11.1999 3.18555Z"/>
-        </svg>
+        <img src="netflix_icon.png" width="24" height="24" alt="Netflix Mode">
       </div>
-      <!-- === END MODIFICATION === -->
       <div class="mode-icon" id="youtubeModeButton" title="YouTube Mode">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-          <path d="M21.582 7.004C21.357 6.202 20.798 5.643 20 5.418 18.264 5 12 5 12 5s-6.264 0-8 .418C3.202 5.643 2.643 6.202 2.418 7.004 2 8.736 2 12 2 12s0 3.264.418 5.004c.225.802.784 1.36 1.582 1.585C5.736 19 12 19 12 19s6.264 0 8-.411c.802-.224 1.36-.784 1.585-1.585C22 15.264 22 12 22 12s0-3.264-.418-4.996zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/>
-        </svg>
+        <img src="youtube_icon.png" width="24" height="24" alt="YouTube Mode">
       </div>
-    </div>
+      </div>
 
-    <!-- Netflix-Specific Inputs -->
     <div id="netflixInputs">
       <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
       <div id="urlInstructions">
@@ -290,7 +282,6 @@
       <p id="urlStatusText" class="status-text">&nbsp;</p>
     </div>
     
-    <!-- YouTube-Specific Inputs (NEW) -->
     <div id="youtubeInputs" class="hidden-no-space">
       <h2 id="transcriptHeader">1. Retrieve Transcript</h2>
       <div id="transcriptInstructions">
@@ -304,7 +295,6 @@
     </div>
 
 
-    <!-- Shared Inputs -->
     <h2 id="languageHeader">2. Select Language</h2>
     <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
 
