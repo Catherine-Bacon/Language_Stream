@@ -71,17 +71,35 @@ function getNetflixPlayerContainer() {
     return document.querySelector('.watch-video--player-view');
 }
 
-async function fetchSubtitleContent(url) {
+// --- MODIFIED: Uses Service Worker to fetch content ---
+async function fetchSubtitleContent(url, source) {
+    let command;
+    if (source === 'prime') command = 'fetch_content_for_prime';
+    else if (source === 'disney') command = 'fetch_content_for_disney';
+    else command = 'fetch_content_for_netflix'; // Netflix and others (e.g., YouTube if it had a URL)
+
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            if (response.status === 403) throw new Error("403_FORBIDDEN");
-            throw new Error(`HTTP error! status: ${response.status} (${response.statusText})`);
+        // Use message passing to the Service Worker for the cross-origin fetch
+        const response = await chrome.runtime.sendMessage({
+            command: command,
+            url: url
+        });
+
+        if (response.error) {
+            if (response.error === "403_FORBIDDEN") {
+                sendStatusUpdate("Old subtitle URL used; please repeat URL retrieval steps.", 0, url, 'url');
+            } else if (response.error.startsWith('HTTP_ERROR')) {
+                 sendStatusUpdate(`Error fetching subtitles: ${response.details || response.error}. Check URL or network permissions.`, 0, url, 'url');
+            } else {
+                 sendStatusUpdate(`Network failure: ${response.error}. Check internet/permissions.`, 0, url, 'url');
+            }
+            return null;
         }
-        return await response.text();
+
+        return response.content;
     } catch (e) {
-        if (e.message === "403_FORBIDDEN") sendStatusUpdate("Old subtitle URL used; please repeat URL retrieval steps.", 0, url, 'url');
-        else sendStatusUpdate(`Error fetching subtitles: ${e.message}. Check URL or network permissions.`, 0, url, 'url');
+        console.error("Error relaying fetch command to Service Worker:", e);
+        sendStatusUpdate(`Critical Error: Could not communicate with extension service. Try reloading the extension.`, 0, url, 'url');
         return null;
     }
 }
@@ -132,7 +150,8 @@ function parsePrimeTtmlXml(xmlString, url) {
         console.log(`Successfully parsed ${parsedSubtitles.length} Prime TTML subtitles.`);
         // Store the detected language from the XML itself if available
         if (detectedLang) {
-            ttElement.setAttribute('data-detected-lang', detectedLang);
+            // Attach a temporary attribute to the body for detectBaseLanguage to find
+            document.body.setAttribute('data-prime-lang', detectedLang);
         }
         return true;
     } catch (e) {
@@ -242,15 +261,26 @@ function detectLanguageFromText(sampleText) {
     });
 }
 
-function detectBaseLanguage() {
-    // 1. Check if language was explicitly defined in the XML (e.g., Prime TTML)
-    const ttElement = document.querySelector('#language-stream-window').parentElement.querySelector('tt[data-detected-lang]');
-    if (ttElement) {
-        const langCode = ttElement.getAttribute('data-detected-lang');
+function detectPrimeLangFromXml(xmlContent) {
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlContent, 'application/xml');
+        const ttElement = xmlDoc.querySelector('tt');
+        if (ttElement) {
+            return ttElement.getAttribute('xml:lang');
+        }
+    } catch (e) {
+        console.error("Failed to detect language from Prime TTML XML:", e);
+    }
+    return null;
+}
+
+async function detectBaseLanguage(xmlContent = null) {
+    // 1. Check for Prime Video XML lang attribute (requires passing XML content)
+    if (xmlContent) {
+        const langCode = detectPrimeLangFromXml(xmlContent);
         if (langCode) {
-            // Remove the temporary attribute after retrieval
-            ttElement.removeAttribute('data-detected-lang');
-            return Promise.resolve(langCode.toLowerCase().substring(0, 2)); // Use XML lang attribute first
+            return langCode.toLowerCase().substring(0, 2);
         }
     }
     
@@ -432,7 +462,7 @@ async function processVocabColorCoding(subtitle) {
     subtitle.colorCodeCount = colorCodeCounter;
 }
 
-async function translateAllSubtitles(url) {
+async function translateAllSubtitles(url, xmlContent = null) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
@@ -810,7 +840,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "detect_language") {
         (async () => {
             parsedSubtitles = [];
-            const xmlContent = await fetchSubtitleContent(request.url);
+            sendStatusUpdate("Service worker fetching Netflix URL...", 5, request.url, 'url');
+            const xmlContent = await fetchSubtitleContent(request.url, 'netflix');
             let baseLangCode = null;
             if (xmlContent) {
                 const parseSuccess = parseTtmlXml(xmlContent, request.url);
@@ -827,13 +858,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "detect_language_prime_ttml") {
         (async () => {
             parsedSubtitles = [];
-            const xmlContent = await fetchSubtitleContent(request.url);
+            sendStatusUpdate("Service worker fetching Prime Video URL...", 5, request.url, 'url');
+            const xmlContent = await fetchSubtitleContent(request.url, 'prime');
             let baseLangCode = null;
             if (xmlContent) {
                 const parseSuccess = parsePrimeTtmlXml(xmlContent, request.url);
                 if (parseSuccess && parsedSubtitles.length > 0) {
-                    // Check XML's xml:lang first, fallback to text detection
-                    baseLangCode = detectPrimeLangFromXml(xmlContent) || await detectBaseLanguage();
+                    // Use XML lang attribute first, fallback to text detection
+                    baseLangCode = detectPrimeLangFromXml(xmlContent) || await detectBaseLanguage(xmlContent);
                 }
             }
             sendResponse({ url: request.url, baseLangCode: baseLangCode });
@@ -845,7 +877,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "detect_language_disney") {
         (async () => {
             parsedSubtitles = [];
-            const vttContent = await fetchSubtitleContent(request.url);
+            sendStatusUpdate("Service worker fetching Disney+ URL...", 5, request.url, 'url');
+            const vttContent = await fetchSubtitleContent(request.url, 'disney');
             let baseLangCode = null;
             if (vttContent) {
                 const parseSuccess = parseVttContent(vttContent, request.url);
@@ -879,7 +912,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url); isProcessing = false; return false; }
 
         (async () => {
-            const xmlContent = await fetchSubtitleContent(url);
+            sendStatusUpdate("Service worker fetching URL...", 15, url);
+            const xmlContent = await fetchSubtitleContent(url, 'netflix');
             if (!xmlContent || isCancelled) { isProcessing = false; return; }
             createFloatingWindow();
             disableNetflixSubObserver();
@@ -958,7 +992,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url'); isProcessing = false; return false; }
 
         (async () => {
-            const vttContent = await fetchSubtitleContent(url);
+            sendStatusUpdate("Service worker fetching URL...", 15, url);
+            const vttContent = await fetchSubtitleContent(url, 'disney');
             if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Disney+ subtitles.", 0, url, 'url'); isProcessing = false; return; }
             createFloatingWindow();
             const parseSuccess = parseVttContent(vttContent, url);
@@ -999,7 +1034,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url'); isProcessing = false; return false; }
 
         (async () => {
-            const xmlContent = await fetchSubtitleContent(url);
+            sendStatusUpdate("Service worker fetching URL...", 15, url);
+            const xmlContent = await fetchSubtitleContent(url, 'prime');
             if (!xmlContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Prime Video subtitles.", 0, url, 'url'); isProcessing = false; return; }
             createFloatingWindow();
             // Use the new Prime TTML parser
@@ -1007,7 +1043,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, url, 'url');
                 // Use new detection logic to favor XML's xml:lang
-                subtitleLanguages.base = detectPrimeLangFromXml(xmlContent) || await detectBaseLanguage();
+                subtitleLanguages.base = detectPrimeLangFromXml(xmlContent) || await detectBaseLanguage(xmlContent);
                 if (isCancelled) { isProcessing = false; return; }
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
