@@ -50,7 +50,7 @@ function updateUIMode(mode, elements) {
     const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
 
     if (mode === 'netflix') {
-        elements.titleHeader.textContent = 'Language Stream - Netflix';
+        elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#e50914';
         
         elements.netflixInputs.classList.remove('hidden-no-space');
