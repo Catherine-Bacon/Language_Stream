@@ -4,8 +4,7 @@ var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null;
 // NEW: Variable to hold the Disney+ time element if found
 var disneyTimeElement = disneyTimeElement || null;
-// NEW: Variable to hold the Prime Video time element if found
-var primeTimeElement = primeTimeElement || null;
+// REMOVED: primeTimeElement was unused
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {};
 var isTranslatedOnly = isTranslatedOnly || false;
@@ -87,7 +86,9 @@ function parseTtmlXml(xmlString, url) {
         const errorNode = xmlDoc.querySelector('parsererror');
         if (errorNode) {
             console.error("XML Parsing Error:", errorNode.textContent);
-            sendStatusUpdate(`Invalid URL retrieved - please repeat URL retrieval steps`, 0, url, 'url');
+            // MODIFIED: Handle file upload error
+            const errorMsg = (url === 'prime_file_upload') ? "Invalid Prime Video file. Please re-download and re-upload." : "Invalid URL retrieved - please repeat URL retrieval steps";
+            sendStatusUpdate(errorMsg, 0, url, 'url');
             return false;
         }
         const subtitleParagraphs = xmlDoc.querySelectorAll('p');
@@ -114,7 +115,9 @@ function parseTtmlXml(xmlString, url) {
         return true;
     } catch (e) {
         console.error("Fatal error during XML parsing:", e);
-        sendStatusUpdate("Invalid URL retrieved - please repeat URL retrieval steps", 0, url, 'url');
+        // MODIFIED: Handle file upload error
+        const errorMsg = (url === 'prime_file_upload') ? "Error parsing Prime Video file." : "Invalid URL retrieved - please repeat URL retrieval steps";
+        sendStatusUpdate(errorMsg, 0, url, 'url');
         return false;
     }
 }
@@ -459,7 +462,7 @@ function getIndexedColor(index, alpha) {
 function startSubtitleSync() {
     if (syncInterval) clearInterval(syncInterval);
     disneyTimeElement = null; // Reset disney element reference
-    primeTimeElement = null; // NEW: Reset prime element reference
+    // primeTimeElement = null; // REMOVED
     let currentSubtitleIndex = -1;
     let lastTime = -1; // Initialize to -1 to ensure first run
     if (floatingWindow) floatingWindow.style.display = 'block';
@@ -729,6 +732,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    // --- NEW: Detect Language from TTML File Content (Prime Video) ---
+    if (request.command === "detect_language_from_ttml") {
+        (async () => {
+            parsedSubtitles = [];
+            let baseLangCode = null;
+            if (request.ttmlString) {
+                const parseSuccess = parseTtmlXml(request.ttmlString, 'prime_file_upload');
+                if (parseSuccess && parsedSubtitles.length > 0) {
+                    baseLangCode = await detectBaseLanguage();
+                }
+            }
+            sendResponse({ baseLangCode: baseLangCode });
+        })();
+        return true;
+    }
+
     // Detect Language from URL (Netflix)
     if (request.command === "detect_language") {
         (async () => {
@@ -883,8 +902,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // NEW: Process Prime Video URL
-    if (request.command === "process_prime_url" && request.url) {
+    // NEW: Process Prime Video File Content
+    if (request.command === "process_prime_file" && request.ttmlString) {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
@@ -900,26 +919,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
-        const url = request.url;
-        if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url'); isProcessing = false; return false; }
+        const urlStub = 'prime_file_upload'; // Use a stub for status updates
+        if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, urlStub, 'url'); isProcessing = false; return false; }
 
         (async () => {
-            const vttContent = await fetchSubtitleContent(url);
-            if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Prime Video subtitles.", 0, url, 'url'); isProcessing = false; return; }
+            const ttmlContent = request.ttmlString;
             createFloatingWindow();
-            // Prime Video uses VTT, so we can reuse the Disney+ VTT parser
-            const parseSuccess = parseVttContent(vttContent, url);
+            // Prime Video uses TTML, so we reuse the TTML parser
+            const parseSuccess = parseTtmlXml(ttmlContent, urlStub);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
-                sendStatusUpdate("Detecting language...", 30, url, 'url');
+                sendStatusUpdate("Detecting language...", 30, urlStub, 'url');
                 subtitleLanguages.base = await detectBaseLanguage();
                 if (isCancelled) { isProcessing = false; return; }
-                if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
-                else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
+                if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, urlStub, 'url'); subtitleLanguages.base = 'en'; }
+                else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, urlStub, 'url'); }
                 startSubtitleSync(); // Call the modified function
-                try { await translateAllSubtitles(url); }
+                try { await translateAllSubtitles(urlStub); }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
-            } else { if (!isCancelled) sendStatusUpdate("Invalid Prime Video URL or content.", 0, url, 'url'); isProcessing = false; }
+            } else { if (!isCancelled) sendStatusUpdate("Invalid Prime Video file or content.", 0, urlStub, 'url'); isProcessing = false; }
         })();
         sendResponse({ status: "processing_started" });
         return true;
@@ -934,7 +952,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         // Reset element references on cancel
         disneyTimeElement = null;
-        primeTimeElement = null;
+        // primeTimeElement = null; // REMOVED
         if (floatingWindow) {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';

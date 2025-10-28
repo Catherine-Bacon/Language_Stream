@@ -87,7 +87,7 @@
         height: 100px; /* Give it some height */
         margin-top: 0;
       }
-      #subtitleUrlInput, #disneyUrlInput, #primeUrlInput { /* MODIFIED: Added Prime Input */
+      #subtitleUrlInput, #disneyUrlInput {
         margin-top: 0;
       }
       #targetLanguage {
@@ -102,6 +102,15 @@
         margin-top: 0; 
         margin-bottom: 5px;
       }
+      /* --- NEW: Prime Upload Button Style --- */
+      button#primeUploadButton {
+        background-color: #00A8E1;
+        margin-top: 0;
+      }
+      button#primeUploadButton:hover {
+        background-color: #00bfff;
+      }
+      /* --- END --- */
       #confirmButton {
         margin-top: 15px;
         margin-bottom: 0;
@@ -323,17 +332,18 @@
     </div>
 
     <div id="primeInputs" class="hidden-no-space">
-      <h2 id="primeHeader">1. Retrieve Subtitle URL</h2>
+      <h2 id="primeHeader">1. Upload Subtitle File</h2>
       <div id="primeInstructions">
         <p>Open Prime Video's player and set subtitles to your Base Language</p>
         <p>Right click video player > Inspect</p>    
-        <p>Press Network > Reload Page</p>
-        <p>Search .webvtt > Sort by Size (descending)</p>
+        <p>Press Network > Reload Page > Resume</p>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name > Copy > Copy URL</p>
+            <p style="margin: 0; padding: 0; margin-bottom: 5px">Search ttml2 > Right click top option > Open in new tab > Save file</p>
         </div>
+        <p>Click the button below to upload the file you just saved.</p>
       </div>
-      <input type="text" id="primeUrlInput" placeholder="Paste Prime Video Subtitle URL here" value="">
+      <input type="file" id="primeFileInput" class="hidden-no-space" accept=".ttml,.ttml2,.xml">
+      <button id="primeUploadButton" type="button">Upload .ttml2 File</button>
       
       <p id="primeUrlStatusText" class="status-text" style="color: #00A8E1;">&nbsp;</p>
     </div>

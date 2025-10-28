@@ -4,7 +4,7 @@ console.log("1. popup.js script file loaded.");
 const NETFLIX_SETUP_HEIGHT = '485px'; // Taller height for setup state (Netflix)
 const YOUTUBE_SETUP_HEIGHT = '510px'; // NEW: Taller height for YouTube w/ transcript
 const DISNEY_SETUP_HEIGHT = '450px'; // NEW: Height for Disney+
-const PRIME_SETUP_HEIGHT = '485px'; // NEW: Height for Prime Video (Same as Netflix)
+const PRIME_SETUP_HEIGHT = '510px'; // NEW: Height for Prime Video (File Upload)
 const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state
 
 const NETFLIX_PRESET = {
@@ -34,7 +34,7 @@ let isCancelledByPopup = false;
 let currentMode = 'netflix'; 
 
 function updateGenerateButtonState(elements) {
-    // MODIFIED: Check transcript/URL status for all modes
+    // MODIFIED: Check transcript/URL/File status for all modes
     const isInputValid = (currentMode === 'netflix' && elements.urlStatusText.style.color === 'green') ||
                          (currentMode === 'youtube' && elements.transcriptStatusText.style.color === 'green') ||
                          (currentMode === 'disney' && elements.disneyUrlStatusText.style.color === 'green') ||
@@ -126,17 +126,13 @@ function updateUIMode(mode, elements) {
         elements.primeInputs.classList.remove('hidden-no-space'); // Show Prime Inputs
         elements.primeUrlStatusText.classList.remove('hidden-no-space'); // Show Prime Status Text
 
-        elements.primeHeader.textContent = '1. Retrieve Subtitle URL'; // Use the same header text
+        elements.primeHeader.textContent = '1. Upload Subtitle File'; // Updated header
         
         elements.primeModeButton.classList.add('active'); // Activate Prime button
         
         if (!isProcessing) {
             document.body.style.height = PRIME_SETUP_HEIGHT;
-            // The logic for checkPrimeUrlAndDetectLanguage will be added later,
-            // for now, we'll set a default status and check language availability
-            elements.primeUrlStatusText.textContent = "Waiting for URL...";
-            elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
-            checkPrimeUrlAndDetectLanguage(elements);
+            checkPrimeFileStatus(elements); // NEW: Check file status
         }
     }
     
@@ -152,7 +148,7 @@ function saveCurrentInputs(elements) {
         targetLang: elements.targetLanguageInput.value.trim(),
         youtubeTranscript: elements.youtubeTranscriptInput.value,
         disneyUrl: elements.disneyUrlInput.value.trim(),
-        primeUrl: elements.primeUrlInput.value.trim() // NEW
+        // No need to save prime file content here, it's saved on upload
     };
     chrome.storage.local.set({ 'ui_temp_state': currentState });
 }
@@ -164,7 +160,8 @@ async function resetStatus(elements) {
         'captured_subtitle_url',
         'detected_base_lang_name',
         'detected_base_lang_code',
-        'ui_temp_state'
+        'ui_temp_state',
+        'prime_file_content' // NEW: Clear file content
     ]);
 
     const netflixSettingsToSave = {};
@@ -186,7 +183,7 @@ async function resetStatus(elements) {
     elements.subtitleUrlInput.value = '';
     elements.youtubeTranscriptInput.value = '';
     elements.disneyUrlInput.value = '';
-    elements.primeUrlInput.value = ''; // NEW: Clear Prime URL
+    elements.primeFileInput.value = ''; // NEW: Clear file input
     elements.targetLanguageInput.value = '';
 
     await chrome.storage.local.set({
@@ -204,7 +201,7 @@ async function resetStatus(elements) {
     elements.subtitleUrlInput.disabled = false;
     elements.youtubeTranscriptInput.disabled = false;
     elements.disneyUrlInput.disabled = false;
-    elements.primeUrlInput.disabled = false; // NEW: Enable Prime input
+    elements.primeUploadButton.disabled = false; // NEW: Enable Prime button
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -235,7 +232,7 @@ async function resetStatus(elements) {
         elements.disneyUrlStatusText.style.color = "#0d8199"; // Disney Teal
         elements.disneyUrlStatusText.classList.remove('hidden-no-space');
     } else if (currentMode === 'prime') { // NEW
-        elements.primeUrlStatusText.textContent = "Waiting for URL...";
+        elements.primeUrlStatusText.textContent = "Waiting for file upload...";
         elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
         elements.primeUrlStatusText.classList.remove('hidden-no-space');
     }
@@ -261,7 +258,7 @@ async function stopProcessingUI(elements) {
     elements.subtitleUrlInput.disabled = false;
     elements.youtubeTranscriptInput.disabled = false;
     elements.disneyUrlInput.disabled = false;
-    elements.primeUrlInput.disabled = false; // NEW: Enable Prime input
+    elements.primeUploadButton.disabled = false; // NEW: Enable Prime button
     
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -303,7 +300,7 @@ async function stopProcessingUI(elements) {
     } else if (currentMode === 'prime') { // NEW
         elements.primeInputs.classList.remove('hidden-no-space');
         elements.primeUrlStatusText.classList.remove('hidden-no-space');
-        checkPrimeUrlAndDetectLanguage(elements);
+        checkPrimeFileStatus(elements); // NEW
     }
     
     elements.langStatusText.classList.remove('hidden-no-space');
@@ -371,7 +368,7 @@ async function checkLanguagePairAvailability(elements) {
         if (currentMode === 'netflix') waitMessage = "Waiting for URL...";
         else if (currentMode === 'youtube') waitMessage = "Waiting for transcript...";
         else if (currentMode === 'disney') waitMessage = "Waiting for Disney URL...";
-        else waitMessage = "Waiting for Prime URL..."; // NEW
+        else waitMessage = "Waiting for Prime file..."; // NEW
         
         elements.langStatusText.textContent = `${waitMessage} to check compatibility.`;
         elements.langStatusText.style.color = "#777";
@@ -453,83 +450,79 @@ async function checkLanguagePairAvailability(elements) {
     }
 }
 
-// --- NEW: Function for Prime Video URL detection ---
-async function checkPrimeUrlAndDetectLanguage(elements) {
+// --- NEW: Function to check Prime file status from storage ---
+async function checkPrimeFileStatus(elements) {
     if (currentMode !== 'prime') return;
 
-    const url = elements.primeUrlInput.value.trim();
-    const urlLooksValid = (url && url.startsWith('http'));
+    chrome.storage.local.get(['prime_file_content', 'detected_base_lang_name'], (data) => {
+        if (data.prime_file_content && data.detected_base_lang_name) {
+            elements.primeUrlStatusText.textContent = `${data.detected_base_lang_name} file ready to translate!`;
+            elements.primeUrlStatusText.style.color = "green";
+        } else if (data.prime_file_content) {
+            // This case might happen if detection failed but file is loaded
+            elements.primeUrlStatusText.textContent = "File uploaded. Detecting language...";
+            elements.primeUrlStatusText.style.color = "#00A8E1";
+            // We should re-trigger detection
+            checkPrimeFileAndDetectLanguage(elements, data.prime_file_content);
+        } else {
+            elements.primeUrlStatusText.textContent = "Waiting for file upload...";
+            elements.primeUrlStatusText.style.color = "#00A8E1";
+        }
+        updateGenerateButtonState(elements);
+    });
+}
 
-    if (urlLooksValid) {
-        // Optimistic UI based on stored data
-        chrome.storage.local.get(['detected_base_lang_name'], (data) => {
-            if (!data.detected_base_lang_name) {
-                elements.primeUrlStatusText.textContent = `Detecting language...`;
-                elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
-            } else {
-                elements.primeUrlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
-                elements.primeUrlStatusText.style.color = "green";
-            }
-            updateGenerateButtonState(elements); 
-        });
-        
-        // **NOTE**: Since the content script logic isn't added yet, 
-        // this detection message is commented out for now.
-        /*
-        // Send message to content script to verify/detect
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0] && tabs[0].id) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "detect_language_prime", // New command for Prime
-                    url: url
-                }).then(async (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("Detection error:", chrome.runtime.lastError.message);
-                        return;
-                    }
-                    if (response && elements.primeUrlInput.value.trim() === response.url) {
-                        if (response.baseLangCode) {
-                            const baseLangName = getLanguageName(response.baseLangCode);
-                            elements.primeUrlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
-                            elements.primeUrlStatusText.style.color = "green";
-                            await chrome.storage.local.set({
-                                'detected_base_lang_name': baseLangName,
-                                'detected_base_lang_code': response.baseLangCode
-                            });
-                            checkLanguagePairAvailability(elements);
-                        } else {
-                            elements.primeUrlStatusText.textContent = `Language detection failed.`;
-                            elements.primeUrlStatusText.style.color = "#00A8E1";
-                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                        }
-                        updateGenerateButtonState(elements);
-                    }
-                }).catch(e => {
-                   if (!e.message.includes('Receiving end does not exist')) {
-                        console.warn("Could not send detection message, content script not ready:", e);
-                   }
-                   updateGenerateButtonState(elements);
-                });
-            }
-        });
-        */
-       // TEMPORARY FALLBACK until content.js logic is added
-       // For now, assume it's valid and set the status text color to green.
-       await chrome.storage.local.set({
-           'detected_base_lang_name': 'English (Assumed)',
-           'detected_base_lang_code': 'en'
-       });
-       elements.primeUrlStatusText.textContent = `English subtitles ready to translate!`;
-       elements.primeUrlStatusText.style.color = "green";
-       checkLanguagePairAvailability(elements);
-       // END TEMPORARY FALLBACK
+// --- NEW: Function for Prime Video file detection ---
+async function checkPrimeFileAndDetectLanguage(elements, ttmlString) {
+    if (currentMode !== 'prime') return;
 
-    } else {
-         elements.primeUrlStatusText.textContent = "Waiting for URL...";
-         elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
-         await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-         updateGenerateButtonState(elements);
-    }
+    elements.primeUrlStatusText.textContent = `Detecting language...`;
+    elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
+    
+    // Send message to content script to verify/detect
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0] && tabs[0].id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                command: "detect_language_from_ttml", // New command
+                ttmlString: ttmlString
+            }).then(async (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn("Detection error:", chrome.runtime.lastError.message);
+                    elements.primeUrlStatusText.textContent = `Detection error. Reload tab.`;
+                    elements.primeUrlStatusText.style.color = "#00A8E1";
+                    await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                    updateGenerateButtonState(elements);
+                    return;
+                }
+                
+                // Check if we are still in prime mode
+                if (response && currentMode === 'prime') {
+                    if (response.baseLangCode) {
+                        const baseLangName = getLanguageName(response.baseLangCode);
+                        elements.primeUrlStatusText.textContent = `${baseLangName} file ready to translate!`;
+                        elements.primeUrlStatusText.style.color = "green";
+                        await chrome.storage.local.set({
+                            'detected_base_lang_name': baseLangName,
+                            'detected_base_lang_code': response.baseLangCode
+                        });
+                        checkLanguagePairAvailability(elements);
+                    } else {
+                        elements.primeUrlStatusText.textContent = `Language detection failed.`;
+                        elements.primeUrlStatusText.style.color = "#00A8E1";
+                        await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                    }
+                    updateGenerateButtonState(elements);
+                }
+            }).catch(e => {
+               if (!e.message.includes('Receiving end does not exist')) {
+                    console.warn("Could not send detection message, content script not ready:", e);
+               }
+               elements.primeUrlStatusText.textContent = `Detection failed. Reload tab.`;
+               elements.primeUrlStatusText.style.color = "#00A8E1";
+               updateGenerateButtonState(elements);
+            });
+        }
+    });
 }
 
 
@@ -752,7 +745,7 @@ function loadSavedStatus(elements) {
         elements.subtitleUrlInput.disabled = false;
         elements.youtubeTranscriptInput.disabled = false;
         elements.disneyUrlInput.disabled = false;
-        elements.primeUrlInput.disabled = false; // NEW
+        elements.primeUploadButton.disabled = false; // NEW
         
         elements.cancelButton.classList.add('hidden-no-space');
         elements.cancelButton.textContent = "Cancel Subtitle Generation";
@@ -781,14 +774,14 @@ function loadSavedStatus(elements) {
                 elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
                 elements.youtubeTranscriptInput.value = data.ui_temp_state.youtubeTranscript || '';
                 elements.disneyUrlInput.value = data.ui_temp_state.disneyUrl || '';
-                elements.primeUrlInput.value = data.ui_temp_state.primeUrl || ''; // NEW
+                // Prime file content is loaded via checkPrimeFileStatus
             } else if (data.last_input) {
                 const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                 elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
                 elements.subtitleUrlInput.value = data.last_input.url || '';
                 elements.youtubeTranscriptInput.value = data.last_input.youtubeTranscript || '';
                 elements.disneyUrlInput.value = data.last_input.disneyUrl || '';
-                elements.primeUrlInput.value = data.last_input.primeUrl || ''; // NEW
+                // Prime file content is loaded via checkPrimeFileStatus
             }
         } else if (data.last_input) {
             const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
@@ -796,7 +789,7 @@ function loadSavedStatus(elements) {
             elements.subtitleUrlInput.value = data.last_input.url || '';
             elements.youtubeTranscriptInput.value = data.last_input.youtubeTranscript || '';
             elements.disneyUrlInput.value = data.last_input.disneyUrl || '';
-            elements.primeUrlInput.value = data.last_input.primeUrl || ''; // NEW
+            // Prime file content is not shown, processing view is on
         }
 
         if (status && status.progress > 0) {
@@ -823,7 +816,7 @@ function loadSavedStatus(elements) {
             elements.subtitleUrlInput.disabled = true;
             elements.youtubeTranscriptInput.disabled = true;
             elements.disneyUrlInput.disabled = true;
-            elements.primeUrlInput.disabled = true; // NEW
+            elements.primeUploadButton.disabled = true; // NEW
             elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
             elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
             elements.editStyleSettingsButton.disabled = true;
@@ -857,7 +850,7 @@ function loadSavedStatus(elements) {
                 checkDisneyUrlAndDetectLanguage(elements); 
              } else if (currentMode === 'prime') { // NEW
                 elements.primeUrlStatusText.classList.remove('hidden-no-space');
-                checkPrimeUrlAndDetectLanguage(elements);
+                checkPrimeFileStatus(elements); // NEW
              }
 
              if (status && status.message && !status.message.includes("Old subtitle URL used") && !status.message.includes("Error fetching subtitles") && !status.message.includes("Invalid URL retrieved")) {
@@ -903,7 +896,7 @@ async function handleConfirmClick(elements) {
     elements.subtitleUrlInput.disabled = true;
     elements.youtubeTranscriptInput.disabled = true;
     elements.disneyUrlInput.disabled = true;
-    elements.primeUrlInput.disabled = true; // NEW
+    elements.primeUploadButton.disabled = true; // NEW
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.editStyleSettingsButton.disabled = true;
@@ -914,7 +907,21 @@ async function handleConfirmClick(elements) {
     const url = elements.subtitleUrlInput.value.trim();
     const transcript = elements.youtubeTranscriptInput.value.trim();
     const disneyUrl = elements.disneyUrlInput.value.trim();
-    const primeUrl = elements.primeUrlInput.value.trim(); // NEW
+    let primeTtmlString = null; // NEW
+
+    if (currentMode === 'prime') {
+        const data = await chrome.storage.local.get('prime_file_content');
+        primeTtmlString = data.prime_file_content;
+        if (!primeTtmlString) {
+            elements.statusText.textContent = "Error: No Prime Video file uploaded.";
+            elements.progressBar.style.width = '0%';
+            await stopProcessingUI(elements);
+            elements.primeUrlStatusText.textContent = "Error: No file uploaded.";
+            elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
+            return;
+        }
+    }
+    
     const inputLangName = elements.targetLanguageInput.value.trim().toLowerCase();
     
     const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
@@ -980,19 +987,11 @@ async function handleConfirmClick(elements) {
         return;
     }
 
-    // --- NEW: Prime Video URL check ---
-    if (currentMode === 'prime' && (!primeUrl || !primeUrl.startsWith('http'))) {
-        elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Prime Video URL.";
-        elements.progressBar.style.width = '0%';
-        await stopProcessingUI(elements);
-        elements.primeUrlStatusText.textContent = "Invalid Prime Video URL.";
-        elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
-        return;
-    }
+    // --- NEW: Prime Video check is already done above ---
         
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({
-        last_input: { url, targetLang: targetLang, youtubeTranscript: transcript, disneyUrl: disneyUrl, primeUrl: primeUrl }, // NEW
+        last_input: { url, targetLang: targetLang, youtubeTranscript: transcript, disneyUrl: disneyUrl, primeFileContent: primeTtmlString }, // NEW
         translated_only_pref: translatedOnly,
         subtitle_style_pref: selectedStyle,
     });
@@ -1045,14 +1044,14 @@ async function handleConfirmClick(elements) {
             console.log("[POPUP] Sending 'process_disney_url' command.");
         } else if (currentMode === 'prime') { // NEW
              message = {
-                command: "process_prime_url", // New command for Prime Video
-                url: primeUrl, 
+                command: "process_prime_file", // New command for Prime Video
+                ttmlString: primeTtmlString, 
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
-            console.log("[POPUP] Sending 'process_prime_url' command.");
+            console.log("[POPUP] Sending 'process_prime_file' command.");
         }
 
 
@@ -1165,14 +1164,15 @@ document.addEventListener('DOMContentLoaded', () => {
         primeInputs: document.getElementById('primeInputs'),
         primeHeader: document.getElementById('primeHeader'),
         primeInstructions: document.getElementById('primeInstructions'),
-        primeUrlInput: document.getElementById('primeUrlInput'),
+        primeFileInput: document.getElementById('primeFileInput'),
+        primeUploadButton: document.getElementById('primeUploadButton'),
         primeUrlStatusText: document.getElementById('primeUrlStatusText'),
     };
         
     let languageInputTimer;
     let transcriptInputTimer;
     let disneyUrlInputTimer;
-    let primeUrlInputTimer; // NEW
+    // let primeUrlInputTimer; // No longer needed
 
     if (!elements.confirmButton || !elements.statusText || !elements.subtitleStyleGroup) {
         console.error("2. FATAL ERROR: Core DOM elements not found. Check main.html IDs.");
@@ -1242,15 +1242,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     });
 
-    // NEW: Prime Video URL input listener
-    elements.primeUrlInput.addEventListener('input', () => {
-        clearTimeout(primeUrlInputTimer);
-        // Debounce to avoid spamming detector
-        primeUrlInputTimer = setTimeout(() => {
-            checkPrimeUrlAndDetectLanguage(elements);
-            saveCurrentInputs(elements);
-        }, 500);
+    // --- NEW: Prime Video File Input Listeners ---
+    elements.primeUploadButton.addEventListener('click', () => {
+        elements.primeFileInput.click(); // Trigger hidden file input
     });
+
+    elements.primeFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const ttmlString = event.target.result;
+            if (!ttmlString) {
+                elements.primeUrlStatusText.textContent = "Error: Could not read file.";
+                elements.primeUrlStatusText.style.color = "#00A8E1";
+                return;
+            }
+            // Save content to storage and trigger detection
+            chrome.storage.local.set({ 'prime_file_content': ttmlString }, () => {
+                checkPrimeFileAndDetectLanguage(elements, ttmlString);
+                saveCurrentInputs(elements); // This just saves other inputs like lang
+            });
+        };
+        reader.onerror = () => {
+            elements.primeUrlStatusText.textContent = "Error: File read failed.";
+            elements.primeUrlStatusText.style.color = "#00A8E1";
+        };
+        reader.readAsText(file);
+    });
+    // --- END NEW ---
 
 
     // Target language input listener
@@ -1292,8 +1315,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.disneyUrlStatusText.classList.remove('hidden-no-space');
                 }
                 // NEW: Show Prime Video errors
-                if (currentMode === 'prime' && (message.includes("Prime Video") || message.includes("Invalid Prime URL") || message.includes("Error fetching Prime Video subtitles"))) {
-                    elements.primeUrlStatusText.textContent = message;
+                if (currentMode === 'prime' && (message.includes("Prime Video") || message.includes("Invalid Prime") || message.includes("Error fetching Prime Video subtitles") || message.includes("prime_file_upload"))) {
+                    elements.primeUrlStatusText.textContent = message.replace("prime_file_upload", "file"); // Make message user-friendly
                     elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
                     elements.primeUrlStatusText.classList.remove('hidden-no-space');
                 }
@@ -1322,7 +1345,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleUrlInput.disabled = true;
                 elements.youtubeTranscriptInput.disabled = true;
                 elements.disneyUrlInput.disabled = true;
-                elements.primeUrlInput.disabled = true; // NEW
+                elements.primeUploadButton.disabled = true; // NEW
                 
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
@@ -1339,7 +1362,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.subtitleUrlInput.disabled = true;
                 elements.youtubeTranscriptInput.disabled = true;
                 elements.disneyUrlInput.disabled = true;
-                elements.primeUrlInput.disabled = true; // NEW
+                elements.primeUploadButton.disabled = true; // NEW
                 
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
