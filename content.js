@@ -29,6 +29,29 @@ function ticksToSeconds(tickString) {
     return tickValue / TICK_RATE;
 }
 
+// --- NEW: Helper function to convert VTT time (HH:MM:SS.mmm or MM:SS.mmm) to seconds ---
+function vttTimeToSeconds(timeString) {
+    const parts = timeString.split(':');
+    let seconds = 0;
+    try {
+        if (parts.length === 3) { // HH:MM:SS.mmm
+            seconds += parseInt(parts[0], 10) * 3600;
+            seconds += parseInt(parts[1], 10) * 60;
+            seconds += parseFloat(parts[2]);
+        } else if (parts.length === 2) { // MM:SS.mmm
+            seconds += parseInt(parts[0], 10) * 60;
+            seconds += parseFloat(parts[1]);
+        } else {
+            seconds = parseFloat(timeString); // Failsafe for just seconds
+        }
+        return seconds;
+    } catch(e) {
+        console.error("Error parsing VTT time:", timeString, e);
+        return 0;
+    }
+}
+
+
 function getNetflixVideoElement() {
     const playerView = document.querySelector('.watch-video--player-view');
     if (playerView) return playerView.querySelector('video');
@@ -39,7 +62,8 @@ function getNetflixPlayerContainer() {
     return document.querySelector('.watch-video--player-view');
 }
 
-async function fetchXmlContent(url) {
+// --- RENAMED: from fetchXmlContent to be more generic ---
+async function fetchSubtitleContent(url) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -94,6 +118,62 @@ function parseTtmlXml(xmlString, url) {
         return false;
     }
 }
+
+// --- NEW: Parser for Disney+ VTT format ---
+function parseVttContent(vttString, url) {
+    parsedSubtitles = [];
+    try {
+        // Split cues by double newline
+        const cues = vttString.split('\n\n');
+        
+        // Regex to match the timestamp line
+        const timeRegex = /([\d:.]+) --> ([\d:.]+)/;
+
+        for (const cue of cues) {
+            const trimmedCue = cue.trim();
+            
+            // Skip headers
+            if (trimmedCue.toUpperCase().startsWith('WEBVTT') || trimmedCue.toUpperCase().startsWith('STYLE')) {
+                continue;
+            }
+            
+            const lines = trimmedCue.split('\n');
+            if (lines.length < 2) continue; // Need at least timestamp + text
+
+            const timeMatch = lines[0].match(timeRegex);
+            
+            if (timeMatch) {
+                const begin = vttTimeToSeconds(timeMatch[1]);
+                const end = vttTimeToSeconds(timeMatch[2]);
+                
+                // Join all text lines, strip HTML, and clean up
+                const rawHtml = lines.slice(1).join(' ');
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = rawHtml;
+                const text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
+
+                if (text) {
+                    parsedSubtitles.push({
+                        begin: begin,
+                        end: end,
+                        text: text,
+                        translatedText: null,
+                        baseWordColors: null,
+                        translatedWordColors: null
+                    });
+                }
+            }
+        }
+        
+        console.log(`Successfully parsed ${parsedSubtitles.length} VTT subtitles.`);
+        return parsedSubtitles.length > 0;
+    } catch (e) {
+        console.error("Fatal error during VTT parsing:", e);
+        sendStatusUpdate("Invalid Disney+ URL or content.", 0, url, 'url');
+        return false;
+    }
+}
+
 
 // --- NEW HELPER FUNCTION ---
 // Detects language from a provided text snippet
@@ -767,7 +847,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.command === "detect_language") {
         (async () => {
             parsedSubtitles = [];
-            const xmlContent = await fetchXmlContent(request.url);
+            // --- UPDATED: Use generic fetch function ---
+            const xmlContent = await fetchSubtitleContent(request.url); 
 
             if (xmlContent) {
                 const parseSuccess = parseTtmlXml(xmlContent, request.url);
@@ -786,6 +867,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         return true;
     }
+    
+    // --- NEW: Handler for Disney+ language detection ---
+    if (request.command === "detect_language_disney") {
+        (async () => {
+            parsedSubtitles = [];
+            const vttContent = await fetchSubtitleContent(request.url);
+
+            if (vttContent) {
+                const parseSuccess = parseVttContent(vttContent, request.url);
+                if (parseSuccess && parsedSubtitles.length > 0) {
+                    const baseLangCode = await detectBaseLanguage();
+                    sendResponse({
+                        url: request.url,
+                        baseLangCode: baseLangCode
+                    });
+                } else {
+                    sendResponse({ url: request.url, baseLangCode: null });
+                }
+            } else {
+                 sendResponse({ url: request.url, baseLangCode: null });
+            }
+        })();
+        return true;
+    }
+    // --- END NEW HANDLER ---
+
 
     if (request.command === "fetch_and_process_url" && request.url) {
         if (isProcessing) return false;
@@ -816,7 +923,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 isProcessing = false;
                 return;
             }
-            const xmlContent = await fetchXmlContent(url);
+            // --- UPDATED: Use generic fetch function ---
+            const xmlContent = await fetchSubtitleContent(url); 
             if (!xmlContent || isCancelled) {
                 isProcessing = false;
                 return;
@@ -925,20 +1033,85 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     // --- END NEW COMMAND HANDLER ---
 
-    // --- NEW COMMAND HANDLER FOR DISNEY+ (PLACEHOLDER) ---
+    // --- UPDATED: Full implementation for Disney+ ---
     if (request.command === "process_disney_url" && request.url) {
         if (isProcessing) return false;
         
-        // This is a placeholder as requested.
-        // We immediately send back an error message.
-        console.log("Received Disney+ request. Processing is not yet implemented.");
-        sendStatusUpdate("Disney+ processing is not yet implemented. Feature coming soon.", 0, request.url, 'url');
+        // --- Full implementation, replacing placeholder ---
+        isProcessing = true;
+        isCancelled = false;
+        subtitleLanguages.target = request.targetLang;
+        isTranslatedOnly = request.translatedOnly;
+        fontSizeEm = request.fontSize;
+        backgroundColorPref = request.backgroundColor;
+        backgroundAlphaPref = request.backgroundAlpha;
+        fontShadowPref = request.fontShadow;
+        fontColorPref = request.fontColor;
+        fontColorAlphaPref = request.fontColorAlpha;
+        subtitleStylePref = request.colourCoding;
+        translationCache = {};
+        if (syncInterval) clearInterval(syncInterval);
+        const url = request.url;
         
-        isProcessing = false; // Ensure we don't block UI
-        sendResponse({ status: "not_implemented" });
-        return false; // No async work
+        if (!('Translator' in self)) {
+            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url');
+            isProcessing = false;
+            return false;
+        }
+        
+        (async () => {
+            const videoElement = getVideoElement(); // Use generic function
+            if (!videoElement) {
+                sendStatusUpdate("Video player not found.", 0, url, 'url');
+                isProcessing = false;
+                return;
+            }
+            
+            const vttContent = await fetchSubtitleContent(url);
+            if (!vttContent || isCancelled) {
+                if(!isCancelled) sendStatusUpdate("Error fetching Disney+ subtitles.", 0, url, 'url');
+                isProcessing = false;
+                return;
+            }
+            
+            createFloatingWindow();
+            
+            const parseSuccess = parseVttContent(vttContent, url);
+            
+            if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
+                sendStatusUpdate("Detecting language...", 30, url, 'url');
+                
+                subtitleLanguages.base = await detectBaseLanguage(); 
+                
+                if (isCancelled) {
+                    isProcessing = false;
+                    return;
+                }
+                if (!subtitleLanguages.base) {
+                    sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url');
+                    subtitleLanguages.base = 'en';
+                } else {
+                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url');
+                }
+                
+                startSubtitleSync(videoElement);
+                
+                try {
+                    await translateAllSubtitles(url); 
+                } catch (e) {
+                    if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e);
+                }
+                isProcessing = false;
+            } else {
+                if (!isCancelled) sendStatusUpdate("Invalid Disney+ URL or content.", 0, url, 'url');
+                isProcessing = false;
+            }
+        })();
+        
+        sendResponse({ status: "processing_started" }); // Acknowledge message
+        return true; // Indicate async work
     }
-    // --- END NEW COMMAND HANDLER ---
+    // --- END DISNEY+ IMPLEMENTATION ---
 
     if (request.command === "cancel_processing") {
         isCancelled = true;

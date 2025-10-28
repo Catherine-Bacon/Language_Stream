@@ -50,7 +50,7 @@ function updateUIMode(mode, elements) {
     const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
 
     if (mode === 'netflix') {
-        elements.titleHeader.textContent = 'Language Stream';
+        elements.titleHeader.textContent = 'Language Stream - Netflix';
         elements.titleHeader.style.color = '#e50914';
         
         elements.netflixInputs.classList.remove('hidden-no-space');
@@ -71,7 +71,7 @@ function updateUIMode(mode, elements) {
         }
 
     } else if (mode === 'youtube') {
-        elements.titleHeader.textContent = 'Language Stream';
+        elements.titleHeader.textContent = 'Language Stream - YouTube';
         elements.titleHeader.style.color = '#FF0000';
 
         elements.netflixInputs.classList.add('hidden-no-space');
@@ -91,7 +91,7 @@ function updateUIMode(mode, elements) {
             checkTranscriptAndDetectLanguage(elements); // Check YouTube transcript
         }
     } else if (mode === 'disney') { // NEW DISNEY MODE
-        elements.titleHeader.textContent = 'Language Stream';
+        elements.titleHeader.textContent = 'Language Stream - Disney+';
         elements.titleHeader.style.color = '#0d8199'; // Disney+ Teal
 
         elements.netflixInputs.classList.add('hidden-no-space');
@@ -404,50 +404,63 @@ async function checkLanguagePairAvailability(elements) {
     }
 }
 
-// NEW: Placeholder function to detect language from Disney+ URL
+// --- UPDATED: This function now calls content.js for real ---
 async function checkDisneyUrlAndDetectLanguage(elements) {
     if (currentMode !== 'disney') return;
 
     const url = elements.disneyUrlInput.value.trim();
-    const urlLooksValid = (url && url.startsWith('http'));
+    const urlLooksValid = (url && (url.startsWith('http') || url.startsWith('blob:'))); // Disney+ sometimes uses blob URLs
 
     if (urlLooksValid) {
-        // --- PLACEHOLDER ---
-        // As requested, we are not implementing the detection logic yet.
-        // We will just do a basic check and set to green to allow UI flow testing.
-        // We'll also set a fake detected language.
-        
-        elements.disneyUrlStatusText.textContent = `URL detected (EN - Placeholder). Ready!`;
-        elements.disneyUrlStatusText.style.color = "green";
-        
-        // Set fake base lang to allow language pair checking
-        await chrome.storage.local.set({
-            'detected_base_lang_name': 'English (Placeholder)',
-            'detected_base_lang_code': 'en'
+        // Optimistic UI based on stored data
+        chrome.storage.local.get(['detected_base_lang_name'], (data) => {
+            if (!data.detected_base_lang_name) {
+                elements.disneyUrlStatusText.textContent = `Detecting language...`;
+                elements.disneyUrlStatusText.style.color = "#0d8199";
+            } else {
+                elements.disneyUrlStatusText.textContent = `${data.detected_base_lang_name} subtitles ready to translate!`;
+                elements.disneyUrlStatusText.style.color = "green";
+            }
+            updateGenerateButtonState(elements); 
         });
         
-        checkLanguagePairAvailability(elements);
-        updateGenerateButtonState(elements);
-
-        /* // --- FUTURE IMPLEMENTATION ---
-        // When ready, this will look like `checkUrlAndDetectLanguage`:
-        
-        elements.disneyUrlStatusText.textContent = `Detecting language...`;
-        elements.disneyUrlStatusText.style.color = "#0d8199";
-        
+        // Send message to content script to verify/detect
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "detect_language_disney", // A new command
+                    command: "detect_language_disney", // The new command
                     url: url
                 }).then(async (response) => {
-                    // ... handle response ...
+                    if (chrome.runtime.lastError) {
+                        console.warn("Detection error:", chrome.runtime.lastError.message);
+                        return;
+                    }
+                    // Check if URL is still the same
+                    if (response && elements.disneyUrlInput.value.trim() === response.url) {
+                        if (response.baseLangCode) {
+                            const baseLangName = getLanguageName(response.baseLangCode);
+                            elements.disneyUrlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
+                            elements.disneyUrlStatusText.style.color = "green";
+                            await chrome.storage.local.set({
+                                'detected_base_lang_name': baseLangName,
+                                'detected_base_lang_code': response.baseLangCode
+                            });
+                            checkLanguagePairAvailability(elements);
+                        } else {
+                            elements.disneyUrlStatusText.textContent = `Language detection failed.`;
+                            elements.disneyUrlStatusText.style.color = "#0d8199";
+                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                        }
+                        updateGenerateButtonState(elements);
+                    }
                 }).catch(e => {
-                   // ... handle error ...
+                   if (!e.message.includes('Receiving end does not exist')) {
+                        console.warn("Could not send detection message, content script not ready:", e);
+                   }
+                   updateGenerateButtonState(elements);
                 });
             }
         });
-        */
     } else {
          elements.disneyUrlStatusText.textContent = "Waiting for URL...";
          elements.disneyUrlStatusText.style.color = "#0d8199";
@@ -814,7 +827,8 @@ async function handleConfirmClick(elements) {
         return;
     }
     
-    if (currentMode === 'disney' && (!disneyUrl || !disneyUrl.startsWith('http'))) { // NEW
+    // --- UPDATED: Loosened check for blob: URLs ---
+    if (currentMode === 'disney' && (!disneyUrl || !(disneyUrl.startsWith('http') || disneyUrl.startsWith('blob:')))) { 
         elements.statusText.textContent = "Error: Invalid URL. Please paste a valid Disney+ URL.";
         elements.progressBar.style.width = '0%';
         await stopProcessingUI(elements); 
@@ -1094,8 +1108,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.transcriptStatusText.style.color = "#FF0000";
                     elements.transcriptStatusText.classList.remove('hidden-no-space');
                 }
-                // NEW: Show Disney+ errors
-                if (currentMode === 'disney' && (message.includes("Disney+") || message.includes("Invalid Disney URL"))) {
+                // --- UPDATED: Show Disney+ errors ---
+                if (currentMode === 'disney' && (message.includes("Disney+") || message.includes("Invalid Disney URL") || message.includes("Error fetching Disney+ subtitles"))) {
                     elements.disneyUrlStatusText.textContent = message;
                     elements.disneyUrlStatusText.style.color = "#0d8199";
                     elements.disneyUrlStatusText.classList.remove('hidden-no-space');
