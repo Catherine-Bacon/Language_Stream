@@ -2,6 +2,8 @@
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null;
+// NEW: Variable to hold the Disney+ time element if found
+var disneyTimeElement = disneyTimeElement || null;
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {};
 var isTranslatedOnly = isTranslatedOnly || false;
@@ -15,10 +17,10 @@ var subtitleStylePref = 'netflix';
 var isProcessing = isProcessing || false;
 var isCancelled = isCancelled || false;
 var currentTranslator = currentTranslator || null;
-var TICK_RATE = TICK_RATE || 10000000;
+var TICK_RATE = TICK_RATE || 10000000; // Netflix TTML ticks per second
 
 function sendStatusUpdate(message, progress, url = null, route = 'main') {
-    if (isCancelled) return; // FIX: Prevents any status updates after cancellation.
+    if (isCancelled) return;
     chrome.storage.local.set({ 'ls_status': { message: message, progress: progress, baseLang: subtitleLanguages.base, targetLang: subtitleLanguages.target, url: progress < 100 ? url : null } }).catch(e => console.error("Could not save status to storage:", e));
     chrome.runtime.sendMessage({ command: "update_status", message: message, progress: progress, route: route }).catch(e => { if (!e.message.includes('Receiving end does not exist')) console.warn("Content Script Messaging Error:", e); });
 }
@@ -29,7 +31,6 @@ function ticksToSeconds(tickString) {
     return tickValue / TICK_RATE;
 }
 
-// --- NEW: Helper function to convert VTT time (HH:MM:SS.mmm or MM:SS.mmm) to seconds ---
 function vttTimeToSeconds(timeString) {
     const parts = timeString.split(':');
     let seconds = 0;
@@ -51,7 +52,6 @@ function vttTimeToSeconds(timeString) {
     }
 }
 
-
 function getNetflixVideoElement() {
     const playerView = document.querySelector('.watch-video--player-view');
     if (playerView) return playerView.querySelector('video');
@@ -62,7 +62,6 @@ function getNetflixPlayerContainer() {
     return document.querySelector('.watch-video--player-view');
 }
 
-// --- RENAMED: from fetchXmlContent to be more generic ---
 async function fetchSubtitleContent(url) {
     try {
         const response = await fetch(url);
@@ -99,14 +98,13 @@ function parseTtmlXml(xmlString, url) {
             tempDiv.innerHTML = htmlWithSpaces;
             let text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
             if (beginTick && endTick && text) {
-                // MODIFICATION: Add color lists for Vocab mode
-                parsedSubtitles.push({ 
-                    begin: ticksToSeconds(beginTick), 
-                    end: ticksToSeconds(endTick), 
-                    text: text, 
-                    translatedText: null, 
-                    baseWordColors: null, // New field for color codes/markers
-                    translatedWordColors: null // New field for color codes/markers
+                parsedSubtitles.push({
+                    begin: ticksToSeconds(beginTick),
+                    end: ticksToSeconds(endTick),
+                    text: text,
+                    translatedText: null,
+                    baseWordColors: null,
+                    translatedWordColors: null
                 });
             }
         });
@@ -119,39 +117,27 @@ function parseTtmlXml(xmlString, url) {
     }
 }
 
-// --- NEW: Parser for Disney+ VTT format ---
 function parseVttContent(vttString, url) {
     parsedSubtitles = [];
     try {
-        // Split cues by double newline
         const cues = vttString.split('\n\n');
-        
-        // Regex to match the timestamp line
         const timeRegex = /([\d:.]+) --> ([\d:.]+)/;
 
         for (const cue of cues) {
             const trimmedCue = cue.trim();
-            
-            // Skip headers
             if (trimmedCue.toUpperCase().startsWith('WEBVTT') || trimmedCue.toUpperCase().startsWith('STYLE')) {
                 continue;
             }
-            
             const lines = trimmedCue.split('\n');
-            if (lines.length < 2) continue; // Need at least timestamp + text
-
+            if (lines.length < 2) continue;
             const timeMatch = lines[0].match(timeRegex);
-            
             if (timeMatch) {
                 const begin = vttTimeToSeconds(timeMatch[1]);
                 const end = vttTimeToSeconds(timeMatch[2]);
-                
-                // Join all text lines, strip HTML, and clean up
                 const rawHtml = lines.slice(1).join(' ');
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = rawHtml;
                 const text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
-
                 if (text) {
                     parsedSubtitles.push({
                         begin: begin,
@@ -164,7 +150,6 @@ function parseVttContent(vttString, url) {
                 }
             }
         }
-        
         console.log(`Successfully parsed ${parsedSubtitles.length} VTT subtitles.`);
         return parsedSubtitles.length > 0;
     } catch (e) {
@@ -174,9 +159,6 @@ function parseVttContent(vttString, url) {
     }
 }
 
-
-// --- NEW HELPER FUNCTION ---
-// Detects language from a provided text snippet
 function detectLanguageFromText(sampleText) {
     return new Promise((resolve) => {
         if (!chrome.i18n || !chrome.i18n.detectLanguage) {
@@ -190,15 +172,11 @@ function detectLanguageFromText(sampleText) {
         });
     });
 }
-// --- END NEW HELPER FUNCTION ---
 
-// Detects language from the globally parsed subtitles (for Netflix)
 function detectBaseLanguage() {
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
-    // Uses the new helper function
-    return detectLanguageFromText(sampleText); 
+    return detectLanguageFromText(sampleText);
 }
-
 
 function createFloatingWindow() {
     let existingWindow = document.getElementById('language-stream-window');
@@ -213,26 +191,17 @@ function createFloatingWindow() {
         windowDiv.id = 'language-stream-window';
         windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
         makeDraggable(windowDiv);
-        
-        // --- MODIFICATION: Find correct player container for Netflix or YouTube ---
+
         let playerContainer = getNetflixPlayerContainer(); // Try Netflix first
-        if (!playerContainer) {
-            // Fallback for YouTube
-            playerContainer = document.getElementById('movie_player'); 
-        }
-        // NEW: Add Disney+ container
-        if (!playerContainer) {
-            playerContainer = document.querySelector('.btm-media-player-container') || document.getElementById('vader_Player');
-        }
-        
+        if (!playerContainer) playerContainer = document.getElementById('movie_player'); // Fallback for YouTube
+        if (!playerContainer) playerContainer = document.querySelector('.btm-media-player-container') || document.getElementById('vader_Player'); // Disney+
+
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
-        
-        // Only make relative if it's a known container
+
         if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container'))) {
             playerContainer.style.position = 'relative';
         }
-        // --- END MODIFICATION ---
 
         floatingWindow = windowDiv;
     }
@@ -320,112 +289,65 @@ async function translateSubtitle(textToTranslate, sourceLang, targetLang) {
     }
 }
 
-// --- MODIFIED FUNCTION: Word-level translation and color coding for Vocab mode (Two Passes with Multi-Word Match) ---
 async function processVocabColorCoding(subtitle) {
-    // Helper to sanitize words for matching (removes punctuation, keeps spaces for phrase matching)
     const sanitizePhrase = (phrase) => phrase.toLowerCase().replace(/[.,/#!$%^&*;:{}=-_`~()]/g, "").trim();
-
     const baseWords = subtitle.text.split(/\s+/).filter(w => w.length > 0);
     const translatedWords = subtitle.translatedText.split(/\s+/).filter(w => w.length > 0);
-    
-    // Initialize color code lists: 0 will represent the 'unmatched' white color
     const baseWordColors = Array(baseWords.length).fill(0);
     const translatedWordColors = Array(translatedWords.length).fill(0);
-    
-    let colorCodeCounter = 1; // Start numbering matched groups from 1
+    let colorCodeCounter = 1;
     const baseLang = subtitleLanguages.base;
     const targetLang = subtitleLanguages.target;
-    
-    // --- PASS 1: Base Language (i) to Target Language (j) - Search for single/multi-word match ---
+
     for (let i = 0; i < baseWords.length; i++) {
-        if (baseWordColors[i] !== 0) continue; // Skip if already matched
-        
+        if (baseWordColors[i] !== 0) continue;
         const wordToTranslate = sanitizePhrase(baseWords[i]);
-        if (wordToTranslate.length === 0) continue; 
-        
-        // 1. Get word-level translation (Base -> Target)
+        if (wordToTranslate.length === 0) continue;
         const wordTranslation = await translateSubtitle(wordToTranslate, baseLang, targetLang);
         if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
-
         const targetPhrase = sanitizePhrase(wordTranslation);
         const targetPhraseWords = targetPhrase.split(/\s+/).filter(w => w.length > 0);
         const matchLength = targetPhraseWords.length;
-
-        // 2. Search for multi-word match in the translated subtitle
         for (let j = 0; j <= translatedWords.length - matchLength; j++) {
-            // Check if the sequence of target words is currently uncolored
             let isUncolored = true;
-            for (let k = 0; k < matchLength; k++) {
-                if (translatedWordColors[j + k] !== 0) {
-                    isUncolored = false;
-                    break;
-                }
-            }
-            if (!isUncolored) continue; // Skip if any part of the sequence is already matched
-
-            // Construct the phrase from the subtitle for comparison
+            for (let k = 0; k < matchLength; k++) { if (translatedWordColors[j + k] !== 0) { isUncolored = false; break; } }
+            if (!isUncolored) continue;
             const subtitlePhraseWords = translatedWords.slice(j, j + matchLength);
             const subtitlePhrase = sanitizePhrase(subtitlePhraseWords.join(' '));
-            
             if (subtitlePhrase === targetPhrase) {
-                // Match found: assign a new color code to the base word and the target phrase sequence
                 baseWordColors[i] = colorCodeCounter;
-                for (let k = 0; k < matchLength; k++) {
-                    translatedWordColors[j + k] = colorCodeCounter;
-                }
+                for (let k = 0; k < matchLength; k++) { translatedWordColors[j + k] = colorCodeCounter; }
                 colorCodeCounter++;
-                break; // Found match for base word[i], move to next base word
+                break;
             }
         }
     }
-
-    // --- PASS 2: Translated Language (j) to Base Language (i) - Search for single/multi-word match ---
     for (let j = 0; j < translatedWords.length; j++) {
-        if (translatedWordColors[j] !== 0) continue; // Skip if already matched
-        
+        if (translatedWordColors[j] !== 0) continue;
         const wordToTranslate = sanitizePhrase(translatedWords[j]);
         if (wordToTranslate.length === 0) continue;
-        
-        // 1. Get word-level back-translation (Target -> Base)
         const wordTranslation = await translateSubtitle(wordToTranslate, targetLang, baseLang);
         if (!wordTranslation || wordTranslation.includes('Translation Failed')) continue;
-        
         const targetPhrase = sanitizePhrase(wordTranslation);
         const targetPhraseWords = targetPhrase.split(/\s+/).filter(w => w.length > 0);
         const matchLength = targetPhraseWords.length;
-        
-        // 2. Search for multi-word match in the base subtitle
         for (let i = 0; i <= baseWords.length - matchLength; i++) {
-            // Check if the sequence of base words is currently uncolored
             let isUncolored = true;
-            for (let k = 0; k < matchLength; k++) {
-                if (baseWordColors[i + k] !== 0) {
-                    isUncolored = false;
-                    break;
-                }
-            }
-            if (!isUncolored) continue; // Skip if any part of the sequence is already matched
-
-            // Construct the phrase from the subtitle for comparison
+            for (let k = 0; k < matchLength; k++) { if (baseWordColors[i + k] !== 0) { isUncolored = false; break; } }
+            if (!isUncolored) continue;
             const subtitlePhraseWords = baseWords.slice(i, i + matchLength);
             const subtitlePhrase = sanitizePhrase(subtitlePhraseWords.join(' '));
-            
             if (subtitlePhrase === targetPhrase) {
-                // Match found: assign a new color code to the translated word and the base phrase sequence
                 translatedWordColors[j] = colorCodeCounter;
-                for (let k = 0; k < matchLength; k++) {
-                    baseWordColors[i + k] = colorCodeCounter;
-                }
+                for (let k = 0; k < matchLength; k++) { baseWordColors[i + k] = colorCodeCounter; }
                 colorCodeCounter++;
-                break; // Found match for translated word[j], move to next translated word
+                break;
             }
         }
     }
-    
-    // Finalize the subtitle object with the color lists
     subtitle.baseWordColors = baseWordColors;
     subtitle.translatedWordColors = translatedWordColors;
-    subtitle.colorCodeCount = colorCodeCounter; 
+    subtitle.colorCodeCount = colorCodeCounter;
 }
 
 async function translateAllSubtitles(url) {
@@ -436,68 +358,40 @@ async function translateAllSubtitles(url) {
     const criticalBatch = parsedSubtitles.slice(0, CRITICAL_BATCH_SIZE);
     const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
     const START_PROGRESS = 60;
-    
-    // --- MODIFICATION START: Adjust weights for Vocab style ---
     const isVocab = (subtitleStylePref === 'vocabulary');
-    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; // 20% for translation if Vocab, 30% otherwise
-    const MATCHING_WEIGHT = isVocab ? 10 : 0;     // 10% for matching if Vocab, 0% otherwise
-    const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT; // Total is 30% for all styles
-    
-    // The total weight for the concurrent batch needs to cover the remaining portion up to 100 (excluding initial 60)
+    const TRANSLATION_WEIGHT = isVocab ? 20 : 30;
+    const MATCHING_WEIGHT = isVocab ? 10 : 0;
+    const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT;
     const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? 20 : 30;
     const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
-    const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT; // Total is 30% for all styles
-    // --- MODIFICATION END ---
-    
-    sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
-    
-    // --- Phase 1: Critical Batch Translation and VOCAB PROCESSING ---
-    for (let index = 0; index < criticalBatch.length; index++) {
-        if (isCancelled) {
-            console.log("Translation aborted.");
-            throw new Error("ABORT_TRANSLATION");
-        }
-        const sub = criticalBatch[index];
-        
-        // 1. Translate the entire line
-        sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
-        
-        // Calculate progress after main translation (for Vocab this is TRANSLATION_WEIGHT of the batch)
-        let progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * TRANSLATION_WEIGHT);
+    const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT;
 
-        // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
+    sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
+
+    for (let index = 0; index < criticalBatch.length; index++) {
+        if (isCancelled) throw new Error("ABORT_TRANSLATION");
+        const sub = criticalBatch[index];
+        sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+        let progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * TRANSLATION_WEIGHT);
         if (isVocab && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
              await processVocabColorCoding(sub);
-             // Increment progress by MATCHING_WEIGHT after word matching
              progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_TOTAL_WEIGHT);
         }
-        
         sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
     }
-    
-    // --- Phase 2: Concurrent Batch Translation and VOCAB PROCESSING ---
+
     const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT;
     sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
-    
+
     const translationPromises = concurrentBatch.map(async (sub, index) => {
         if (isCancelled) return Promise.resolve("ABORTED");
-        
-        // 1. Translate the entire line
         sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
-        
-        // 2. MODIFICATION: Process for word-level color coding if in Vocab mode
         if (isVocab && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
              await processVocabColorCoding(sub);
         }
-        
         if (index % 5 === 0 || index === concurrentBatch.length - 1) {
-            // Calculate total progress: START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT (for phase 1) 
-            // + CONCURRENT_BATCH_TOTAL_WEIGHT (for phase 2, which covers both translation and matching if vocab)
             const progressRatio = (index + 1) / concurrentBatch.length;
-            
-            // Total progress = Start of Phase 2 + (Progress Ratio * Phase 2 Weight)
             const progress = CONCURRENT_START_PROGRESS + Math.floor(progressRatio * CONCURRENT_BATCH_TOTAL_WEIGHT);
-
             if (progress < 100) {
                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
                 sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url);
@@ -505,9 +399,9 @@ async function translateAllSubtitles(url) {
         }
         return sub.translatedText;
     });
-    
+
     await Promise.all(translationPromises);
-    
+
     if (!isCancelled) {
         sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
         console.log("Native translation process finished.");
@@ -550,21 +444,18 @@ function colorNameToRgba(name, alpha) {
     return `rgba(${rgb}, ${alpha})`;
 }
 
-// Helper to get a color from the color code (1, 2, 3...)
 function getIndexedColor(index, alpha) {
-    const colors = [
-        'white', 'red', 'green', 'blue', 'magenta', 'yellow', 
-        'cyan', 'orange', 'lime', 'pink', 'teal'
-    ];
-    // Use index - 1 because our color codes start at 1 (0 is default/white)
+    const colors = ['white', 'red', 'green', 'blue', 'magenta', 'yellow', 'cyan', 'orange', 'lime', 'pink', 'teal'];
     const colorName = colors[(index - 1) % colors.length] || 'white';
     return colorNameToRgba(colorName, alpha);
 }
 
-function startSubtitleSync(videoElement) {
+// --- MODIFIED: Split startSubtitleSync and created separate loops ---
+function startSubtitleSync() {
     if (syncInterval) clearInterval(syncInterval);
+    disneyTimeElement = null; // Reset disney element reference
     let currentSubtitleIndex = -1;
-    let lastTime = 0;
+    let lastTime = -1; // Initialize to -1 to ensure first run
     if (floatingWindow) floatingWindow.style.display = 'block';
 
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
@@ -579,14 +470,12 @@ function startSubtitleSync(videoElement) {
 
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
-        floatingWindow.style.color = baseFontColor; // Set base window color
+        floatingWindow.style.color = baseFontColor;
     }
-    
+
     const getSpanStyle = (colorOverride = null) => {
         const finalColor = colorOverride || baseFontColor;
-        // Vocab mode uses a simpler text color, so we use white for base lines unless color-coded
         const finalBgColor = (subtitleStylePref === 'vocabulary') ? colorNameToRgba('none', 0) : currentSpanBgColor;
-
         return `display: inline-block; padding: 0 0.2em; border-radius: 0.2em; background-color: ${finalBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
     };
 
@@ -595,46 +484,31 @@ function startSubtitleSync(videoElement) {
             const finalStyle = isBaseLanguage ? getSpanStyle(defaultColor) : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
             return `<span style="${finalStyle}">${text}</span>`;
         }
-
         const words = text.split(/\s+/).filter(w => w.length > 0);
-        
-        // --- Simpler Re-construction using array map/join ---
         let finalHtml = words.map((word, index) => {
-            const colorCode = colorCodes[index] || 0; // 0 for white/unmatched
-            const wordColor = (colorCode === 0) 
-                ? colorNameToRgba('white', fontColorAlphaPref) 
-                : getIndexedColor(colorCode, fontColorAlphaPref);
-
+            const colorCode = colorCodes[index] || 0;
+            const wordColor = (colorCode === 0) ? colorNameToRgba('white', fontColorAlphaPref) : getIndexedColor(colorCode, fontColorAlphaPref);
             const wordStyle = getSpanStyle(wordColor);
             return `<span style="${wordStyle}">${word}</span>`;
         }).join(' ');
-
         return finalHtml;
     };
-    
-    // Helper for non-vocab styles
+
     const buildSimpleHtml = (text, isTranslated) => {
         let originalStyle = getSpanStyle(baseFontColor);
         let translatedStyle = getSpanStyle(baseFontColor);
-
-        if (subtitleStylePref === 'vocabulary') {
-            // Should not happen for this function branch, but as a fallback
-            return `<span style="${originalStyle}">${text}</span>`; 
-        } else if (subtitleStylePref === 'grammar') {
+        if (subtitleStylePref === 'grammar') {
             translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
         } else if (subtitleStylePref === 'custom' || subtitleStylePref === 'netflix') {
             translatedStyle = getSpanStyle(colorNameToRgba(fontColorPref, fontColorAlphaPref));
-        } else {
-            // Default (should be handled by colorOverride in getSpanStyle)
         }
-        
         const style = isTranslated ? translatedStyle : originalStyle;
         return `<span style="${style}">${text}</span>`;
     }
 
-    const syncLoop = () => {
-        const currentTime = videoElement.currentTime;
-        if (videoElement.paused && currentTime === lastTime) return;
+    // --- Core logic shared by both loops ---
+    const updateSubtitleDisplay = (currentTime) => {
+        if (currentTime === lastTime && lastTime !== -1) return; // Only update if time changed
         lastTime = currentTime;
 
         let low = 0, high = parsedSubtitles.length - 1;
@@ -654,45 +528,32 @@ function startSubtitleSync(videoElement) {
         let newIndex = -1;
         if (bestMatchIndex !== -1) {
             const sub = parsedSubtitles[bestMatchIndex];
-            if (currentTime < sub.end) {
+            // Ensure currentTime is within the subtitle duration
+            // Add a small buffer (e.g., 0.1s) to account for interval timing
+            if (currentTime < sub.end + 0.1) {
                 newSubtitle = sub;
                 newIndex = bestMatchIndex;
             }
         }
-        
+
         if (newIndex !== -1) {
             if (newIndex !== currentSubtitleIndex) {
                 const { text, translatedText, baseWordColors, translatedWordColors } = newSubtitle;
-                
                 let innerHTML = '';
-                
                 if (translatedText) {
                     if (subtitleStylePref === 'vocabulary') {
                         const baseHtml = buildColorCodedHtml(text, baseWordColors, baseFontColor, true);
                         const translatedHtml = buildColorCodedHtml(translatedText, translatedWordColors, baseFontColor, false);
-                        
-                        if (isTranslatedOnly) {
-                             innerHTML = translatedHtml;
-                        } else {
-                             innerHTML = `${baseHtml}<br>${translatedHtml}`;
-                        }
+                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     } else {
-                        // Original non-vocab logic
                         const baseHtml = buildSimpleHtml(text, false);
                         const translatedHtml = buildSimpleHtml(translatedText, true);
-                        
-                        if (isTranslatedOnly) {
-                            innerHTML = translatedHtml;
-                        } else {
-                            innerHTML = `${baseHtml}<br>${translatedHtml}`;
-                        }
+                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     }
-
                 } else if (!isTranslatedOnly) {
                     const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
                     innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">(Translating...)</span>`;
                 }
-                
                 floatingWindow.innerHTML = innerHTML;
                 currentSubtitleIndex = newIndex;
             }
@@ -701,10 +562,76 @@ function startSubtitleSync(videoElement) {
             currentSubtitleIndex = -1;
         }
     };
-    syncInterval = setInterval(syncLoop, 100);
-    console.log("Subtitle sync loop started with binary search.");
-}
+    // --- End core logic ---
 
+    // --- Loop for Netflix/YouTube (uses video.currentTime) ---
+    const syncLoopStandard = (videoElement) => {
+        if (!videoElement) {
+            console.error("Video element lost during sync loop.");
+            clearInterval(syncInterval);
+            return;
+        }
+        const currentTime = videoElement.currentTime;
+        updateSubtitleDisplay(currentTime);
+    };
+
+    // --- Loop for Disney+ (uses aria-valuenow) ---
+    const syncLoopDisney = () => {
+        if (!disneyTimeElement) {
+            // Attempt to re-find the element if lost (e.g., page navigation/reload within Disney+)
+             const progressBarHost = document.querySelector('progress-bar');
+             if (progressBarHost && progressBarHost.shadowRoot) {
+                 disneyTimeElement = progressBarHost.shadowRoot.querySelector('.progress-bar__thumb');
+             }
+             if (!disneyTimeElement) {
+                console.error("Disney+ time element lost during sync loop and couldn't be re-found.");
+                clearInterval(syncInterval);
+                sendStatusUpdate("Error: Lost connection to Disney+ player time.", 0);
+                return;
+             }
+        }
+        const timeString = disneyTimeElement.getAttribute('aria-valuenow');
+        if (timeString === null) return; // Element might not be ready yet or attribute removed temporarily
+
+        const currentTime = parseFloat(timeString);
+        if (isNaN(currentTime)) return; // Invalid time value
+
+        updateSubtitleDisplay(currentTime);
+    };
+
+
+    // --- Determine which loop to start ---
+    const hostname = window.location.hostname;
+    if (hostname === 'www.disneyplus.com') {
+        // Find the Disney time element ONCE
+        const progressBarHost = document.querySelector('progress-bar');
+        if (progressBarHost && progressBarHost.shadowRoot) {
+            disneyTimeElement = progressBarHost.shadowRoot.querySelector('.progress-bar__thumb');
+            if (disneyTimeElement) {
+                syncInterval = setInterval(syncLoopDisney, 100); // Check 10 times per second
+                console.log("Disney+ subtitle sync loop started (using aria-valuenow polling).");
+            } else {
+                console.error("Could not find '.progress-bar__thumb' element inside Disney+ shadow root for time polling.");
+                sendStatusUpdate("Error: Could not find Disney+ time element.", 0);
+            }
+        } else {
+            console.error("Could not find Disney+ <progress-bar> element or its shadow root for time polling.");
+            sendStatusUpdate("Error: Could not find Disney+ progress bar.", 0);
+        }
+    } else {
+        // Assume Netflix or YouTube
+        const videoElement = getVideoElement();
+        if (videoElement) {
+            // Need to wrap syncLoopStandard to pass videoElement correctly
+            syncInterval = setInterval(() => syncLoopStandard(videoElement), 100); // Check 10 times per second
+            console.log("Standard subtitle sync loop started (using video.currentTime polling).");
+        } else {
+            console.error("Could not find video element for Netflix/YouTube sync loop.");
+            sendStatusUpdate("Error: Could not find video player.", 0);
+        }
+    }
+}
+// --- END MODIFIED startSubtitleSync ---
 
 function disableNetflixSubObserver() {
     if (typeof subtitleObserver !== 'undefined' && subtitleObserver) {
@@ -713,208 +640,127 @@ function disableNetflixSubObserver() {
     }
 }
 
-// --- MODIFICATION: Find correct video element for Netflix, YouTube, or Disney+ ---
 function getVideoElement() {
-    let video = getNetflixVideoElement(); // Try Netflix
+    let video = getNetflixVideoElement();
     if (video) return video;
-    
-    // Fallback for YouTube
     video = document.querySelector('#movie_player video.html5-main-video');
     if (video) return video;
-
-    // --- Fallbacks for Disney+ (now more robust) ---
-    
-    // 1. Try the specific ID you found (Most reliable)
     video = document.getElementById('hivePlayer1');
     if (video) return video;
-
-    // 2. Try the class name you found
     video = document.querySelector('.hive-video');
     if (video) return video;
-
-    // 3. Try the container class you found
     video = document.querySelector('.btm-media-client video');
     if (video) return video;
-
-    // 4. Keep the original selectors as backups
     video = document.querySelector('.btm-media-player-container video');
     if (video) return video;
-    
     video = document.querySelector('#vader_Player video');
     if (video) return video;
-
-    return null; // No video element found
+    return null;
 }
-// --- END MODIFICATION ---
 
-// --- MODIFICATION: Robust YouTube transcript parser ---
 function parseYouTubeTranscript(transcriptText) {
     parsedSubtitles = [];
     const lines = transcriptText.split('\n');
-    
-    // Regex to find timestamps like "0:00", "1:23", "10:45", "1:02:03"
-    // It allows optional prefixes (like "P: ") and optional hours.
     const timeRegex = /(?:.*?\s)?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/;
-
     let currentSubtitle = null;
 
     for (const line of lines) {
         const trimmedLine = line.trim();
-        if (!trimmedLine) continue; // Skip empty lines
-
+        if (!trimmedLine) continue;
         const timeMatch = trimmedLine.match(timeRegex);
-
         if (timeMatch) {
-            // This is a new timestamp line.
-            
-            // 1. Get the time in seconds for this new line.
             const hours = parseInt(timeMatch[1] || '0', 10);
             const minutes = parseInt(timeMatch[2], 10);
             const seconds = parseInt(timeMatch[3], 10);
             const newTime = (hours * 3600) + (minutes * 60) + seconds;
-
-            // 2. If we have a subtitle being built, this new time is its END time.
             if (currentSubtitle) {
                 currentSubtitle.end = newTime;
-                // Only push if it has text and a valid duration
                 if (currentSubtitle.text && currentSubtitle.end > currentSubtitle.begin) {
                     parsedSubtitles.push(currentSubtitle);
                 }
             }
-
-            // 3. Start a new subtitle object
             currentSubtitle = {
-                begin: newTime,
-                end: 0, // We don't know the end time yet
-                text: "",
-                translatedText: null,
-                baseWordColors: null,
-                translatedWordColors: null
+                begin: newTime, end: 0, text: "", translatedText: null,
+                baseWordColors: null, translatedWordColors: null
             };
-            
         } else if (currentSubtitle) {
-            // This is a text line. Append it to the current subtitle's text.
             currentSubtitle.text = (currentSubtitle.text + " " + trimmedLine).trim();
         }
     }
-
-    // After the loop, push the very last subtitle buffer
     if (currentSubtitle && currentSubtitle.text) {
-        // Estimate end time (e.g., 5 seconds after start) as we don't have a final timestamp.
-        if (currentSubtitle.end === 0) {
-             currentSubtitle.end = currentSubtitle.begin + 5; // Simple 5-second duration
-        }
-        if (currentSubtitle.end > currentSubtitle.begin) {
-            parsedSubtitles.push(currentSubtitle);
-        }
+        if (currentSubtitle.end === 0) { currentSubtitle.end = currentSubtitle.begin + 5; }
+        if (currentSubtitle.end > currentSubtitle.begin) { parsedSubtitles.push(currentSubtitle); }
     }
-    
     console.log(`Successfully parsed ${parsedSubtitles.length} subtitles from YouTube transcript.`);
-    
-    // Return true if parsing found at least one subtitle line
     return parsedSubtitles.length > 0;
 }
-// --- END MODIFICATION ---
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    // Check Language Pair
     if (request.command === "check_language_pair") {
-        console.log(`[DEBUG] Received check_language_pair. Base: ${request.baseLang}, Target: ${request.targetLang}`);
-        
-        if ('Translator' in self && typeof Translator.availability === 'function') {
-            (async () => {
-                try {
-                    const availabilityResult = await Translator.availability({
-                        sourceLanguage: request.baseLang,
-                        targetLanguage: request.targetLang
-                    });
-
-                    console.log(`[DEBUG] Translator.availability() returned: '${availabilityResult}'`);
-                    const isAvailable = (availabilityResult === 'available' || availabilityResult === 'downloadable');
-
-                    sendResponse({
-                        isAvailable: isAvailable,
-                        baseLang: request.baseLang,
-                        targetLang: request.targetLang
-                    });
-                } catch (e) {
-                    console.error("[DEBUG] Error during Translator.availability() check:", e);
-                    sendResponse({ isAvailable: false });
-                }
-            })();
-        } else {
-            console.warn("Translator API (or availability function) is not available in this context.");
-            sendResponse({ isAvailable: false });
-        }
-        return true;
-    }
-
-    // --- NEW COMMAND HANDLER ---
-    if (request.command === "detect_language_from_text") {
         (async () => {
-            const baseLangCode = await detectLanguageFromText(request.text);
-            sendResponse({
-                baseLangCode: baseLangCode
-            });
+            let isAvailable = false;
+            if ('Translator' in self && typeof Translator.availability === 'function') {
+                try {
+                    const availabilityResult = await Translator.availability({ sourceLanguage: request.baseLang, targetLanguage: request.targetLang });
+                    isAvailable = (availabilityResult === 'available' || availabilityResult === 'downloadable');
+                } catch (e) { console.error("Error checking availability:", e); }
+            } else { console.warn("Translator API (or availability function) not available."); }
+            sendResponse({ isAvailable: isAvailable, baseLang: request.baseLang, targetLang: request.targetLang });
         })();
         return true; // Indicates asynchronous response
     }
-    // --- END NEW COMMAND HANDLER ---
 
-    if (request.command === "detect_language") {
+    // Detect Language from Text (YouTube Transcript)
+    if (request.command === "detect_language_from_text") {
         (async () => {
-            parsedSubtitles = [];
-            // --- UPDATED: Use generic fetch function ---
-            const xmlContent = await fetchSubtitleContent(request.url); 
-
-            if (xmlContent) {
-                const parseSuccess = parseTtmlXml(xmlContent, request.url);
-                if (parseSuccess && parsedSubtitles.length > 0) {
-                    const baseLangCode = await detectBaseLanguage();
-                    sendResponse({
-                        url: request.url,
-                        baseLangCode: baseLangCode
-                    });
-                } else {
-                    sendResponse({ url: request.url, baseLangCode: null });
-                }
-            } else {
-                 sendResponse({ url: request.url, baseLangCode: null });
-            }
+            const baseLangCode = await detectLanguageFromText(request.text);
+            sendResponse({ baseLangCode: baseLangCode });
         })();
         return true;
     }
-    
-    // --- NEW: Handler for Disney+ language detection ---
+
+    // Detect Language from URL (Netflix)
+    if (request.command === "detect_language") {
+        (async () => {
+            parsedSubtitles = [];
+            const xmlContent = await fetchSubtitleContent(request.url);
+            let baseLangCode = null;
+            if (xmlContent) {
+                const parseSuccess = parseTtmlXml(xmlContent, request.url);
+                if (parseSuccess && parsedSubtitles.length > 0) {
+                    baseLangCode = await detectBaseLanguage();
+                }
+            }
+            sendResponse({ url: request.url, baseLangCode: baseLangCode });
+        })();
+        return true;
+    }
+
+    // Detect Language from URL (Disney+)
     if (request.command === "detect_language_disney") {
         (async () => {
             parsedSubtitles = [];
             const vttContent = await fetchSubtitleContent(request.url);
-
+            let baseLangCode = null;
             if (vttContent) {
                 const parseSuccess = parseVttContent(vttContent, request.url);
                 if (parseSuccess && parsedSubtitles.length > 0) {
-                    const baseLangCode = await detectBaseLanguage();
-                    sendResponse({
-                        url: request.url,
-                        baseLangCode: baseLangCode
-                    });
-                } else {
-                    sendResponse({ url: request.url, baseLangCode: null });
+                    baseLangCode = await detectBaseLanguage();
                 }
-            } else {
-                 sendResponse({ url: request.url, baseLangCode: null });
             }
+            sendResponse({ url: request.url, baseLangCode: baseLangCode });
         })();
         return true;
     }
-    // --- END NEW HANDLER ---
 
-
+    // Process Netflix URL
     if (request.command === "fetch_and_process_url" && request.url) {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
+        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         fontSizeEm = request.fontSize;
@@ -927,61 +773,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
         const url = request.url;
-        if (!('Translator' in self)) {
-            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url);
-            isProcessing = false;
-            return false;
-        }
+        if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url); isProcessing = false; return false; }
 
         (async () => {
-            const videoElement = getVideoElement(); // Use generic function
-            if (!videoElement) {
-                sendStatusUpdate("Video player not found.", 0);
-                isProcessing = false;
-                return;
-            }
-            // --- UPDATED: Use generic fetch function ---
-            const xmlContent = await fetchSubtitleContent(url); 
-            if (!xmlContent || isCancelled) {
-                isProcessing = false;
-                return;
-            }
+            const xmlContent = await fetchSubtitleContent(url);
+            if (!xmlContent || isCancelled) { isProcessing = false; return; }
             createFloatingWindow();
             disableNetflixSubObserver();
             const parseSuccess = parseTtmlXml(xmlContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, url);
                 subtitleLanguages.base = await detectBaseLanguage();
-                if (isCancelled) {
-                    isProcessing = false;
-                    return;
-                }
-                if (!subtitleLanguages.base) {
-                    sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url);
-                    subtitleLanguages.base = 'en';
-                } else {
-                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url);
-                }
-                startSubtitleSync(videoElement);
-                try {
-                    await translateAllSubtitles(url);
-                } catch (e) {
-                    if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e);
-                }
+                if (isCancelled) { isProcessing = false; return; }
+                if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url); subtitleLanguages.base = 'en'; }
+                else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url); }
+                startSubtitleSync(); // Call the modified function
+                try { await translateAllSubtitles(url); }
+                catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
-            } else {
-                if (!isCancelled) sendStatusUpdate("Invalid URL.", 0, url, 'url');
-                isProcessing = false;
-            }
+            } else { if (!isCancelled) sendStatusUpdate("Invalid URL.", 0, url, 'url'); isProcessing = false; }
         })();
         return false;
     }
-    
-    // --- NEW COMMAND HANDLER FOR YOUTUBE ---
+
+    // Process YouTube Transcript
     if (request.command === "process_youtube_subtitles" && request.transcript) {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
+        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         fontSizeEm = request.fontSize;
@@ -993,70 +813,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
-        
-        if (!('Translator' in self)) {
-            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, null, 'transcript');
-            isProcessing = false;
-            return false;
-        }
-        
+        if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, null, 'transcript'); isProcessing = false; return false; }
+
         (async () => {
-            const videoElement = getVideoElement(); // Use generic function
-            if (!videoElement) {
-                sendStatusUpdate("Video player not found.", 0, null, 'transcript');
-                isProcessing = false;
-                return;
-            }
-            
             createFloatingWindow();
-            
-            // Parse the provided transcript
             const parseSuccess = parseYouTubeTranscript(request.transcript);
-            
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, null, 'transcript');
-                
-                // Detect language from the parsed subs
-                subtitleLanguages.base = await detectBaseLanguage(); 
-                
-                if (isCancelled) {
-                    isProcessing = false;
-                    return;
-                }
-                if (!subtitleLanguages.base) {
-                    sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, null, 'transcript');
-                    subtitleLanguages.base = 'en';
-                } else {
-                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, null, 'transcript');
-                }
-                
-                startSubtitleSync(videoElement);
-                
-                try {
-                    // Pass null for URL as it's not needed for YouTube status
-                    await translateAllSubtitles(null); 
-                } catch (e) {
-                    if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e);
-                }
+                subtitleLanguages.base = await detectBaseLanguage();
+                if (isCancelled) { isProcessing = false; return; }
+                if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, null, 'transcript'); subtitleLanguages.base = 'en'; }
+                else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, null, 'transcript'); }
+                startSubtitleSync(); // Call the modified function
+                try { await translateAllSubtitles(null); }
+                catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
-            } else {
-                if (!isCancelled) sendStatusUpdate("Invalid transcript. Please re-paste.", 0, null, 'transcript');
-                isProcessing = false;
-            }
+            } else { if (!isCancelled) sendStatusUpdate("Invalid transcript. Please re-paste.", 0, null, 'transcript'); isProcessing = false; }
         })();
-        
-        sendResponse({ status: "processing_started" }); // Acknowledge message received
-        return true; // Indicate async work
+        sendResponse({ status: "processing_started" });
+        return true;
     }
-    // --- END NEW COMMAND HANDLER ---
 
-    // --- UPDATED: Full implementation for Disney+ ---
+    // Process Disney+ URL
     if (request.command === "process_disney_url" && request.url) {
         if (isProcessing) return false;
-        
-        // --- Full implementation, replacing placeholder ---
         isProcessing = true;
         isCancelled = false;
+        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         fontSizeEm = request.fontSize;
@@ -1069,86 +852,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
         const url = request.url;
-        
-        if (!('Translator' in self)) {
-            sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url');
-            isProcessing = false;
-            return false;
-        }
-        
+        if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url'); isProcessing = false; return false; }
+
         (async () => {
-            const videoElement = getVideoElement(); // Use generic function
-            if (!videoElement) {
-                sendStatusUpdate("Video player not found.", 0, url, 'url');
-                isProcessing = false;
-                return;
-            }
-            
             const vttContent = await fetchSubtitleContent(url);
-            if (!vttContent || isCancelled) {
-                if(!isCancelled) sendStatusUpdate("Error fetching Disney+ subtitles.", 0, url, 'url');
-                isProcessing = false;
-                return;
-            }
-            
+            if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Disney+ subtitles.", 0, url, 'url'); isProcessing = false; return; }
             createFloatingWindow();
-            
             const parseSuccess = parseVttContent(vttContent, url);
-            
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, url, 'url');
-                
-                subtitleLanguages.base = await detectBaseLanguage(); 
-                
-                if (isCancelled) {
-                    isProcessing = false;
-                    return;
-                }
-                if (!subtitleLanguages.base) {
-                    sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url');
-                    subtitleLanguages.base = 'en';
-                } else {
-                    sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url');
-                }
-                
-                startSubtitleSync(videoElement);
-                
-                try {
-                    await translateAllSubtitles(url); 
-                } catch (e) {
-                    if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e);
-                }
+                subtitleLanguages.base = await detectBaseLanguage();
+                if (isCancelled) { isProcessing = false; return; }
+                if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
+                else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
+                startSubtitleSync(); // Call the modified function
+                try { await translateAllSubtitles(url); }
+                catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
-            } else {
-                if (!isCancelled) sendStatusUpdate("Invalid Disney+ URL or content.", 0, url, 'url');
-                isProcessing = false;
-            }
+            } else { if (!isCancelled) sendStatusUpdate("Invalid Disney+ URL or content.", 0, url, 'url'); isProcessing = false; }
         })();
-        
-        sendResponse({ status: "processing_started" }); // Acknowledge message
-        return true; // Indicate async work
+        sendResponse({ status: "processing_started" });
+        return true;
     }
-    // --- END DISNEY+ IMPLEMENTATION ---
 
+    // Cancel Processing
     if (request.command === "cancel_processing") {
         isCancelled = true;
         if (syncInterval) {
             clearInterval(syncInterval);
             syncInterval = null;
         }
+        // Reset Disney element reference on cancel
+        disneyTimeElement = null;
         if (floatingWindow) {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';
         }
         isProcessing = false;
-        
-        (async () => {
-            await chrome.storage.local.remove(['ls_status']);
-            console.log("Processing cancelled. Cleared status from storage.");
-        })();
-        
+        (async () => { await chrome.storage.local.remove(['ls_status']); console.log("Processing cancelled. Cleared status from storage."); })();
         return false;
     }
 
-    return false;
+    return false; // Indicate no async response for other commands
 });
