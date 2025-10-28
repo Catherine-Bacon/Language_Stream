@@ -640,59 +640,66 @@ function getVideoElement() {
 }
 // --- END MODIFICATION ---
 
-// --- MODIFICATION: Simple YouTube transcript parser ---
+// --- MODIFICATION: Robust YouTube transcript parser ---
 function parseYouTubeTranscript(transcriptText) {
     parsedSubtitles = [];
     const lines = transcriptText.split('\n');
-    let currentTime = 0;
     
-    // Regex to find timestamps like 0:00, 1:23, 10:45, 1:02:03
-    const timeRegex = /^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/;
+    // Regex to find timestamps like "0:00", "1:23", "10:45", "1:02:03"
+    // It allows optional prefixes (like "P: ") and optional hours.
+    const timeRegex = /(?:.*?\s)?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/;
 
-    let buffer = { text: "", begin: 0, end: 0 };
-    let lineCount = 0;
+    let currentSubtitle = null;
 
     for (const line of lines) {
         const trimmedLine = line.trim();
+        if (!trimmedLine) continue; // Skip empty lines
+
         const timeMatch = trimmedLine.match(timeRegex);
 
         if (timeMatch) {
-            lineCount++;
-            // This is a timestamp line.
-            // First, save the previous buffered text, if any.
-            if (buffer.text) {
-                buffer.end = currentTime; // The new timestamp marks the end of the previous subtitle.
-                // Only save if the duration is reasonable (avoids empty/flicker subs)
-                if (buffer.end > buffer.begin) {
-                    parsedSubtitles.push(buffer);
-                }
-            }
-
-            // Now, process the new timestamp.
+            // This is a new timestamp line.
+            
+            // 1. Get the time in seconds for this new line.
             const hours = parseInt(timeMatch[1] || '0', 10);
             const minutes = parseInt(timeMatch[2], 10);
             const seconds = parseInt(timeMatch[3], 10);
-            currentTime = (hours * 3600) + (minutes * 60) + seconds;
+            const newTime = (hours * 3600) + (minutes * 60) + seconds;
 
-            // Start a new buffer
-            buffer = {
+            // 2. If we have a subtitle being built, this new time is its END time.
+            if (currentSubtitle) {
+                currentSubtitle.end = newTime;
+                // Only push if it has text and a valid duration
+                if (currentSubtitle.text && currentSubtitle.end > currentSubtitle.begin) {
+                    parsedSubtitles.push(currentSubtitle);
+                }
+            }
+
+            // 3. Start a new subtitle object
+            currentSubtitle = {
+                begin: newTime,
+                end: 0, // We don't know the end time yet
                 text: "",
-                begin: currentTime,
-                end: 0 // We don't know the end time yet
+                translatedText: null,
+                baseWordColors: null,
+                translatedWordColors: null
             };
             
-        } else if (trimmedLine && buffer.begin > 0) {
-            // This is a text line. Append it to the current buffer.
-            buffer.text = (buffer.text + " " + trimmedLine).trim();
+        } else if (currentSubtitle) {
+            // This is a text line. Append it to the current subtitle's text.
+            currentSubtitle.text = (currentSubtitle.text + " " + trimmedLine).trim();
         }
     }
 
-    // Push the very last subtitle buffer
-    if (buffer.text) {
+    // After the loop, push the very last subtitle buffer
+    if (currentSubtitle && currentSubtitle.text) {
         // Estimate end time (e.g., 5 seconds after start) as we don't have a final timestamp.
-        // This can be refined, but it's a simple approach.
-        buffer.end = buffer.begin + 5; 
-        parsedSubtitles.push(buffer);
+        if (currentSubtitle.end === 0) {
+             currentSubtitle.end = currentSubtitle.begin + 5; // Simple 5-second duration
+        }
+        if (currentSubtitle.end > currentSubtitle.begin) {
+            parsedSubtitles.push(currentSubtitle);
+        }
     }
     
     console.log(`Successfully parsed ${parsedSubtitles.length} subtitles from YouTube transcript.`);

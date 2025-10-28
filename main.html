@@ -42,7 +42,7 @@
         border-color: #FF0000;
         fill: #FF0000;
       }
-      /* --- END: Mode Switcher Styles --- */
+      /* --- END: Mode Switchter Styles --- */
 
       h1 {
         color: #e50914; /* Netflix Red */
@@ -259,11 +259,13 @@
     <!-- Title and Mode Switcher -->
     <h1 id="titleHeader">Language Stream - Netflix</h1>
     <div class="mode-switcher">
+      <!-- === MODIFICATION: Replaced SVG with a simpler "N" icon === -->
       <div class="mode-icon active" id="netflixModeButton" title="Netflix Mode">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="24" height="24">
-          <path d="M145.5 145.5v733h145.6V602.8l78.4 78.4 78.3-78.4v275.7h145.6V145.5H547.8l-78.4 78.4-78.3-78.4H145.5z"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" style="transform: scale(1.1);">
+          <path d="M8.19999 20.8145H5.89999V3.18555H8.19999V20.8145ZM11.8 20.8145H9.5V3.18555H11.8V20.8145ZM18.1 20.8145H15.8L12.8 14.9145V20.8145H10.6V3.18555H12.9L15.9 9.08555V3.18555H18.1V20.8145Z"/>
         </svg>
       </div>
+      <!-- === END MODIFICATION === -->
       <div class="mode-icon" id="youtubeModeButton" title="YouTube Mode">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
           <path d="M21.582 7.004C21.357 6.202 20.798 5.643 20 5.418 18.264 5 12 5 12 5s-6.264 0-8 .418C3.202 5.643 2.643 6.202 2.418 7.004 2 8.736 2 12 2 12s0 3.264.418 5.004c.225.802.784 1.36 1.582 1.585C5.736 19 12 19 12 19s6.264 0 8-.411c.802-.224 1.36-.784 1.585-1.585C22 15.264 22 12 22 12s0-3.264-.418-4.996zM9.5 15.5V8.5l6.5 3.5-6.5 3.5z"/>
