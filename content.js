@@ -4,6 +4,8 @@ var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null;
 // NEW: Variable to hold the Disney+ time element if found
 var disneyTimeElement = disneyTimeElement || null;
+// NEW: Variable to hold the Prime Video time element if found
+var primeTimeElement = primeTimeElement || null;
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {};
 var isTranslatedOnly = isTranslatedOnly || false;
@@ -154,7 +156,9 @@ function parseVttContent(vttString, url) {
         return parsedSubtitles.length > 0;
     } catch (e) {
         console.error("Fatal error during VTT parsing:", e);
-        sendStatusUpdate("Invalid Disney+ URL or content.", 0, url, 'url');
+        // MODIFIED: Added check for context
+        const isDisney = window.location.hostname === 'www.disneyplus.com';
+        sendStatusUpdate(isDisney ? "Invalid Disney+ URL or content." : "Invalid VTT URL or content.", 0, url, 'url');
         return false;
     }
 }
@@ -195,11 +199,12 @@ function createFloatingWindow() {
         let playerContainer = getNetflixPlayerContainer(); // Try Netflix first
         if (!playerContainer) playerContainer = document.getElementById('movie_player'); // Fallback for YouTube
         if (!playerContainer) playerContainer = document.querySelector('.btm-media-player-container') || document.getElementById('vader_Player'); // Disney+
+        if (!playerContainer) playerContainer = document.getElementById('dv-web-player'); // NEW: Prime Video container
 
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
 
-        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container'))) {
+        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container') || playerContainer.id === 'dv-web-player')) {
             playerContainer.style.position = 'relative';
         }
 
@@ -454,6 +459,7 @@ function getIndexedColor(index, alpha) {
 function startSubtitleSync() {
     if (syncInterval) clearInterval(syncInterval);
     disneyTimeElement = null; // Reset disney element reference
+    primeTimeElement = null; // NEW: Reset prime element reference
     let currentSubtitleIndex = -1;
     let lastTime = -1; // Initialize to -1 to ensure first run
     if (floatingWindow) floatingWindow.style.display = 'block';
@@ -564,7 +570,7 @@ function startSubtitleSync() {
     };
     // --- End core logic ---
 
-    // --- Loop for Netflix/YouTube (uses video.currentTime) ---
+    // --- Loop for Netflix/YouTube/Prime (uses video.currentTime) ---
     const syncLoopStandard = (videoElement) => {
         if (!videoElement) {
             console.error("Video element lost during sync loop.");
@@ -599,7 +605,6 @@ function startSubtitleSync() {
         updateSubtitleDisplay(currentTime);
     };
 
-
     // --- Determine which loop to start ---
     const hostname = window.location.hostname;
     if (hostname === 'www.disneyplus.com') {
@@ -619,14 +624,14 @@ function startSubtitleSync() {
             sendStatusUpdate("Error: Could not find Disney+ progress bar.", 0);
         }
     } else {
-        // Assume Netflix or YouTube
+        // Assume Netflix, YouTube or Prime Video
         const videoElement = getVideoElement();
         if (videoElement) {
             // Need to wrap syncLoopStandard to pass videoElement correctly
             syncInterval = setInterval(() => syncLoopStandard(videoElement), 100); // Check 10 times per second
             console.log("Standard subtitle sync loop started (using video.currentTime polling).");
         } else {
-            console.error("Could not find video element for Netflix/YouTube sync loop.");
+            console.error("Could not find video element for Netflix/YouTube/Prime sync loop.");
             sendStatusUpdate("Error: Could not find video player.", 0);
         }
     }
@@ -654,6 +659,9 @@ function getVideoElement() {
     video = document.querySelector('.btm-media-player-container video');
     if (video) return video;
     video = document.querySelector('#vader_Player video');
+    if (video) return video;
+    // NEW: Prime Video video element
+    video = document.querySelector('.dv-player-video');
     if (video) return video;
     return null;
 }
@@ -875,6 +883,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
+    // NEW: Process Prime Video URL
+    if (request.command === "process_prime_url" && request.url) {
+        if (isProcessing) return false;
+        isProcessing = true;
+        isCancelled = false;
+        // Assign preferences...
+        subtitleLanguages.target = request.targetLang;
+        isTranslatedOnly = request.translatedOnly;
+        fontSizeEm = request.fontSize;
+        backgroundColorPref = request.backgroundColor;
+        backgroundAlphaPref = request.backgroundAlpha;
+        fontShadowPref = request.fontShadow;
+        fontColorPref = request.fontColor;
+        fontColorAlphaPref = request.fontColorAlpha;
+        subtitleStylePref = request.colourCoding;
+        translationCache = {};
+        if (syncInterval) clearInterval(syncInterval);
+        const url = request.url;
+        if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url'); isProcessing = false; return false; }
+
+        (async () => {
+            const vttContent = await fetchSubtitleContent(url);
+            if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Prime Video subtitles.", 0, url, 'url'); isProcessing = false; return; }
+            createFloatingWindow();
+            // Prime Video uses VTT, so we can reuse the Disney+ VTT parser
+            const parseSuccess = parseVttContent(vttContent, url);
+            if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
+                sendStatusUpdate("Detecting language...", 30, url, 'url');
+                subtitleLanguages.base = await detectBaseLanguage();
+                if (isCancelled) { isProcessing = false; return; }
+                if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
+                else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
+                startSubtitleSync(); // Call the modified function
+                try { await translateAllSubtitles(url); }
+                catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
+                isProcessing = false;
+            } else { if (!isCancelled) sendStatusUpdate("Invalid Prime Video URL or content.", 0, url, 'url'); isProcessing = false; }
+        })();
+        sendResponse({ status: "processing_started" });
+        return true;
+    }
+
     // Cancel Processing
     if (request.command === "cancel_processing") {
         isCancelled = true;
@@ -882,8 +932,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             clearInterval(syncInterval);
             syncInterval = null;
         }
-        // Reset Disney element reference on cancel
+        // Reset element references on cancel
         disneyTimeElement = null;
+        primeTimeElement = null;
         if (floatingWindow) {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';

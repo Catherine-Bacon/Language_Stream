@@ -42,9 +42,12 @@
         border-color: #FF0000;
         /* 'fill' property removed */
       }
-      /* --- NEW: Disney+ Active Style --- */
       .mode-icon.active#disneyModeButton {
         border-color: #0d8199; /* Disney+ Teal */
+      }
+      /* --- NEW: Prime Video Active Style --- */
+      .mode-icon.active#primeModeButton {
+        border-color: #00A8E1; /* Prime Video Blue */
       }
       /* --- END: Mode Switchter Styles --- */
 
@@ -84,7 +87,7 @@
         height: 100px; /* Give it some height */
         margin-top: 0;
       }
-      #subtitleUrlInput, #disneyUrlInput { /* MODIFIED: Added Disney Input */
+      #subtitleUrlInput, #disneyUrlInput, #primeUrlInput { /* MODIFIED: Added Prime Input */
         margin-top: 0;
       }
       #targetLanguage {
@@ -271,6 +274,9 @@
       <div class="mode-icon" id="disneyModeButton" title="Disney+ Mode">
         <img src="disney_icon.png" width="24" height="24" alt="Disney+ Mode" style="border-radius: 3px;">
       </div>
+      <div class="mode-icon" id="primeModeButton" title="Prime Video Mode">
+        <img src="amazon_video_icon.png" width="28" height="28" alt="Prime Video Mode">
+      </div>
     </div>
 
     <div id="netflixInputs">
@@ -314,6 +320,22 @@
       <input type="text" id="disneyUrlInput" placeholder="Paste Disney+ Subtitle URL here" value="">
       
       <p id="disneyUrlStatusText" class="status-text">&nbsp;</p>
+    </div>
+
+    <div id="primeInputs" class="hidden-no-space">
+      <h2 id="primeHeader">1. Retrieve Subtitle URL</h2>
+      <div id="primeInstructions">
+        <p>Open Prime Video's player and set subtitles to your Base Language</p>
+        <p>Right click video player > Inspect</p>    
+        <p>Press Network > Reload Page</p>
+        <p>Search .webvtt > Sort by Size (descending)</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name > Copy > Copy URL</p>
+        </div>
+      </div>
+      <input type="text" id="primeUrlInput" placeholder="Paste Prime Video Subtitle URL here" value="">
+      
+      <p id="primeUrlStatusText" class="status-text" style="color: #00A8E1;">&nbsp;</p>
     </div>
 
 
