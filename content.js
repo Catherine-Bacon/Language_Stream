@@ -140,12 +140,16 @@ function createFloatingWindow() {
             // Fallback for YouTube
             playerContainer = document.getElementById('movie_player'); 
         }
+        // NEW: Add Disney+ container
+        if (!playerContainer) {
+            playerContainer = document.querySelector('.btm-media-player-container') || document.getElementById('vader_Player');
+        }
         
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
         
         // Only make relative if it's a known container
-        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player')) {
+        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container'))) {
             playerContainer.style.position = 'relative';
         }
         // --- END MODIFICATION ---
@@ -629,14 +633,20 @@ function disableNetflixSubObserver() {
     }
 }
 
-// --- MODIFICATION: Find correct video element for Netflix or YouTube ---
+// --- MODIFICATION: Find correct video element for Netflix, YouTube, or Disney+ ---
 function getVideoElement() {
     let video = getNetflixVideoElement(); // Try Netflix
     if (video) return video;
     
     // Fallback for YouTube
     video = document.querySelector('#movie_player video.html5-main-video');
-    return video;
+    if (video) return video;
+
+    // Fallback for Disney+
+    video = document.querySelector('.btm-media-player-container video');
+    if (video) return video;
+
+    return null;
 }
 // --- END MODIFICATION ---
 
@@ -912,6 +922,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         
         sendResponse({ status: "processing_started" }); // Acknowledge message received
         return true; // Indicate async work
+    }
+    // --- END NEW COMMAND HANDLER ---
+
+    // --- NEW COMMAND HANDLER FOR DISNEY+ (PLACEHOLDER) ---
+    if (request.command === "process_disney_url" && request.url) {
+        if (isProcessing) return false;
+        
+        // This is a placeholder as requested.
+        // We immediately send back an error message.
+        console.log("Received Disney+ request. Processing is not yet implemented.");
+        sendStatusUpdate("Disney+ processing is not yet implemented. Feature coming soon.", 0, request.url, 'url');
+        
+        isProcessing = false; // Ensure we don't block UI
+        sendResponse({ status: "not_implemented" });
+        return false; // No async work
     }
     // --- END NEW COMMAND HANDLER ---
 

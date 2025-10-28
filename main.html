@@ -42,6 +42,10 @@
         border-color: #FF0000;
         /* 'fill' property removed */
       }
+      /* --- NEW: Disney+ Active Style --- */
+      .mode-icon.active#disneyModeButton {
+        border-color: #0d8199; /* Disney+ Teal */
+      }
       /* --- END: Mode Switchter Styles --- */
 
       h1 {
@@ -80,7 +84,7 @@
         height: 100px; /* Give it some height */
         margin-top: 0;
       }
-      #subtitleUrlInput {
+      #subtitleUrlInput, #disneyUrlInput { /* MODIFIED: Added Disney Input */
         margin-top: 0;
       }
       #targetLanguage {
@@ -264,7 +268,10 @@
       <div class="mode-icon" id="youtubeModeButton" title="YouTube Mode">
         <img src="youtube_icon.png" width="24" height="24" alt="YouTube Mode">
       </div>
+      <div class="mode-icon" id="disneyModeButton" title="Disney+ Mode">
+        <img src="disney_icon.jpg" width="24" height="24" alt="Disney+ Mode" style="border-radius: 3px;">
       </div>
+    </div>
 
     <div id="netflixInputs">
       <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
@@ -285,13 +292,23 @@
     <div id="youtubeInputs" class="hidden-no-space">
       <h2 id="transcriptHeader">1. Retrieve Transcript</h2>
       <div id="transcriptInstructions">
-        <p>Click the '...' below the video > Show transcript.</p>
-        <p>Click '...' in transcript > Toggle timestamps.</p>
-        <p>Copy and paste the entire transcript here.</p>
+        <p>Expand the bio below the video</p>
+        <p>Click Show transcript</p>  
       </div>
       <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
       
       <p id="transcriptStatusText" class="status-text">&nbsp;</p>
+    </div>
+    
+    <div id="disneyInputs" class="hidden-no-space">
+      <h2 id="disneyHeader">1. Retrieve Subtitle URL</h2>
+      <div id="disneyInstructions">
+        <p>(Instructions for Disney+ will go here)</p>
+        <p>(e.g., Use developer tools to find the subtitle URL)</p>  
+      </div>
+      <input type="text" id="disneyUrlInput" placeholder="Paste Disney+ Subtitle URL here" value="">
+      
+      <p id="disneyUrlStatusText" class="status-text">&nbsp;</p>
     </div>
 
 
