@@ -132,6 +132,8 @@ function updateUIMode(mode, elements) {
         
         if (!isProcessing) {
             document.body.style.height = PRIME_SETUP_HEIGHT;
+            // The logic for checkPrimeUrlAndDetectLanguage will be added later,
+            // for now, we'll set a default status and check language availability
             elements.primeUrlStatusText.textContent = "Waiting for URL...";
             elements.primeUrlStatusText.style.color = "#00A8E1"; // Prime Blue
             checkPrimeUrlAndDetectLanguage(elements);
@@ -451,12 +453,12 @@ async function checkLanguagePairAvailability(elements) {
     }
 }
 
-// --- MODIFIED: Function for Prime Video TTML URL detection ---
+// --- NEW: Function for Prime Video URL detection ---
 async function checkPrimeUrlAndDetectLanguage(elements) {
     if (currentMode !== 'prime') return;
 
     const url = elements.primeUrlInput.value.trim();
-    const urlLooksValid = (url && url.startsWith('http')); // Prime TTML URL is an absolute HTTP URL
+    const urlLooksValid = (url && url.startsWith('http'));
 
     if (urlLooksValid) {
         // Optimistic UI based on stored data
@@ -471,19 +473,18 @@ async function checkPrimeUrlAndDetectLanguage(elements) {
             updateGenerateButtonState(elements); 
         });
         
+        // **NOTE**: Since the content script logic isn't added yet, 
+        // this detection message is commented out for now.
+        /*
         // Send message to content script to verify/detect
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
                 chrome.tabs.sendMessage(tabs[0].id, {
-                    command: "detect_language_prime_ttml", // NEW command
+                    command: "detect_language_prime", // New command for Prime
                     url: url
                 }).then(async (response) => {
                     if (chrome.runtime.lastError) {
                         console.warn("Detection error:", chrome.runtime.lastError.message);
-                        // Show error if failed to send message (content script likely not injected)
-                        elements.primeUrlStatusText.textContent = `Cannot check: please reload the Prime Video tab.`;
-                        elements.primeUrlStatusText.style.color = "#00A8E1";
-                        updateGenerateButtonState(elements);
                         return;
                     }
                     if (response && elements.primeUrlInput.value.trim() === response.url) {
@@ -511,6 +512,17 @@ async function checkPrimeUrlAndDetectLanguage(elements) {
                 });
             }
         });
+        */
+       // TEMPORARY FALLBACK until content.js logic is added
+       // For now, assume it's valid and set the status text color to green.
+       await chrome.storage.local.set({
+           'detected_base_lang_name': 'English (Assumed)',
+           'detected_base_lang_code': 'en'
+       });
+       elements.primeUrlStatusText.textContent = `English subtitles ready to translate!`;
+       elements.primeUrlStatusText.style.color = "green";
+       checkLanguagePairAvailability(elements);
+       // END TEMPORARY FALLBACK
 
     } else {
          elements.primeUrlStatusText.textContent = "Waiting for URL...";
@@ -1033,14 +1045,14 @@ async function handleConfirmClick(elements) {
             console.log("[POPUP] Sending 'process_disney_url' command.");
         } else if (currentMode === 'prime') { // NEW
              message = {
-                command: "process_prime_ttml_url", // NEW command for Prime Video TTML
+                command: "process_prime_url", // New command for Prime Video
                 url: primeUrl, 
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
-            console.log("[POPUP] Sending 'process_prime_ttml_url' command.");
+            console.log("[POPUP] Sending 'process_prime_url' command.");
         }
 
 

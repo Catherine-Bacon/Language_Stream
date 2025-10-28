@@ -33,9 +33,7 @@ function ticksToSeconds(tickString) {
     return tickValue / TICK_RATE;
 }
 
-// --- NEW: Helper for HH:MM:SS.mmm format (used by Prime TTML and VTT) ---
-function ttmlTimeToSeconds(timeString) {
-    if (!timeString) return 0;
+function vttTimeToSeconds(timeString) {
     const parts = timeString.split(':');
     let seconds = 0;
     try {
@@ -51,14 +49,9 @@ function ttmlTimeToSeconds(timeString) {
         }
         return seconds;
     } catch(e) {
-        console.error("Error parsing TTML time:", timeString, e);
+        console.error("Error parsing VTT time:", timeString, e);
         return 0;
     }
-}
-
-function vttTimeToSeconds(timeString) {
-    // Reusing the time-code parser for VTT which uses the same format
-    return ttmlTimeToSeconds(timeString);
 }
 
 function getNetflixVideoElement() {
@@ -86,64 +79,6 @@ async function fetchSubtitleContent(url) {
     }
 }
 
-// --- NEW: Prime Video TTML Parser (uses time-code format) ---
-function parsePrimeTtmlXml(xmlString, url) {
-    parsedSubtitles = [];
-    try {
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
-        const errorNode = xmlDoc.querySelector('parsererror');
-        if (errorNode) {
-            console.error("XML Parsing Error:", errorNode.textContent);
-            sendStatusUpdate(`Invalid Prime TTML URL. Please check the source.`, 0, url, 'url');
-            return false;
-        }
-        
-        // Find the language code from the root <tt> tag
-        const ttElement = xmlDoc.querySelector('tt');
-        let detectedLang = null;
-        if (ttElement) {
-            detectedLang = ttElement.getAttribute('xml:lang');
-        }
-
-        const subtitleParagraphs = xmlDoc.querySelectorAll('p');
-        subtitleParagraphs.forEach((p) => {
-            const beginTime = p.getAttribute('begin');
-            const endTime = p.getAttribute('end');
-            let rawHtml = p.innerHTML;
-            
-            // Prime TTML uses <br /> for line breaks
-            let htmlWithSpaces = rawHtml.replace(/<br[\s\S]*?\/>|<br>/gi, ' ');
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = htmlWithSpaces;
-            let text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
-
-            if (beginTime && endTime && text) {
-                parsedSubtitles.push({
-                    begin: ttmlTimeToSeconds(beginTime),
-                    end: ttmlTimeToSeconds(endTime),
-                    text: text,
-                    translatedText: null,
-                    baseWordColors: null,
-                    translatedWordColors: null
-                });
-            }
-        });
-        console.log(`Successfully parsed ${parsedSubtitles.length} Prime TTML subtitles.`);
-        // Store the detected language from the XML itself if available
-        if (detectedLang) {
-            ttElement.setAttribute('data-detected-lang', detectedLang);
-        }
-        return true;
-    } catch (e) {
-        console.error("Fatal error during Prime TTML parsing:", e);
-        sendStatusUpdate("Invalid Prime TTML URL. Parsing failed.", 0, url, 'url');
-        return false;
-    }
-}
-
-
-// --- ORIGINAL Netflix TTML Parser (uses tick format) ---
 function parseTtmlXml(xmlString, url) {
     parsedSubtitles = [];
     try {
@@ -175,10 +110,10 @@ function parseTtmlXml(xmlString, url) {
                 });
             }
         });
-        console.log(`Successfully parsed ${parsedSubtitles.length} Netflix subtitles.`);
+        console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
         return true;
     } catch (e) {
-        console.error("Fatal error during Netflix XML parsing:", e);
+        console.error("Fatal error during XML parsing:", e);
         sendStatusUpdate("Invalid URL retrieved - please repeat URL retrieval steps", 0, url, 'url');
         return false;
     }
@@ -243,18 +178,6 @@ function detectLanguageFromText(sampleText) {
 }
 
 function detectBaseLanguage() {
-    // 1. Check if language was explicitly defined in the XML (e.g., Prime TTML)
-    const ttElement = document.querySelector('#language-stream-window').parentElement.querySelector('tt[data-detected-lang]');
-    if (ttElement) {
-        const langCode = ttElement.getAttribute('data-detected-lang');
-        if (langCode) {
-            // Remove the temporary attribute after retrieval
-            ttElement.removeAttribute('data-detected-lang');
-            return Promise.resolve(langCode.toLowerCase().substring(0, 2)); // Use XML lang attribute first
-        }
-    }
-    
-    // 2. Fallback to sample text detection (for Netflix/YouTube/VTT)
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
     return detectLanguageFromText(sampleText);
 }
@@ -806,7 +729,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // Detect Language from URL (Netflix TTML - Tick format)
+    // Detect Language from URL (Netflix)
     if (request.command === "detect_language") {
         (async () => {
             parsedSubtitles = [];
@@ -822,26 +745,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         })();
         return true;
     }
-    
-    // NEW: Detect Language from URL (Prime TTML - Time-Code format)
-    if (request.command === "detect_language_prime_ttml") {
-        (async () => {
-            parsedSubtitles = [];
-            const xmlContent = await fetchSubtitleContent(request.url);
-            let baseLangCode = null;
-            if (xmlContent) {
-                const parseSuccess = parsePrimeTtmlXml(xmlContent, request.url);
-                if (parseSuccess && parsedSubtitles.length > 0) {
-                    // Check XML's xml:lang first, fallback to text detection
-                    baseLangCode = detectPrimeLangFromXml(xmlContent) || await detectBaseLanguage();
-                }
-            }
-            sendResponse({ url: request.url, baseLangCode: baseLangCode });
-        })();
-        return true;
-    }
 
-    // Detect Language from URL (Disney+ VTT - Time-Code format)
+    // Detect Language from URL (Disney+)
     if (request.command === "detect_language_disney") {
         (async () => {
             parsedSubtitles = [];
@@ -978,8 +883,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // NEW: Process Prime Video TTML URL
-    if (request.command === "process_prime_ttml_url" && request.url) {
+    // NEW: Process Prime Video URL
+    if (request.command === "process_prime_url" && request.url) {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
@@ -999,15 +904,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, url, 'url'); isProcessing = false; return false; }
 
         (async () => {
-            const xmlContent = await fetchSubtitleContent(url);
-            if (!xmlContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Prime Video subtitles.", 0, url, 'url'); isProcessing = false; return; }
+            const vttContent = await fetchSubtitleContent(url);
+            if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Prime Video subtitles.", 0, url, 'url'); isProcessing = false; return; }
             createFloatingWindow();
-            // Use the new Prime TTML parser
-            const parseSuccess = parsePrimeTtmlXml(xmlContent, url);
+            // Prime Video uses VTT, so we can reuse the Disney+ VTT parser
+            const parseSuccess = parseVttContent(vttContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, url, 'url');
-                // Use new detection logic to favor XML's xml:lang
-                subtitleLanguages.base = detectPrimeLangFromXml(xmlContent) || await detectBaseLanguage();
+                subtitleLanguages.base = await detectBaseLanguage();
                 if (isCancelled) { isProcessing = false; return; }
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
