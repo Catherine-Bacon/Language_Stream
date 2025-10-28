@@ -722,14 +722,28 @@ function getVideoElement() {
     video = document.querySelector('#movie_player video.html5-main-video');
     if (video) return video;
 
-    // Fallback for Disney+ (checking both known containers)
+    // --- Fallbacks for Disney+ (now more robust) ---
+    
+    // 1. Try the specific ID you found (Most reliable)
+    video = document.getElementById('hivePlayer1');
+    if (video) return video;
+
+    // 2. Try the class name you found
+    video = document.querySelector('.hive-video');
+    if (video) return video;
+
+    // 3. Try the container class you found
+    video = document.querySelector('.btm-media-client video');
+    if (video) return video;
+
+    // 4. Keep the original selectors as backups
     video = document.querySelector('.btm-media-player-container video');
     if (video) return video;
     
-    video = document.querySelector('#vader_Player video'); // NEW: Check the other container
+    video = document.querySelector('#vader_Player video');
     if (video) return video;
 
-    return null;
+    return null; // No video element found
 }
 // --- END MODIFICATION ---
 
