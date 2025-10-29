@@ -14,10 +14,12 @@ var backgroundAlphaPref = 1.0;
 var fontColorAlphaPref = 1.0;
 var fontShadowPref = 'black_shadow';
 var fontColorPref = 'white';
-var subtitleStylePref = 'netflix';
+var subtitleStylePref = 'netflix'; // Represents 'colourCoding'
 var isProcessing = isProcessing || false;
 var isCancelled = isCancelled || false;
 var currentTranslator = currentTranslator || null;
+// --- NEW: Flag for saving offline ---
+var shouldSaveOffline = shouldSaveOffline || false;
 var TICK_RATE = TICK_RATE || 10000000; // Netflix TTML ticks per second
 
 function sendStatusUpdate(message, progress, url = null, route = 'main') {
@@ -94,7 +96,7 @@ function parseTtmlXml(xmlString, url) {
             return false;
         }
         const subtitleParagraphs = xmlDoc.querySelectorAll('p');
-        
+
         subtitleParagraphs.forEach((p) => {
             const beginTimeStr = p.getAttribute('begin');
             const endTimeStr = p.getAttribute('end');
@@ -118,15 +120,16 @@ function parseTtmlXml(xmlString, url) {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlWithSpaces;
             let text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
-            
+
             if (beginTimeStr && endTimeStr && text) {
                 parsedSubtitles.push({
                     begin: beginSeconds,
                     end: endSeconds,
                     text: text,
                     translatedText: null,
-                    baseWordColors: null,
-                    translatedWordColors: null
+                    // Remove color properties, they are large and derived on demand
+                    // baseWordColors: null,
+                    // translatedWordColors: null
                 });
             }
         });
@@ -169,8 +172,9 @@ function parseVttContent(vttString, url) {
                         end: end,
                         text: text,
                         translatedText: null,
-                        baseWordColors: null,
-                        translatedWordColors: null
+                        // Remove color properties
+                        // baseWordColors: null,
+                        // translatedWordColors: null
                     });
                 }
             }
@@ -220,11 +224,11 @@ function hideNativeSubtitles() {
         nativeSubSelectors = [
             '[data-testid="media-player__subtitle_line"]',
             '.dss-subtitle-renderer-container'
-        ]; 
+        ];
     } else if (hostname.includes('primevideo.com') || hostname.includes('amazon.')) {
         // Prime Video selectors
         nativeSubSelectors = [
-            '.atvwebplayersdk-subtitle-text-container', 
+            '.atvwebplayersdk-subtitle-text-container',
             '.persistent-player-subtitle-container'
         ];
     } else if (hostname.includes('netflix.com')) {
@@ -238,11 +242,11 @@ function hideNativeSubtitles() {
             styleSheet.id = 'ls-style-overrides';
             document.head.appendChild(styleSheet);
         }
-        
-        const cssRules = nativeSubSelectors.map(selector => 
+
+        const cssRules = nativeSubSelectors.map(selector =>
             `${selector} { display: none !important; visibility: hidden !important; }`
         ).join('\n');
-        
+
         styleSheet.textContent = cssRules;
         console.log(`Language Stream: Hiding native subtitles with rules: ${cssRules}`);
     }
@@ -421,8 +425,11 @@ async function processVocabColorCoding(subtitle) {
             }
         }
     }
-    subtitle.baseWordColors = baseWordColors;
-    subtitle.translatedWordColors = translatedWordColors;
+    // Store temporarily for display, but don't save permanently
+    subtitle.tempBaseWordColors = baseWordColors;
+    subtitle.tempTranslatedWordColors = translatedWordColors;
+    // subtitle.baseWordColors = baseWordColors;
+    // subtitle.translatedWordColors = translatedWordColors;
     subtitle.colorCodeCount = colorCodeCounter;
 }
 
@@ -481,6 +488,11 @@ async function translateAllSubtitles(url) {
     if (!isCancelled) {
         sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
         console.log("Native translation process finished.");
+        // --- MODIFICATION: Save if requested ---
+        if (shouldSaveOffline) {
+            await saveSubtitlesOffline();
+        }
+        // --- END MODIFICATION ---
     } else {
         console.log("Translation finished, but process was cancelled.");
     }
@@ -539,12 +551,6 @@ function startSubtitleSync() {
     const baseFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
     let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
     const fontWeight = (subtitleStylePref === 'netflix') ? 'bold' : 'normal';
-
-    // --- MODIFICATION: This block is REMOVED ---
-    // if (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') {
-    //     currentSpanBgColor = 'transparent';
-    // }
-    // --- END MODIFICATION ---
 
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
@@ -616,19 +622,21 @@ function startSubtitleSync() {
 
         if (newIndex !== -1) {
             if (newIndex !== currentSubtitleIndex) {
-                const { text, translatedText, baseWordColors, translatedWordColors } = newSubtitle;
+                // --- MODIFICATION: Use temp color properties ---
+                const { text, translatedText, tempBaseWordColors, tempTranslatedWordColors } = newSubtitle;
+                // --- END MODIFICATION ---
                 let innerHTML = '';
                 if (translatedText) {
                     if (subtitleStylePref === 'vocabulary') {
-                        const baseHtml = buildColorCodedHtml(text, baseWordColors, baseFontColor, true);
-                        const translatedHtml = buildColorCodedHtml(translatedText, translatedWordColors, baseFontColor, false);
+                        // --- MODIFICATION: Use temp color properties ---
+                        const baseHtml = buildColorCodedHtml(text, tempBaseWordColors, baseFontColor, true);
+                        const translatedHtml = buildColorCodedHtml(translatedText, tempTranslatedWordColors, baseFontColor, false);
+                        // --- END MODIFICATION ---
                         innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     } else {
                         const baseHtml = buildSimpleHtml(text, false);
                         const translatedHtml = buildSimpleHtml(translatedText, true);
-                        // --- MODIFICATION: Removed duplicate ${baseHtml} ---
                         innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
-                        // --- END MODIFICATION ---
                     }
                 } else if (!isTranslatedOnly) {
                     const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
@@ -763,7 +771,8 @@ function parseYouTubeTranscript(transcriptText) {
             }
             currentSubtitle = {
                 begin: newTime, end: 0, text: "", translatedText: null,
-                baseWordColors: null, translatedWordColors: null
+                // Remove color properties
+                // baseWordColors: null, translatedWordColors: null
             };
         } else if (currentSubtitle) {
             currentSubtitle.text = (currentSubtitle.text + " " + trimmedLine).trim();
@@ -777,6 +786,101 @@ function parseYouTubeTranscript(transcriptText) {
     return parsedSubtitles.length > 0;
 }
 
+// --- NEW FUNCTION: Get Video Title ---
+function getVideoTitle() {
+    const hostname = window.location.hostname;
+    let title = 'Unknown Title';
+
+    try {
+        if (hostname.includes('youtube.com')) {
+            title = document.querySelector('h1.style-scope.ytd-watch-metadata')?.textContent.trim() ||
+                    document.querySelector('meta[name="title"]')?.content ||
+                    document.title.replace(' - YouTube', '').trim();
+        } else if (hostname.includes('netflix.com')) {
+            title = document.querySelector('.video-title h4')?.textContent.trim() ||
+                    document.querySelector('meta[property="og:title"]')?.content ||
+                    document.title.split(' | ')[0].trim();
+        } else if (hostname.includes('disneyplus.com')) {
+            // Disney titles might be harder due to dynamic loading
+            title = document.querySelector('h1[data-testid="program-title"]')?.textContent.trim() ||
+                    document.querySelector('meta[property="og:title"]')?.content ||
+                    document.title.split(' | ')[0].trim();
+        } else if (hostname.includes('primevideo.com') || hostname.includes('amazon.')) {
+            title = document.querySelector('.atvwebplayersdk-title-text')?.textContent.trim() ||
+                    document.querySelector('h1[data-automation-id="title"]')?.textContent.trim() ||
+                    document.querySelector('meta[property="og:title"]')?.content ||
+                    document.title.split(' - ')[0].split(' | ')[0].trim();
+        }
+    } catch (e) {
+        console.warn("Could not reliably extract video title:", e);
+    }
+    // Clean up potential extra info
+    title = title.replace(/\s+\(.*\)$/, ''); // Remove things like (Official Music Video)
+    return title || 'Unknown Title';
+}
+// --- END NEW FUNCTION ---
+
+// --- NEW FUNCTION: Save Subtitles to Storage ---
+async function saveSubtitlesOffline() {
+    console.log("Attempting to save subtitles for offline use...");
+    if (!parsedSubtitles || parsedSubtitles.length === 0) {
+        console.warn("No parsed subtitles available to save.");
+        return;
+    }
+
+    // Determine the current service mode based on hostname
+    let serviceMode = 'unknown';
+    const hostname = window.location.hostname;
+    if (hostname.includes('youtube.com')) serviceMode = 'youtube';
+    else if (hostname.includes('netflix.com')) serviceMode = 'netflix';
+    else if (hostname.includes('disneyplus.com')) serviceMode = 'disney';
+    else if (hostname.includes('primevideo.com') || hostname.includes('amazon.')) serviceMode = 'prime';
+
+    if (serviceMode === 'unknown') {
+        console.warn("Could not determine service mode for saving.");
+        return;
+    }
+
+    const videoTitle = getVideoTitle();
+    const saveData = {
+        title: videoTitle,
+        baseLang: subtitleLanguages.base,
+        targetLang: subtitleLanguages.target,
+        isTranslatedOnly: isTranslatedOnly,
+        style: subtitleStylePref,
+        timestamp: Date.now(),
+        subtitles: parsedSubtitles // Save the full array
+    };
+
+    try {
+        const data = await chrome.storage.local.get('ls_offline_subtitles');
+        const allSavedSubs = data.ls_offline_subtitles || {}; // { netflix: [], youtube: [], ... }
+
+        if (!allSavedSubs[serviceMode]) {
+            allSavedSubs[serviceMode] = [];
+        }
+
+        // Add the new data
+        allSavedSubs[serviceMode].push(saveData);
+
+        // Optional: Limit the number of saved items per service (e.g., keep last 20)
+        const MAX_SAVED_PER_SERVICE = 20;
+        if (allSavedSubs[serviceMode].length > MAX_SAVED_PER_SERVICE) {
+            // Sort by timestamp descending (newest first) and keep the top N
+            allSavedSubs[serviceMode].sort((a, b) => b.timestamp - a.timestamp);
+            allSavedSubs[serviceMode] = allSavedSubs[serviceMode].slice(0, MAX_SAVED_PER_SERVICE);
+        }
+
+        await chrome.storage.local.set({ 'ls_offline_subtitles': allSavedSubs });
+        console.log(`Subtitles saved successfully for ${serviceMode}: "${videoTitle}"`);
+        // We don't need a status update here, popup shows it on completion message
+    } catch (error) {
+        console.error("Error saving subtitles to chrome.storage.local:", error);
+        // Optionally send an error status update if needed
+        // sendStatusUpdate("Error saving subtitles offline.", 99);
+    }
+}
+// --- END NEW FUNCTION ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Check Language Pair
@@ -861,6 +965,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
+        shouldSaveOffline = request.saveOffline; // --- NEW ---
         fontSizeEm = request.fontSize;
         backgroundColorPref = request.backgroundColor;
         backgroundAlphaPref = request.backgroundAlpha;
@@ -887,7 +992,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url); }
                 startSubtitleSync(); // Call the modified function
-                try { await translateAllSubtitles(url); }
+                try {
+                    await translateAllSubtitles(url);
+                    // Saving now happens inside translateAllSubtitles if needed
+                }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
             } else { if (!isCancelled) sendStatusUpdate("Invalid URL.", 0, url, 'url'); isProcessing = false; }
@@ -903,6 +1011,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
+        shouldSaveOffline = request.saveOffline; // --- NEW ---
         fontSizeEm = request.fontSize;
         backgroundColorPref = request.backgroundColor;
         backgroundAlphaPref = request.backgroundAlpha;
@@ -925,7 +1034,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, null, 'transcript'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, null, 'transcript'); }
                 startSubtitleSync(); // Call the modified function
-                try { await translateAllSubtitles(null); }
+                try {
+                    await translateAllSubtitles(null);
+                    // Saving now happens inside translateAllSubtitles if needed
+                }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
             } else { if (!isCancelled) sendStatusUpdate("Invalid transcript. Please re-paste.", 0, null, 'transcript'); isProcessing = false; }
@@ -942,6 +1054,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
+        shouldSaveOffline = request.saveOffline; // --- NEW ---
         fontSizeEm = request.fontSize;
         backgroundColorPref = request.backgroundColor;
         backgroundAlphaPref = request.backgroundAlpha;
@@ -967,7 +1080,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
                 startSubtitleSync(); // Call the modified function
-                try { await translateAllSubtitles(url); }
+                try {
+                    await translateAllSubtitles(url);
+                     // Saving now happens inside translateAllSubtitles if needed
+                }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
             } else { if (!isCancelled) sendStatusUpdate("Invalid Disney+ URL or content.", 0, url, 'url'); isProcessing = false; }
@@ -984,6 +1100,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
+        shouldSaveOffline = request.saveOffline; // --- NEW ---
         fontSizeEm = request.fontSize;
         backgroundColorPref = request.backgroundColor;
         backgroundAlphaPref = request.backgroundAlpha;
@@ -1009,7 +1126,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, urlStub, 'url'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, urlStub, 'url'); }
                 startSubtitleSync(); // Call the modified function
-                try { await translateAllSubtitles(urlStub); }
+                try {
+                    await translateAllSubtitles(urlStub);
+                    // Saving now happens inside translateAllSubtitles if needed
+                }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
             } else { if (!isCancelled) sendStatusUpdate("Invalid Prime Video file or content.", 0, urlStub, 'url'); isProcessing = false; }
