@@ -1256,8 +1256,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         offlineModeContainer: document.getElementById('offline-mode-container'),
         offlineTitle: document.getElementById('offline-title'),
         savedVideosList: document.getElementById('saved-videos-list'),
-        // --- NEW: Add the instructions text element ---
         offlineInstructionsText: document.getElementById('offlineInstructionsText'),
+        // --- MODIFICATION: Add new button ---
+        displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton')
     };
         
     let languageInputTimer;
