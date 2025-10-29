@@ -34,6 +34,19 @@ const LANGUAGE_MAP = {
 let isCancelledByPopup = false;
 let currentMode = 'netflix'; 
 
+// --- MODIFICATION: Add color helper function ---
+function getModeColor() {
+    switch (currentMode) {
+        case 'youtube': return '#FF0000';
+        case 'disney': return '#0d8199';
+        case 'prime': return '#00A8E1';
+        case 'netflix':
+        default:
+            return '#e50914';
+    }
+}
+// --- END MODIFICATION ---
+
 function updateGenerateButtonState(elements) {
     // MODIFIED: Check transcript/URL/File status for all modes
     const isInputValid = (currentMode === 'netflix' && elements.urlStatusText.style.color === 'green') ||
@@ -242,7 +255,9 @@ async function resetStatus(elements) {
 
     elements.langStatusText.classList.remove('hidden-no-space');
     elements.langStatusText.textContent = "Waiting for language...";
-    elements.langStatusText.style.color = "#e50914";
+    // --- MODIFICATION: Use dynamic mode color ---
+    elements.langStatusText.style.color = getModeColor();
+    // --- END MODIFICATION ---
     
     console.log("Processing status reset completed. Fields cleared.");
     await checkLanguagePairAvailability(elements);
@@ -333,7 +348,9 @@ async function checkLanguagePairAvailability(elements) {
     const inputLang = elements.targetLanguageInput.value.trim().toLowerCase();
     if (inputLang === '') {
         elements.langStatusText.textContent = "Waiting for language...";
-        elements.langStatusText.style.color = "#e50914";
+        // --- MODIFICATION: Use dynamic mode color ---
+        elements.langStatusText.style.color = getModeColor();
+        // --- END MODIFICATION ---
         updateGenerateButtonState(elements);
         return;
     }
@@ -356,7 +373,9 @@ async function checkLanguagePairAvailability(elements) {
 
     if (!targetLangCode) {
         elements.langStatusText.textContent = "Please check language spelling.";
-        elements.langStatusText.style.color = "#e50914";
+        // --- MODIFICATION: Use dynamic mode color ---
+        elements.langStatusText.style.color = getModeColor();
+        // --- END MODIFICATION ---
         updateGenerateButtonState(elements);
         return;
     }
@@ -400,7 +419,9 @@ async function checkLanguagePairAvailability(elements) {
                     else tabType = 'Prime Video'; // NEW
                     
                     elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
-                    elements.langStatusText.style.color = "#e50914";
+                    // --- MODIFICATION: Use dynamic mode color ---
+                    elements.langStatusText.style.color = getModeColor();
+                    // --- END MODIFICATION ---
                     updateGenerateButtonState(elements);
                     return;
                 }
@@ -420,7 +441,9 @@ async function checkLanguagePairAvailability(elements) {
                         elements.langStatusText.style.color = "green";
                     } else {
                         elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                        elements.langStatusText.style.color = "#e5G0914";
+                        // --- MODIFICATION: Use dynamic mode color and fix typo ---
+                        elements.langStatusText.style.color = getModeColor();
+                        // --- END MODIFICATION ---
                     }
                 }
                 updateGenerateButtonState(elements);
@@ -434,7 +457,9 @@ async function checkLanguagePairAvailability(elements) {
                 else tabType = 'Prime Video'; // NEW
                 
                 elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
-                elements.langStatusText.style.color = "#e50914";
+                // --- MODIFICATION: Use dynamic mode color ---
+                elements.langStatusText.style.color = getModeColor();
+                // --- END MODIFICATION ---
                 updateGenerateButtonState(elements);
             });
         }
@@ -448,7 +473,9 @@ async function checkLanguagePairAvailability(elements) {
         else tabType = 'Prime Video'; // NEW
         
         elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
-        elements.langStatusText.style.color = "#e50914";
+        // --- MODIFICATION: Use dynamic mode color ---
+        elements.langStatusText.style.color = getModeColor();
+        // --- END MODIFICATION ---
         updateGenerateButtonState(elements);
     }
 }
@@ -993,7 +1020,9 @@ async function handleConfirmClick(elements) {
         elements.progressBar.style.width = '0%';
         await stopProcessingUI(elements); 
         elements.langStatusText.textContent = `Please check language spelling`;
-        elements.langStatusText.style.color = "#e50914";
+        // --- MODIFICATION: Use dynamic mode color ---
+        elements.langStatusText.style.color = getModeColor();
+        // --- END MODIFICATION ---
         return;
     }
         
