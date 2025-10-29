@@ -141,9 +141,10 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.style.color = '#e50914';
         elements.netflixModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved Netflix Videos"; // NEW
-        // --- NEW: Add placeholder text ---
-        elements.offlineInstructionsText.textContent = "[Placeholder for Netflix offline watching instructions...]";
-        
+        // --- MODIFICATION ---
+        elements.offlineInstructionsText.innerHTML = 
+            "For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.<br>" + 
+            "Select the relevant pre-saved subtitles from the list below then press display";
         if (currentMasterMode === 'online') {
             elements.netflixInputs.classList.remove('hidden-no-space');
             elements.urlStatusText.classList.remove('hidden-no-space');
@@ -160,8 +161,9 @@ function updateUIMode(mode, elements) {
         elements.youtubeModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved YouTube Videos"; // NEW
         // --- NEW: Add placeholder text ---
-        elements.offlineInstructionsText.textContent = "[Placeholder for YouTube offline watching instructions...]";
-
+        elements.offlineInstructionsText.innerHTML = 
+            "Navigate to your downloaded YouTube video on your laptop on youtube.com<br>" + 
+            "Select the relevant pre-saved subtitles from the list below then press display";
         if (currentMasterMode === 'online') {
             elements.youtubeInputs.classList.remove('hidden-no-space');
             elements.transcriptStatusText.classList.remove('hidden-no-space');
@@ -177,8 +179,10 @@ function updateUIMode(mode, elements) {
         elements.disneyModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved Disney+ Videos"; // NEW
         // --- NEW: Add placeholder text ---
-        elements.offlineInstructionsText.textContent = "[Placeholder for Disney+ offline watching instructions...]";
-
+        elements.offlineInstructionsText.innerHTML = 
+            "For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.<br>" + 
+            "Select the relevant pre-saved subtitles from the list below then press display";
+        
         if (currentMasterMode === 'online') {
             elements.disneyInputs.classList.remove('hidden-no-space');
             elements.disneyUrlStatusText.classList.remove('hidden-no-space');
@@ -194,8 +198,9 @@ function updateUIMode(mode, elements) {
         elements.primeModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved Prime Videos"; // NEW
         // --- NEW: Add placeholder text ---
-        elements.offlineInstructionsText.textContent = "[Placeholder for Prime Video offline watching instructions...]";
-
+        elements.offlineInstructionsText.innerHTML = 
+            "For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.<br>" + 
+            "Select the relevant pre-saved subtitles from the list below then press display";
         if (currentMasterMode === 'online') {
             elements.primeInputs.classList.remove('hidden-no-space');
             elements.primeUrlStatusText.classList.remove('hidden-no-space');
