@@ -332,18 +332,11 @@
       #offline-instructions h2 {
          margin-top: 0; /* Remove top margin from the first h2 in offline mode */
       }
-      /* --- MODIFICATION: Removed container styling --- */
-      #offline-instructions p {
-        background-color: transparent;
-        border: none;
-        padding: 0;
-        border-radius: 0;
-        font-style: normal; /* Was italic */
-        color: #333; /* Match default p color */
-        margin-top: 5px;
-        font-size: 0.9em; /* Match default p size */
-      }
-      /* --- END: Offline Instructions Styles --- */
+      
+      /* --- CSS RULE REMOVED --- */
+      /* The rule for #offline-instructions p was here. 
+         It's now gone, so paragraphs inside #offlineInstructionsText 
+         will get default browser margins, matching the online mode. */
 
     </style>
   </head>
@@ -394,7 +387,7 @@
         </div>
         <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
 
-        <p id="transcriptStatusText" class="status-text">&nbsp;</p>
+        <p id="transcriptStatusText" class="status-text">&nbsp;</S>
       </div>
 
       <div id="disneyInputs" class="hidden-no-space">
@@ -478,7 +471,9 @@
     <div id="offline-mode-container" class="hidden-no-space">
       <div id="offline-instructions">
           <h2>Instructions for watching</h2>
-          <p id="offlineInstructionsText">Instructions specific to this service will go here...</p>
+          <div id="offlineInstructionsText">
+              <p>Instructions specific to this service will go here...</p>
+          </div>
           </div>
       <h2 id="offline-title">Saved Videos</h2>
       <div id="saved-videos-list">
