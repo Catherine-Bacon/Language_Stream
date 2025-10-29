@@ -23,10 +23,13 @@ var shouldSaveOffline = shouldSaveOffline || false;
 var TICK_RATE = TICK_RATE || 10000000; // Netflix TTML ticks per second
 
 function sendStatusUpdate(message, progress, url = null, route = 'main') {
-    if (isCancelled) return;
-    chrome.storage.local.set({ 'ls_status': { message: message, progress: progress, baseLang: subtitleLanguages.base, targetLang: subtitleLanguages.target, url: progress < 100 ? url : null } }).catch(e => console.error("Could not save status to storage:", e));
-    chrome.runtime.sendMessage({ command: "update_status", message: message, progress: progress, route: route }).catch(e => { if (!e.message.includes('Receiving end does not exist')) console.warn("Content Script Messaging Error:", e); });
+    if (isCancelled && progress < 100) return; // Allow final cancellation message if needed
+    // Ensure progress doesn't exceed 100
+    const cappedProgress = Math.min(progress, 100);
+    chrome.storage.local.set({ 'ls_status': { message: message, progress: cappedProgress, baseLang: subtitleLanguages.base, targetLang: subtitleLanguages.target, url: cappedProgress < 100 ? url : null } }).catch(e => console.error("Could not save status to storage:", e));
+    chrome.runtime.sendMessage({ command: "update_status", message: message, progress: cappedProgress, route: route }).catch(e => { if (!e.message.includes('Receiving end does not exist')) console.warn("Content Script Messaging Error:", e); });
 }
+
 
 function ticksToSeconds(tickString) {
     if (!tickString) return 0;
@@ -433,6 +436,7 @@ async function processVocabColorCoding(subtitle) {
     subtitle.colorCodeCount = colorCodeCounter;
 }
 
+// --- MODIFICATION: Added saving step ---
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
@@ -442,12 +446,14 @@ async function translateAllSubtitles(url) {
     const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
     const START_PROGRESS = 60;
     const isVocab = (subtitleStylePref === 'vocabulary');
-    const TRANSLATION_WEIGHT = isVocab ? 20 : 30;
-    const MATCHING_WEIGHT = isVocab ? 10 : 0;
+    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; // Weight for translation part
+    const MATCHING_WEIGHT = isVocab ? 10 : 0; // Weight for matching part
     const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT;
     const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? 20 : 30;
     const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
     const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT;
+    // --- NEW: Define final progress step before 100 ---
+    const SAVING_PROGRESS_POINT = 98; // Use 98% to indicate saving step
 
     sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
 
@@ -474,10 +480,14 @@ async function translateAllSubtitles(url) {
         }
         if (index % 5 === 0 || index === concurrentBatch.length - 1) {
             const progressRatio = (index + 1) / concurrentBatch.length;
+            // Cap progress just below saving point if saving is needed
+            const maxProgressBeforeSave = shouldSaveOffline ? SAVING_PROGRESS_POINT - 1 : 99;
             const progress = CONCURRENT_START_PROGRESS + Math.floor(progressRatio * CONCURRENT_BATCH_TOTAL_WEIGHT);
-            if (progress < 100) {
+            const displayProgress = Math.min(progress, maxProgressBeforeSave); // Cap before saving step
+
+            if (displayProgress < 100) {
                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
-                sendStatusUpdate(`First ${totalReady} lines ready to watch!`, progress, url);
+                sendStatusUpdate(`First ${totalReady} lines ready to watch!`, displayProgress, url);
             }
         }
         return sub.translatedText;
@@ -486,17 +496,22 @@ async function translateAllSubtitles(url) {
     await Promise.all(translationPromises);
 
     if (!isCancelled) {
-        sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url);
-        console.log("Native translation process finished.");
-        // --- MODIFICATION: Save if requested ---
+        console.log("Translation complete. Checking if saving is needed...");
+        // --- MODIFICATION: Save if requested BEFORE sending 100% ---
         if (shouldSaveOffline) {
-            await saveSubtitlesOffline();
+            sendStatusUpdate("Saving subtitles for offline use...", SAVING_PROGRESS_POINT, url);
+            await saveSubtitlesOffline(); // Wait for save to complete
+            sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url); // Final 100% after saving
+        } else {
+            sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url); // Final 100% immediately
         }
+        console.log("Native translation and saving (if applicable) process finished.");
         // --- END MODIFICATION ---
     } else {
         console.log("Translation finished, but process was cancelled.");
     }
 }
+// --- END MODIFICATION ---
 
 function getFontSizeEm(preference) {
     switch (preference) {
