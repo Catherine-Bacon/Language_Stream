@@ -215,7 +215,9 @@ function createFloatingWindow() {
     } else {
         const windowDiv = document.createElement('div');
         windowDiv.id = 'language-stream-window';
-        windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
+        // --- MODIFICATION: Changed 'position: absolute' to 'position: fixed' ---
+        windowDiv.style.cssText = `position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
+        // --- END MODIFICATION ---
         makeDraggable(windowDiv);
 
         let playerContainer = getNetflixPlayerContainer(); // Try Netflix first
@@ -226,12 +228,11 @@ function createFloatingWindow() {
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
 
-        // --- MODIFICATION HERE ---
-        // Removed 'dv-web-player' to prevent breaking the Prime Video UI
+        // This block (from the previous fix) is still correct.
+        // We do NOT want to apply 'position: relative' to 'dv-web-player'.
         if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container'))) {
             playerContainer.style.position = 'relative';
         }
-        // --- END MODIFICATION ---
 
         floatingWindow = windowDiv;
     }
