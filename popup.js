@@ -140,11 +140,11 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#e50914';
         elements.netflixModeButton.classList.add('active');
-        elements.offlineTitle.textContent = "Saved Netflix Videos"; // NEW
+        elements.offlineTitle.textContent = "Saved Netflix Subtitles"; // NEW
         // --- MODIFICATION: Use <p> tags ---
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
-            <p>Select the relevant pre-saved subtitles from the list below then press display</p>
+            <p>Select the relevant pre-saved subtitles below > Press display</p>
         `;
         if (currentMasterMode === 'online') {
             elements.netflixInputs.classList.remove('hidden-no-space');
@@ -160,11 +160,11 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#FF0000';
         elements.youtubeModeButton.classList.add('active');
-        elements.offlineTitle.textContent = "Saved YouTube Videos"; // NEW
+        elements.offlineTitle.textContent = "Saved YouTube Subtitles"; // NEW
         // --- MODIFICATION: Use <p> tags ---
         elements.offlineInstructionsText.innerHTML = `
             <p>Navigate to your downloaded YouTube video on your laptop on youtube.com</p>
-            <p>Select the relevant pre-saved subtitles from the list below then press display</p>
+            <p>Select the relevant pre-saved subtitles below > Press display</p>
         `;
         if (currentMasterMode === 'online') {
             elements.youtubeInputs.classList.remove('hidden-no-space');
@@ -179,11 +179,11 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#0d8199';
         elements.disneyModeButton.classList.add('active');
-        elements.offlineTitle.textContent = "Saved Disney+ Videos"; // NEW
+        elements.offlineTitle.textContent = "Saved Disney+ Subtitles"; // NEW
         // --- MODIFICATION: Use <p> tags ---
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
-            <p>Select the relevant pre-saved subtitles from the list below then press display</p>
+            <p>Select the relevant pre-saved subtitles below > Press display</p>
         `;
         
         if (currentMasterMode === 'online') {
@@ -199,11 +199,11 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#00A8E1';
         elements.primeModeButton.classList.add('active');
-        elements.offlineTitle.textContent = "Saved Prime Videos"; // NEW
+        elements.offlineTitle.textContent = "Saved Prime Video Subtitles"; // NEW
         // --- MODIFICATION: Use <p> tags ---
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
-            <p>Select the relevant pre-saved subtitles from the list below then press display</p>
+            <p>Select the relevant pre-saved subtitles below > Press display</p>
         `;
         if (currentMasterMode === 'online') {
             elements.primeInputs.classList.remove('hidden-no-space');
