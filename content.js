@@ -4,7 +4,6 @@ var parsedSubtitles = parsedSubtitles || [];
 var syncInterval = syncInterval || null;
 // NEW: Variable to hold the Disney+ time element if found
 var disneyTimeElement = disneyTimeElement || null;
-// REMOVED: primeTimeElement was unused
 var subtitleLanguages = subtitleLanguages || { base: '', target: '' };
 var translationCache = translationCache || {};
 var isTranslatedOnly = isTranslatedOnly || false;
@@ -227,9 +226,12 @@ function createFloatingWindow() {
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
 
-        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container') || playerContainer.id === 'dv-web-player')) {
+        // --- MODIFICATION HERE ---
+        // Removed 'dv-web-player' to prevent breaking the Prime Video UI
+        if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container'))) {
             playerContainer.style.position = 'relative';
         }
+        // --- END MODIFICATION ---
 
         floatingWindow = windowDiv;
     }
@@ -482,7 +484,6 @@ function getIndexedColor(index, alpha) {
 function startSubtitleSync() {
     if (syncInterval) clearInterval(syncInterval);
     disneyTimeElement = null; // Reset disney element reference
-    // primeTimeElement = null; // REMOVED
     let currentSubtitleIndex = -1;
     let lastTime = -1; // Initialize to -1 to ensure first run
     if (floatingWindow) floatingWindow.style.display = 'block';
@@ -577,7 +578,7 @@ function startSubtitleSync() {
                     } else {
                         const baseHtml = buildSimpleHtml(text, false);
                         const translatedHtml = buildSimpleHtml(translatedText, true);
-                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
+                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${baseHtml}<br>${translatedHtml}`;
                     }
                 } else if (!isTranslatedOnly) {
                     const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
@@ -972,7 +973,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         // Reset element references on cancel
         disneyTimeElement = null;
-        // primeTimeElement = null; // REMOVED
         if (floatingWindow) {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';
