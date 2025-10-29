@@ -141,6 +141,8 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.style.color = '#e50914';
         elements.netflixModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved Netflix Videos"; // NEW
+        // --- NEW: Add placeholder text ---
+        elements.offlineInstructionsText.textContent = "[Placeholder for Netflix offline watching instructions...]";
         
         if (currentMasterMode === 'online') {
             elements.netflixInputs.classList.remove('hidden-no-space');
@@ -157,6 +159,8 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.style.color = '#FF0000';
         elements.youtubeModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved YouTube Videos"; // NEW
+        // --- NEW: Add placeholder text ---
+        elements.offlineInstructionsText.textContent = "[Placeholder for YouTube offline watching instructions...]";
 
         if (currentMasterMode === 'online') {
             elements.youtubeInputs.classList.remove('hidden-no-space');
@@ -172,6 +176,8 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.style.color = '#0d8199';
         elements.disneyModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved Disney+ Videos"; // NEW
+        // --- NEW: Add placeholder text ---
+        elements.offlineInstructionsText.textContent = "[Placeholder for Disney+ offline watching instructions...]";
 
         if (currentMasterMode === 'online') {
             elements.disneyInputs.classList.remove('hidden-no-space');
@@ -187,6 +193,8 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.style.color = '#00A8E1';
         elements.primeModeButton.classList.add('active');
         elements.offlineTitle.textContent = "Saved Prime Videos"; // NEW
+        // --- NEW: Add placeholder text ---
+        elements.offlineInstructionsText.textContent = "[Placeholder for Prime Video offline watching instructions...]";
 
         if (currentMasterMode === 'online') {
             elements.primeInputs.classList.remove('hidden-no-space');
@@ -1239,6 +1247,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         offlineModeContainer: document.getElementById('offline-mode-container'),
         offlineTitle: document.getElementById('offline-title'),
         savedVideosList: document.getElementById('saved-videos-list'),
+        // --- NEW: Add the instructions text element ---
+        offlineInstructionsText: document.getElementById('offlineInstructionsText'),
     };
         
     let languageInputTimer;

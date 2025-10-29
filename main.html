@@ -1,3 +1,4 @@
+Gemini
 <html>
   <head>
     <style>
@@ -6,7 +7,7 @@
         padding: 15px 15px 10px 15px;
         width: 350px;
         /* Start with Netflix height, JS will adjust */
-        height: 485px; 
+        height: 485px;
         overflow-y: hidden;
         padding-top: 50px;
         position: relative;
@@ -73,7 +74,7 @@
         font-weight: bold;
         transition: background-color 0.2s, color 0.2s;
         /* --- NEW: Add border radius to inner buttons --- */
-        border-radius: 4px; 
+        border-radius: 4px;
       }
       .master-mode-btn:first-child {
         margin-right: 2px; /* Add small gap */
@@ -94,7 +95,7 @@
         color: #e50914; /* Netflix Red */
         font-size: 1.5em;
         margin-top: 0px;
-        margin-bottom: 0px; 
+        margin-bottom: 0px;
         position: absolute;
         top: 12px;
         left: 15px;
@@ -103,8 +104,8 @@
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
         padding-bottom: 5px;
-        margin-top: 10px;    
-        margin-bottom: 10px; 
+        margin-top: 10px;
+        margin-bottom: 10px;
       }
       label, p {
         font-size: 0.9em;
@@ -114,7 +115,7 @@
         width: 100%;
         padding: 8px;
         margin-top: 5px;
-        margin-bottom: 0px; 
+        margin-bottom: 0px;
         border-radius: 4px;
         border: 1px solid #ddd;
         box-sizing: border-box;
@@ -138,7 +139,7 @@
         font-weight: bold;
         cursor: pointer;
         transition: background-color 0.2s;
-        margin-top: 0; 
+        margin-top: 0;
         margin-bottom: 5px;
       }
       /* --- NEW: Prime Upload Button Style --- */
@@ -157,11 +158,11 @@
       button:hover {
         background-color: #f40a16;
       }
-      button#cancelButton { 
-        background-color: #777; 
-        margin-top: 15px; 
-        margin-bottom: 0px; 
-        display: block; 
+      button#cancelButton {
+        background-color: #777;
+        margin-top: 15px;
+        margin-bottom: 0px;
+        display: block;
       }
       button#cancelButton:hover {
         background-color: #999;
@@ -176,7 +177,7 @@
       button[disabled]:hover {
         background-color: #cccccc;
       }
-      
+
       .hidden-no-space {
           display: none !important;
           margin-top: 0 !important;
@@ -184,11 +185,11 @@
           padding-top: 0 !important;
           padding-bottom: 0 !important;
           height: 0 !important;
-          visibility: hidden !important; 
+          visibility: hidden !important;
       }
-      
+
       #statusBox {
-        margin-top: 10px; 
+        margin-top: 10px;
         padding: 5px;
         border: 1px solid #eee;
         background-color: #f9f9f9;
@@ -212,8 +213,8 @@
         color: white;
         transition: width 0.3s;
       }
-      
-      h3 { 
+
+      h3 {
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
         padding-bottom: 5px;
@@ -228,21 +229,21 @@
           margin-bottom: 10px;
       }
       .preference-row p {
-          flex-shrink: 0; 
+          flex-shrink: 0;
           margin: 0;
       }
-      
+
       .radio-group {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 10px; 
-        margin-bottom: 0; 
-        padding: 5px 5px; 
+        gap: 10px;
+        margin-bottom: 0;
+        padding: 5px 5px;
         border: 1px solid #ddd;
         border-radius: 4px;
-        flex-grow: 1; 
-        flex-wrap: wrap; 
+        flex-grow: 1;
+        flex-wrap: wrap;
         height: 38px;
         box-sizing: border-box;
       }
@@ -256,18 +257,18 @@
         width: auto;
         margin-right: 5px;
       }
-      
+
       #editStyleSettingsButton {
-          width: 28px; 
-          height: 28px; 
-          padding: 0; 
+          width: 28px;
+          height: 28px;
+          padding: 0;
           margin-left: 10px;
-          align-self: center; 
+          align-self: center;
           margin-top: 2px;
           background-color: #555;
-          line-height: 1; 
+          line-height: 1;
           font-size: 1em;
-          border: none; 
+          border: none;
           flex-shrink: 0;
       }
       #editStyleSettingsButton:hover {
@@ -280,14 +281,14 @@
           width: 100%;
           border: 1px solid #ddd;
           border-radius: 4px;
-          padding: 3px 5px; 
+          padding: 3px 5px;
           height: 38px;
           box-sizing: border-box;
       }
       .style-radio-group {
           display: flex;
           gap: 10px;
-          flex-grow: 1; 
+          flex-grow: 1;
           justify-content: center;
           align-items: center;
       }
@@ -311,10 +312,12 @@
       #saved-videos-list {
         border: 1px solid #ddd;
         border-radius: 4px;
-        height: 300px; /* Fixed height for the list */
+        /* --- MODIFICATION: Adjusted height to make space for instructions --- */
+        height: 200px;
         overflow-y: auto;
         background-color: #f9f9f9;
         padding: 10px;
+        margin-top: 10px; /* Add margin above the list */
       }
       #saved-videos-list p {
         color: #777;
@@ -322,6 +325,25 @@
         margin-top: 20px;
       }
       /* --- END: Offline List Styles --- */
+
+      /* --- NEW: Offline Instructions Styles --- */
+      #offline-instructions {
+        margin-top: 0;
+      }
+      #offline-instructions h2 {
+         margin-top: 0; /* Remove top margin from the first h2 in offline mode */
+      }
+      #offline-instructions p {
+        background-color: #f0f0f0;
+        border: 1px dashed #ccc;
+        padding: 10px;
+        border-radius: 4px;
+        font-style: italic;
+        color: #555;
+        margin-top: 5px;
+        font-size: 0.85em;
+      }
+      /* --- END: Offline Instructions Styles --- */
 
     </style>
   </head>
@@ -352,7 +374,7 @@
         <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
         <div id="urlInstructions">
           <p>Open Netflix's player and  set subtitles to your Base Language</p>
-          <p>Right click video player > Inspect</p>    
+          <p>Right click video player > Inspect</p>
           <p>Press Network > Reload Page</p>
           <p>Search ?o= > Sort by name (descending)</p>
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -360,26 +382,26 @@
           </div>
         </div>
         <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" value="">
-        
+
         <p id="urlStatusText" class="status-text">&nbsp;</p>
       </div>
-      
+
       <div id="youtubeInputs" class="hidden-no-space">
         <h2 id="transcriptHeader">1. Retrieve Transcript</h2>
         <div id="transcriptInstructions">
           <p>Expand the bio below the video</p>
-          <p>Click Show transcript</p>  
+          <p>Click Show transcript</p>
         </div>
         <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
-        
+
         <p id="transcriptStatusText" class="status-text">&nbsp;</p>
       </div>
-      
+
       <div id="disneyInputs" class="hidden-no-space">
         <h2 id="disneyHeader">1. Retrieve Subtitle URL</h2>
         <div id="disneyInstructions">
           <p>Open Disney+'s player and  set subtitles to your Base Language</p>
-          <p>Right click video player > Inspect</p>    
+          <p>Right click video player > Inspect</p>
           <p>Press Network > Reload Page</p>
           <p>Search .vtt > Sort by Size (descending)</p>
           <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -387,7 +409,7 @@
           </div>
         </div>
         <input type="text" id="disneyUrlInput" placeholder="Paste Disney+ Subtitle URL here" value="">
-        
+
         <p id="disneyUrlStatusText" class="status-text">&nbsp;</p>
       </div>
 
@@ -395,7 +417,7 @@
         <h2 id="primeHeader">1. Upload Subtitle File</h2>
         <div id="primeInstructions">
           <p>Open Prime Video's player and set subtitles to your Base Language</p>
-          <p>Right click video player > Inspect</p>    
+          <p>Right click video player > Inspect</p>
           <p>Press Network > Reload Page > Resume</p>
           <div style="display: flex; justify-content: space-between; align-items: center;">
               <p style="margin: 0; padding: 0; margin-bottom: 5px">Search ttml2 > Right click top option > Open in new tab > Save file</p>
@@ -403,7 +425,7 @@
         </div>
         <input type="file" id="primeFileInput" class="hidden-no-space" accept=".ttml,.ttml2,.xml">
         <button id="primeUploadButton" type="button">Upload .ttml2 File</button>
-        
+
         <p id="primeUrlStatusText" class="status-text" style="color: #00A8E1;">&nbsp;</p>
       </div>
 
@@ -413,9 +435,9 @@
 
       <p id="langStatusText" class="status-text">&nbsp;</p>
 
-      
+
       <h3 id="preferencesHeader">3. Select Subtitle Preferences</h3>
-      
+
       <div class="preference-row">
           <p>Mode:</p>
           <div id="subtitleModeGroup" class="radio-group">
@@ -429,7 +451,7 @@
               </label>
           </div>
       </div>
-      
+
       <div class="preference-row" style="margin-bottom: 0;">
           <p>Style:</p>
           <div class="style-selection-group">
@@ -450,10 +472,14 @@
               <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
           </div>
       </div>
-      
+
       <button id="confirmButton">Generate Subtitles</button>
     </div>
     <div id="offline-mode-container" class="hidden-no-space">
+      <div id="offline-instructions">
+          <h2>Instructions for watching</h2>
+          <p id="offlineInstructionsText">Instructions specific to this service will go here...</p>
+          </div>
       <h2 id="offline-title">Saved Videos</h2>
       <div id="saved-videos-list">
         <p>No saved videos found for this service.</p>
@@ -467,7 +493,7 @@
         <div id="progressBar"></div>
       </div>
     </div>
-    
+
     <script src="popup.js"></script>
   </body>
 </html>
