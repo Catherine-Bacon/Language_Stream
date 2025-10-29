@@ -326,23 +326,62 @@
       }
       /* --- END: Checkbox Row Style --- */
       
-      /* --- NEW: Offline List Styles --- */
+      /* --- MODIFICATION: Offline List Styles --- */
       #saved-videos-list {
         border: 1px solid #ddd;
         border-radius: 4px;
-        /* --- MODIFICATION: Adjusted height to make space for instructions --- */
         height: 200px;
         overflow-y: auto;
         background-color: #f9f9f9;
-        padding: 10px;
+        /* MODIFICATION: Remove padding, items will have it */
+        padding: 0;
         margin-top: 10px; /* Add margin above the list */
       }
       #saved-videos-list p {
         color: #777;
         text-align: center;
         margin-top: 20px;
+        padding: 0 10px; /* Add padding for placeholder */
       }
-      /* --- END: Offline List Styles --- */
+      
+      /* --- MODIFICATION START: Styles for Saved Video Items --- */
+      .saved-video-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        border-bottom: 1px solid #eee;
+        font-size: 0.85em;
+      }
+      .saved-video-item span {
+        flex-grow: 1;
+        margin-right: 10px;
+        cursor: pointer;
+        /* Truncate text if too long */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .delete-sub-btn {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        border: 1px solid #ccc;
+        background: #f0f0f0;
+        color: #333;
+        cursor: pointer;
+        border-radius: 50%;
+        font-size: 0.9em;
+        line-height: 20px;
+        padding: 0;
+        font-weight: bold;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      .delete-sub-btn:hover {
+        background-color: #e0e0e0;
+        color: #e50914; /* Use brand red */
+      }
+      /* --- MODIFICATION END --- */
 
       /* --- MODIFICATION: Offline Instructions Styles --- */
       #offline-instructions {

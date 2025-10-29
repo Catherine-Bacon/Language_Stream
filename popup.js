@@ -72,9 +72,12 @@ async function loadSavedVideos(mode, elements) {
         subsForThisService.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         subsForThisService.forEach(savedSub => {
+            // --- MODIFICATION START: Create list item with delete button ---
             const listItem = document.createElement('div');
-            listItem.style.cssText = 'padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 0.85em;';
-            listItem.title = 'Click to display (functionality not yet implemented)'; // Placeholder title
+            listItem.className = 'saved-video-item';
+
+            const itemText = document.createElement('span');
+            itemText.title = 'Click to display (functionality not yet implemented)'; // Placeholder title
 
             // Build the label string
             const title = savedSub.title || 'Unknown Title';
@@ -82,12 +85,27 @@ async function loadSavedVideos(mode, elements) {
             const targetLang = getLanguageName(savedSub.targetLang || '??');
             const modeText = savedSub.isTranslatedOnly ? 'Translated' : 'Dual';
             const styleText = (savedSub.style || 'N/A').charAt(0).toUpperCase() + (savedSub.style || 'N/A').slice(1);
-            listItem.textContent = `${title} - ${baseLang} to ${targetLang} - ${modeText} - ${styleText}`;
+            itemText.textContent = `${title} - ${baseLang} to ${targetLang} - ${modeText} - ${styleText}`;
+            
+            // TODO: Add click listener to itemText to handle displaying subtitles
+            // itemText.addEventListener('click', () => { /* ... logic to display savedSub.subtitles ... */ });
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'X';
+            deleteButton.className = 'delete-sub-btn';
+            deleteButton.title = 'Delete this subtitle';
+            
+            // Add click listener for deletion
+            deleteButton.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent any parent click
+                // Call the new delete function
+                deleteSavedSubtitle(mode, savedSub.timestamp, elements);
+            });
 
-            // TODO: Add click listener to listItem to handle displaying subtitles
-            // listItem.addEventListener('click', () => { /* ... logic to display savedSub.subtitles ... */ });
-
+            listItem.appendChild(itemText);
+            listItem.appendChild(deleteButton);
             elements.savedVideosList.appendChild(listItem);
+            // --- MODIFICATION END ---
         });
 
     } catch (error) {
@@ -96,6 +114,43 @@ async function loadSavedVideos(mode, elements) {
     }
 }
 // --- END MODIFICATION ---
+
+// --- MODIFICATION START: New function to delete saved subtitles ---
+async function deleteSavedSubtitle(mode, timestamp, elements) {
+    console.log(`Attempting to delete subtitle for ${mode} with timestamp: ${timestamp}`);
+    try {
+        const data = await chrome.storage.local.get('ls_offline_subtitles');
+        const allSavedSubs = data.ls_offline_subtitles || {};
+
+        if (!allSavedSubs[mode]) {
+            console.warn("No subtitles found for this mode to delete from.");
+            return;
+        }
+
+        const originalCount = allSavedSubs[mode].length;
+
+        // Filter out the item with the matching timestamp
+        allSavedSubs[mode] = allSavedSubs[mode].filter(sub => sub.timestamp !== timestamp);
+
+        const newCount = allSavedSubs[mode].length;
+
+        if (newCount === originalCount) {
+            console.warn("Could not find subtitle with that timestamp to delete.");
+        }
+
+        // Save the modified object back
+        await chrome.storage.local.set({ 'ls_offline_subtitles': allSavedSubs });
+        console.log("Subtitle deleted. Refreshing list.");
+
+        // Refresh the UI by reloading the list
+        loadSavedVideos(mode, elements);
+
+    } catch (error) {
+        console.error("Error deleting subtitle:", error);
+        elements.savedVideosList.innerHTML = '<p>Error occurred while deleting.</p>';
+    }
+}
+// --- MODIFICATION END ---
 
 // --- NEW: Master Mode Toggle Function ---
 function updateMasterMode(masterMode, elements) {
