@@ -151,7 +151,7 @@
       }
       /* --- END --- */
       #confirmButton {
-        margin-top: 15px;
+        margin-top: 10px; /* MODIFIED: Was 15px */
         margin-bottom: 0;
       }
       button:hover {
@@ -307,6 +307,25 @@
         color: #e50914;
         font-weight: bold;
       }
+      
+      /* --- NEW: Checkbox Row Style --- */
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        margin-top: 15px;
+      }
+      .checkbox-row input[type="checkbox"] {
+          width: auto;
+          margin-top: 0;
+          margin-bottom: 0;
+      }
+      .checkbox-row label {
+          margin-left: 8px;
+          cursor: pointer;
+          margin-bottom: 0; 
+      }
+      /* --- END: Checkbox Row Style --- */
+      
       /* --- NEW: Offline List Styles --- */
       #saved-videos-list {
         border: 1px solid #ddd;
@@ -464,6 +483,11 @@
                   </div>
               <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
           </div>
+      </div>
+      
+      <div class="checkbox-row">
+          <input type="checkbox" id="saveForOfflineCheckbox" name="saveForOffline">
+          <label for="saveForOfflineCheckbox">Save subtitles for offline mode</label>
       </div>
 
       <button id="confirmButton">Generate Subtitles</button>

@@ -283,6 +283,9 @@ async function resetStatus(elements) {
     elements.editStyleSettingsButton.disabled = false;
     elements.editStyleSettingsButton.title = `Edit Netflix Settings`;
 
+    // --- NEW: Reset checkbox ---
+    elements.saveForOfflineCheckbox.checked = false;
+
     elements.confirmButton.disabled = true;
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
@@ -352,6 +355,7 @@ async function stopProcessingUI(elements) {
     
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
+    elements.saveForOfflineCheckbox.disabled = false; // --- NEW ---
 
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
@@ -910,6 +914,7 @@ async function loadSavedStatus(elements) {
             elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
             elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
             elements.editStyleSettingsButton.disabled = true;
+            elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
             
             elements.cancelButton.classList.remove('hidden-no-space');
             elements.cancelButton.textContent = (status.progress < 100) ? "Cancel Subtitle Generation" : "Clear Subtitles";
@@ -985,6 +990,7 @@ async function handleConfirmClick(elements) {
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
     elements.editStyleSettingsButton.disabled = true;
+    elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
 
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
@@ -1257,8 +1263,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         offlineTitle: document.getElementById('offline-title'),
         savedVideosList: document.getElementById('saved-videos-list'),
         offlineInstructionsText: document.getElementById('offlineInstructionsText'),
-        // --- MODIFICATION: Add new button ---
-        displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton')
+        displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton'),
+        // --- MODIFICATION: Add new checkbox ---
+        saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox')
     };
         
     let languageInputTimer;
@@ -1466,6 +1473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
+                elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
                     
                 elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
@@ -1484,6 +1492,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
                 elements.editStyleSettingsButton.disabled = true;
+                elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
             } else {
