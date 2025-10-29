@@ -1,3 +1,4 @@
+/* --- content.js (ZMODYFIKOWANY) --- */
 // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
 var floatingWindow = floatingWindow || null;
 var parsedSubtitles = parsedSubtitles || [];
@@ -203,6 +204,50 @@ function detectBaseLanguage() {
     const sampleText = parsedSubtitles.slice(0, 50).map(sub => sub.text).join(' ').slice(0, 1000);
     return detectLanguageFromText(sampleText);
 }
+
+// --- NEW FUNCTION: Hides native subtitles on all platforms ---
+function hideNativeSubtitles() {
+    const hostname = window.location.hostname;
+    let nativeSubSelectors = [];
+
+    if (hostname.includes('youtube.com')) {
+        nativeSubSelectors = [
+            '.ytp-caption-segment',
+            '.ytp-caption-window'
+        ];
+    } else if (hostname.includes('disneyplus.com')) {
+        // This is a guess for Disney's shadow DOM or container
+        nativeSubSelectors = [
+            '[data-testid="media-player__subtitle_line"]',
+            '.dss-subtitle-renderer-container'
+        ]; 
+    } else if (hostname.includes('primevideo.com') || hostname.includes('amazon.')) {
+        // Prime Video selectors
+        nativeSubSelectors = [
+            '.atvwebplayersdk-subtitle-text-container', 
+            '.persistent-player-subtitle-container'
+        ];
+    } else if (hostname.includes('netflix.com')) {
+        nativeSubSelectors = ['.player-timedtext-text-container'];
+    }
+
+    if (nativeSubSelectors.length > 0) {
+        let styleSheet = document.getElementById('ls-style-overrides');
+        if (!styleSheet) {
+            styleSheet = document.createElement('style');
+            styleSheet.id = 'ls-style-overrides';
+            document.head.appendChild(styleSheet);
+        }
+        
+        const cssRules = nativeSubSelectors.map(selector => 
+            `${selector} { display: none !important; visibility: hidden !important; }`
+        ).join('\n');
+        
+        styleSheet.textContent = cssRules;
+        console.log(`Language Stream: Hiding native subtitles with rules: ${cssRules}`);
+    }
+}
+// --- END NEW FUNCTION ---
 
 function createFloatingWindow() {
     let existingWindow = document.getElementById('language-stream-window');
@@ -495,9 +540,11 @@ function startSubtitleSync() {
     let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
     const fontWeight = (subtitleStylePref === 'netflix') ? 'bold' : 'normal';
 
-    if (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') {
-        currentSpanBgColor = 'transparent';
-    }
+    // --- MODIFICATION: This block is REMOVED ---
+    // if (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') {
+    //     currentSpanBgColor = 'transparent';
+    // }
+    // --- END MODIFICATION ---
 
     if (floatingWindow) {
         floatingWindow.style.textShadow = currentFontShadow;
@@ -830,6 +877,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const xmlContent = await fetchSubtitleContent(url);
             if (!xmlContent || isCancelled) { isProcessing = false; return; }
             createFloatingWindow();
+            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
             disableNetflixSubObserver();
             const parseSuccess = parseTtmlXml(xmlContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
@@ -868,6 +916,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         (async () => {
             createFloatingWindow();
+            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
             const parseSuccess = parseYouTubeTranscript(request.transcript);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, null, 'transcript');
@@ -909,6 +958,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const vttContent = await fetchSubtitleContent(url);
             if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Disney+ subtitles.", 0, url, 'url'); isProcessing = false; return; }
             createFloatingWindow();
+            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
             const parseSuccess = parseVttContent(vttContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, url, 'url');
@@ -949,6 +999,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         (async () => {
             const ttmlContent = request.ttmlString;
             createFloatingWindow();
+            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
             // Prime Video uses TTML, so we reuse the TTML parser
             const parseSuccess = parseTtmlXml(ttmlContent, urlStub);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
@@ -980,6 +1031,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';
         }
+        // --- MODIFICATION: Clear style overrides on cancel ---
+        let styleSheet = document.getElementById('ls-style-overrides');
+        if (styleSheet) {
+            styleSheet.textContent = ''; // Clear the rules
+        }
+        // --- END MODIFICATION ---
         isProcessing = false;
         (async () => { await chrome.storage.local.remove(['ls_status']); console.log("Processing cancelled. Cleared status from storage."); })();
         return false;
