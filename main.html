@@ -51,6 +51,36 @@
       }
       /* --- END: Mode Switchter Styles --- */
 
+      /* --- NEW: Master Mode Toggle Styles --- */
+      .master-mode-switcher {
+        display: flex;
+        width: 100%;
+        margin-top: 0;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid #ccc;
+      }
+      .master-mode-btn {
+        width: 50%;
+        padding: 8px;
+        background-color: #f0f0f0;
+        color: #555;
+        border: none;
+        cursor: pointer;
+        font-size: 0.9em;
+        font-weight: bold;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      .master-mode-btn:hover {
+        background-color: #e0e0e0;
+      }
+      .master-mode-btn.active {
+        background-color: #4CAF50;
+        color: white;
+      }
+      /* --- END: Master Mode Styles --- */
+
       h1 {
         color: #e50914; /* Netflix Red */
         font-size: 1.5em;
@@ -268,6 +298,21 @@
         color: #e50914;
         font-weight: bold;
       }
+      /* --- NEW: Offline List Styles --- */
+      #saved-videos-list {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        height: 300px; /* Fixed height for the list */
+        overflow-y: auto;
+        background-color: #f9f9f9;
+        padding: 10px;
+      }
+      #saved-videos-list p {
+        color: #777;
+        text-align: center;
+        margin-top: 20px;
+      }
+      /* --- END: Offline List Styles --- */
 
     </style>
   </head>
@@ -280,7 +325,7 @@
       <div class="mode-icon" id="youtubeModeButton" title="YouTube Mode">
         <img src="youtube_icon.png" width="24" height="24" alt="YouTube Mode">
       </div>
-      <div class="mode-icon" id="disneyModeButton" title="Disney+ Mode">
+      <div classs="mode-icon" id="disneyModeButton" title="Disney+ Mode">
         <img src="disney_icon.png" width="24" height="24" alt="Disney+ Mode" style="border-radius: 3px;">
       </div>
       <div class="mode-icon" id="primeModeButton" title="Prime Video Mode">
@@ -288,111 +333,123 @@
       </div>
     </div>
 
-    <div id="netflixInputs">
-      <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
-      <div id="urlInstructions">
-        <p>Open Netflix's player and  set subtitles to your Base Language</p>
-        <p>Right click video player > Inspect</p>    
-        <p>Press Network > Reload Page</p>
-        <p>Search ?o= > Sort by name (descending)</p>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+    <div class="master-mode-switcher">
+      <button id="onlineModeButton" class="master-mode-btn active">Online</button>
+      <button id="offlineModeButton" class="master-mode-btn">Offline</button>
+    </div>
+
+    <div id="online-mode-container">
+      <div id="netflixInputs">
+        <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
+        <div id="urlInstructions">
+          <p>Open Netflix's player and  set subtitles to your Base Language</p>
+          <p>Right click video player > Inspect</p>    
+          <p>Press Network > Reload Page</p>
+          <p>Search ?o= > Sort by name (descending)</p>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name (starting with ?o=) > Copy > Copy URL</p>
+          </div>
         </div>
+        <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" value="">
+        
+        <p id="urlStatusText" class="status-text">&nbsp;</p>
       </div>
-      <input type="text" id="subtitleUrlInput" placeholder="Paste Netflix TTML URL here" value="">
       
-      <p id="urlStatusText" class="status-text">&nbsp;</p>
-    </div>
-    
-    <div id="youtubeInputs" class="hidden-no-space">
-      <h2 id="transcriptHeader">1. Retrieve Transcript</h2>
-      <div id="transcriptInstructions">
-        <p>Expand the bio below the video</p>
-        <p>Click Show transcript</p>  
+      <div id="youtubeInputs" class="hidden-no-space">
+        <h2 id="transcriptHeader">1. Retrieve Transcript</h2>
+        <div id="transcriptInstructions">
+          <p>Expand the bio below the video</p>
+          <p>Click Show transcript</p>  
+        </div>
+        <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
+        
+        <p id="transcriptStatusText" class="status-text">&nbsp;</p>
       </div>
-      <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
       
-      <p id="transcriptStatusText" class="status-text">&nbsp;</p>
-    </div>
-    
-    <div id="disneyInputs" class="hidden-no-space">
-      <h2 id="disneyHeader">1. Retrieve Subtitle URL</h2>
-      <div id="disneyInstructions">
-        <p>Open Disney+'s player and  set subtitles to your Base Language</p>
-        <p>Right click video player > Inspect</p>    
-        <p>Press Network > Reload Page</p>
-        <p>Search .vtt > Sort by Size (descending)</p>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name > Copy > Copy URL</p>
+      <div id="disneyInputs" class="hidden-no-space">
+        <h2 id="disneyHeader">1. Retrieve Subtitle URL</h2>
+        <div id="disneyInstructions">
+          <p>Open Disney+'s player and  set subtitles to your Base Language</p>
+          <p>Right click video player > Inspect</p>    
+          <p>Press Network > Reload Page</p>
+          <p>Search .vtt > Sort by Size (descending)</p>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="margin: 0; padding: 0; margin-bottom: 5px">Right click the top name > Copy > Copy URL</p>
+          </div>
         </div>
+        <input type="text" id="disneyUrlInput" placeholder="Paste Disney+ Subtitle URL here" value="">
+        
+        <p id="disneyUrlStatusText" class="status-text">&nbsp;</p>
       </div>
-      <input type="text" id="disneyUrlInput" placeholder="Paste Disney+ Subtitle URL here" value="">
-      
-      <p id="disneyUrlStatusText" class="status-text">&nbsp;</p>
-    </div>
 
-    <div id="primeInputs" class="hidden-no-space">
-      <h2 id="primeHeader">1. Upload Subtitle File</h2>
-      <div id="primeInstructions">
-        <p>Open Prime Video's player and set subtitles to your Base Language</p>
-        <p>Right click video player > Inspect</p>    
-        <p>Press Network > Reload Page > Resume</p>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <p style="margin: 0; padding: 0; margin-bottom: 5px">Search ttml2 > Right click top option > Open in new tab > Save file</p>
+      <div id="primeInputs" class="hidden-no-space">
+        <h2 id="primeHeader">1. Upload Subtitle File</h2>
+        <div id="primeInstructions">
+          <p>Open Prime Video's player and set subtitles to your Base Language</p>
+          <p>Right click video player > Inspect</p>    
+          <p>Press Network > Reload Page > Resume</p>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+              <p style="margin: 0; padding: 0; margin-bottom: 5px">Search ttml2 > Right click top option > Open in new tab > Save file</p>
+          </div>
         </div>
+        <input type="file" id="primeFileInput" class="hidden-no-space" accept=".ttml,.ttml2,.xml">
+        <button id="primeUploadButton" type="button">Upload .ttml2 File</button>
+        
+        <p id="primeUrlStatusText" class="status-text" style="color: #00A8E1;">&nbsp;</p>
       </div>
-      <input type="file" id="primeFileInput" class="hidden-no-space" accept=".ttml,.ttml2,.xml">
-      <button id="primeUploadButton" type="button">Upload .ttml2 File</button>
+
+
+      <h2 id="languageHeader">2. Select Language</h2>
+      <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
+
+      <p id="langStatusText" class="status-text">&nbsp;</p>
+
       
-      <p id="primeUrlStatusText" class="status-text" style="color: #00A8E1;">&nbsp;</p>
+      <h3 id="preferencesHeader">3. Select Subtitle Preferences</h3>
+      
+      <div class="preference-row">
+          <p>Mode:</p>
+          <div id="subtitleModeGroup" class="radio-group">
+              <label>
+                  <input type="radio" name="subtitleMode" value="dual" id="subtitleModeDual" checked>
+                  Dual
+              </label>
+              <label>
+                  <input type="radio" name="subtitleMode" value="translated_only" id="subtitleModeTranslatedOnly">
+                  Translated
+              </label>
+          </div>
+      </div>
+      
+      <div class="preference-row" style="margin-bottom: 0;">
+          <p>Style:</p>
+          <div class="style-selection-group">
+              <div id="subtitleStyleGroup" class="style-radio-group">
+                  <label>
+                      <input type="radio" name="subtitleStyle" value="netflix" id="subtitleStyleNetflix" checked>
+                      Netflix
+                  </label>
+                  <label>
+                      <input type="radio" name="subtitleStyle" value="custom" id="subtitleStyleCustom">
+                      Custom
+                  </label>
+                  <label>
+                      <input type="radio" name="subtitleStyle" value="vocabulary" id="subtitleStyleVocabulary">
+                      Vocab
+                  </label>
+                  </div>
+              <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
+          </div>
+      </div>
+      
+      <button id="confirmButton">Generate Subtitles</button>
     </div>
-
-
-    <h2 id="languageHeader">2. Select Language</h2>
-    <input type="text" id="targetLanguage" placeholder="Enter language to translate to (2 letter or in full)" value="">
-
-    <p id="langStatusText" class="status-text">&nbsp;</p>
-
-    
-    <h3 id="preferencesHeader">3. Select Subtitle Preferences</h3>
-    
-    <div class="preference-row">
-        <p>Mode:</p>
-        <div id="subtitleModeGroup" class="radio-group">
-            <label>
-                <input type="radio" name="subtitleMode" value="dual" id="subtitleModeDual" checked>
-                Dual
-            </label>
-            <label>
-                <input type="radio" name="subtitleMode" value="translated_only" id="subtitleModeTranslatedOnly">
-                Translated
-            </label>
+    <div id="offline-mode-container" class="hidden-no-space">
+      <h2 id="offline-title">Saved Videos</h2>
+      <div id="saved-videos-list">
+        <p>No saved videos found for this service.</p>
         </div>
     </div>
-    
-    <div class="preference-row" style="margin-bottom: 0;">
-        <p>Style:</p>
-        <div class="style-selection-group">
-            <div id="subtitleStyleGroup" class="style-radio-group">
-                <label>
-                    <input type="radio" name="subtitleStyle" value="netflix" id="subtitleStyleNetflix" checked>
-                    Netflix
-                </label>
-                <label>
-                    <input type="radio" name="subtitleStyle" value="custom" id="subtitleStyleCustom">
-                    Custom
-                </label>
-                <label>
-                    <input type="radio" name="subtitleStyle" value="vocabulary" id="subtitleStyleVocabulary">
-                    Vocab
-                </label>
-                </div>
-            <button id="editStyleSettingsButton" title="Edit Style Settings" disabled>&#x2699;</button>
-        </div>
-    </div>
-    
-    <button id="confirmButton">Generate Subtitles</button>
-    
     <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
 
     <div id="statusBox" class="hidden-no-space">
