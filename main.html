@@ -59,7 +59,8 @@
         margin-bottom: 10px;
         border-radius: 4px;
         overflow: hidden;
-        border: 1px solid #ccc;
+        /* --- MODIFICATION: Removed border --- */
+        /* border: 1px solid #ccc; */
       }
       .master-mode-btn {
         width: 50%;
@@ -71,6 +72,14 @@
         font-size: 0.9em;
         font-weight: bold;
         transition: background-color 0.2s, color 0.2s;
+        /* --- NEW: Add border radius to inner buttons --- */
+        border-radius: 4px; 
+      }
+      .master-mode-btn:first-child {
+        margin-right: 2px; /* Add small gap */
+      }
+      .master-mode-btn:last-child {
+        margin-left: 2px; /* Add small gap */
       }
       .master-mode-btn:hover {
         background-color: #e0e0e0;
@@ -363,7 +372,7 @@
         </div>
         <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
         
-        <p id="transcriptStatusText" class="status-text">&nbsp;</congrats-im-so-proud-of-you-congrats-im-so-proud-of-you-p>
+        <p id="transcriptStatusText" class="status-text">&nbsp;</p>
       </div>
       
       <div id="disneyInputs" class="hidden-no-space">
