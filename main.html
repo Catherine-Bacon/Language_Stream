@@ -1,4 +1,3 @@
-Gemini
 <html>
   <head>
     <style>
@@ -326,22 +325,23 @@ Gemini
       }
       /* --- END: Offline List Styles --- */
 
-      /* --- NEW: Offline Instructions Styles --- */
+      /* --- MODIFICATION: Offline Instructions Styles --- */
       #offline-instructions {
         margin-top: 0;
       }
       #offline-instructions h2 {
          margin-top: 0; /* Remove top margin from the first h2 in offline mode */
       }
+      /* --- MODIFICATION: Removed container styling --- */
       #offline-instructions p {
-        background-color: #f0f0f0;
-        border: 1px dashed #ccc;
-        padding: 10px;
-        border-radius: 4px;
-        font-style: italic;
-        color: #555;
+        background-color: transparent;
+        border: none;
+        padding: 0;
+        border-radius: 0;
+        font-style: normal; /* Was italic */
+        color: #333; /* Match default p color */
         margin-top: 5px;
-        font-size: 0.85em;
+        font-size: 0.9em; /* Match default p size */
       }
       /* --- END: Offline Instructions Styles --- */
 
