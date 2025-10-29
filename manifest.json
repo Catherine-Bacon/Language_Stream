@@ -18,7 +18,12 @@
         "*://*.netflix.com/*", 
         "*://*.youtube.com/*",
         "*://*.disneyplus.com/*",
-        "*://*.primevideo.com/*"
+        "*://*.primevideo.com/*",
+        "*://*.amazon.com/*",
+        "*://*.amazon.co.uk/*",
+        "*://*.amazon.de/*",
+        "*://*.amazon.fr/*",
+        "*://*.amazon.jp/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
@@ -30,7 +35,13 @@
     "https://*.nflxvideo.net/*",
     "*://*.youtube.com/*",
     "*://*.disneyplus.com/*",
-    "*://*.primevideo.com/*"
+    "*://*.primevideo.com/*",
+    "*://*.amazon.com/*",
+    "*://*.amazon.co.uk/*",
+    "*://*.amazon.de/*",
+    "*://*.amazon.us/*",
+    "*://*.amazon.fr/*",
+    "*://*.amazon.jp/*"
   ],
   "web_accessible_resources": []
 }
