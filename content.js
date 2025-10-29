@@ -579,7 +579,9 @@ function startSubtitleSync() {
                     } else {
                         const baseHtml = buildSimpleHtml(text, false);
                         const translatedHtml = buildSimpleHtml(translatedText, true);
-                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${baseHtml}<br>${translatedHtml}`;
+                        // --- MODIFICATION: Removed duplicate ${baseHtml} ---
+                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
+                        // --- END MODIFICATION ---
                     }
                 } else if (!isTranslatedOnly) {
                     const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
