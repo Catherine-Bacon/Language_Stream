@@ -1,3 +1,4 @@
+/* --- popup.js (ZMODYFIKOWANY) --- */
 console.log("1. popup.js script file loaded.");
 
 // --- MODIFICATION: Define heights for all modes ---
@@ -202,6 +203,8 @@ async function resetStatus(elements) {
     elements.youtubeTranscriptInput.disabled = false;
     elements.disneyUrlInput.disabled = false;
     elements.primeUploadButton.disabled = false; // NEW: Enable Prime button
+    // --- MODIFICATION: Reset Prime button text ---
+    elements.primeUploadButton.textContent = "Upload .ttml2 File";
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -417,7 +420,7 @@ async function checkLanguagePairAvailability(elements) {
                         elements.langStatusText.style.color = "green";
                     } else {
                         elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                        elements.langStatusText.style.color = "#e50914";
+                        elements.langStatusText.style.color = "#e5G0914";
                     }
                 }
                 updateGenerateButtonState(elements);
@@ -460,16 +463,22 @@ async function checkPrimeFileStatus(elements) {
     if (data.prime_file_content && data.detected_base_lang_name) {
         elements.primeUrlStatusText.textContent = `${data.detected_base_lang_name} file ready to translate!`;
         elements.primeUrlStatusText.style.color = "green";
+        // --- MODIFICATION: Set button text ---
+        elements.primeUploadButton.textContent = "Clear Uploaded TTML";
     } else if (data.prime_file_content) {
         // This case might happen if detection failed but file is loaded
         elements.primeUrlStatusText.textContent = "File uploaded. Detecting language...";
         elements.primeUrlStatusText.style.color = "#00A8E1";
+        // --- MODIFICATION: Set button text ---
+        elements.primeUploadButton.textContent = "Clear Uploaded TTML";
         // We should re-trigger detection
         // This is an async call, but we don't need to await it here, it will update UI when done
         checkPrimeFileAndDetectLanguage(elements, data.prime_file_content);
     } else {
         elements.primeUrlStatusText.textContent = "Waiting for file upload...";
         elements.primeUrlStatusText.style.color = "#00A8E1";
+        // --- MODIFICATION: Set button text ---
+        elements.primeUploadButton.textContent = "Upload .ttml2 File";
     }
     updateGenerateButtonState(elements);
 }
@@ -1271,9 +1280,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     });
 
-    // --- NEW: Prime Video File Input Listeners ---
+    // --- MODIFICATION: Prime Video File Input Listeners ---
     elements.primeUploadButton.addEventListener('click', () => {
-        elements.primeFileInput.click(); // Trigger hidden file input
+        // NEW: Check button's current function
+        if (elements.primeUploadButton.textContent === "Clear Uploaded TTML") {
+            // --- BEGIN CLEAR LOGIC ---
+            chrome.storage.local.remove([
+                'prime_file_content', 
+                'detected_base_lang_name', 
+                'detected_base_lang_code'
+            ], () => {
+                elements.primeFileInput.value = ''; // Reset file input
+                elements.primeUrlStatusText.textContent = "Waiting for file upload...";
+                elements.primeUrlStatusText.style.color = "#00A8E1";
+                elements.primeUploadButton.textContent = "Upload .ttml2 File";
+                updateGenerateButtonState(elements);
+                checkLanguagePairAvailability(elements);
+                console.log("Prime file content cleared.");
+            });
+            // --- END CLEAR LOGIC ---
+        } else {
+            // Original behavior: Trigger hidden file input
+            elements.primeFileInput.click(); 
+        }
     });
 
     elements.primeFileInput.addEventListener('change', (e) => {
@@ -1292,6 +1321,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             // Save content to storage and trigger detection
             chrome.storage.local.set({ 'prime_file_content': ttmlString }, () => {
+                // --- MODIFICATION: Set button text ---
+                elements.primeUploadButton.textContent = "Clear Uploaded TTML";
                 checkPrimeFileAndDetectLanguage(elements, ttmlString);
                 saveCurrentInputs(elements); // This just saves other inputs like lang
             });
@@ -1302,7 +1333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         reader.readAsText(file);
     });
-    // --- END NEW ---
+    // --- END MODIFICATION ---
 
 
     // Target language input listener
