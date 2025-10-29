@@ -33,6 +33,7 @@ function ticksToSeconds(tickString) {
 }
 
 function vttTimeToSeconds(timeString) {
+    if (!timeString) return 0; // Handle null or undefined
     const parts = timeString.split(':');
     let seconds = 0;
     try {
@@ -46,9 +47,9 @@ function vttTimeToSeconds(timeString) {
         } else {
             seconds = parseFloat(timeString); // Failsafe for just seconds
         }
-        return seconds;
+        return isNaN(seconds) ? 0 : seconds; // Ensure we return a number
     } catch(e) {
-        console.error("Error parsing VTT time:", timeString, e);
+        console.error("Error parsing VTT/Time time:", timeString, e);
         return 0;
     }
 }
@@ -78,6 +79,7 @@ async function fetchSubtitleContent(url) {
     }
 }
 
+// --- MODIFIED: This function now supports both time formats ---
 function parseTtmlXml(xmlString, url) {
     parsedSubtitles = [];
     try {
@@ -92,18 +94,35 @@ function parseTtmlXml(xmlString, url) {
             return false;
         }
         const subtitleParagraphs = xmlDoc.querySelectorAll('p');
+        
         subtitleParagraphs.forEach((p) => {
-            const beginTick = p.getAttribute('begin');
-            const endTick = p.getAttribute('end');
+            const beginTimeStr = p.getAttribute('begin');
+            const endTimeStr = p.getAttribute('end');
+            let beginSeconds, endSeconds;
+
+            // Check format and parse accordingly
+            if (beginTimeStr && beginTimeStr.includes(':')) {
+                beginSeconds = vttTimeToSeconds(beginTimeStr); // Use VTT parser for HH:MM:SS.mmm
+            } else {
+                beginSeconds = ticksToSeconds(beginTimeStr); // Use ticks parser for Netflix
+            }
+
+            if (endTimeStr && endTimeStr.includes(':')) {
+                endSeconds = vttTimeToSeconds(endTimeStr);
+            } else {
+                endSeconds = ticksToSeconds(endTimeStr);
+            }
+
             let rawHtml = p.innerHTML;
             let htmlWithSpaces = rawHtml.replace(/<br[\s\S]*?\/>|<br>/gi, ' ');
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlWithSpaces;
             let text = tempDiv.textContent.replace(/\s+/g, ' ').trim();
-            if (beginTick && endTick && text) {
+            
+            if (beginTimeStr && endTimeStr && text) {
                 parsedSubtitles.push({
-                    begin: ticksToSeconds(beginTick),
-                    end: ticksToSeconds(endTick),
+                    begin: beginSeconds,
+                    end: endSeconds,
                     text: text,
                     translatedText: null,
                     baseWordColors: null,
@@ -121,6 +140,7 @@ function parseTtmlXml(xmlString, url) {
         return false;
     }
 }
+// --- END MODIFICATION ---
 
 function parseVttContent(vttString, url) {
     parsedSubtitles = [];
