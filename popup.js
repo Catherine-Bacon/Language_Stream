@@ -2,17 +2,19 @@
 console.log("1. popup.js script file loaded.");
 
 let isPopupInitialized = false;
-// --- MODIFICATION: Add variable to track selected offline sub ---
 let selectedOfflineTimestamp = null;
-// --- END MODIFICATION ---
 
 // --- MODIFICATION: Define heights for all modes (Processing height increased) ---
-const NETFLIX_SETUP_HEIGHT = '440px';
+const NETFLIX_SETUP_HEIGHT = '440px'; 
 const YOUTUBE_SETUP_HEIGHT = '465px';
 const DISNEY_SETUP_HEIGHT = '405px';
 const PRIME_SETUP_HEIGHT = '465px';
-const PROCESSING_POPUP_HEIGHT = '456px'; // Was 360px, added 96px for preferences
-// --- NEW: Offline Height ---
+// --- NEW: Recalculated processing heights (Setup + ProgressBar ~55px) ---
+const PROCESSING_POPUP_HEIGHT_NETFLIX = '495px'; // 440 + 55
+const PROCESSING_POPUP_HEIGHT_YOUTUBE = '520px'; // 465 + 55
+const PROCESSING_POPUP_HEIGHT_DISNEY = '460px'; // 405 + 55
+const PROCESSING_POPUP_HEIGHT_PRIME = '520px'; // 465 + 55
+
 const OFFLINE_POPUP_HEIGHT = '485px';
 // --- END MODIFICATION ---
 
@@ -39,7 +41,6 @@ const LANGUAGE_MAP = {
     "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kannada": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xh", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
 };
 
-let isCancelledByPopup = false;
 let currentMode = 'youtube';
 let currentMasterMode = 'online';
 
@@ -54,11 +55,10 @@ function getModeColor() {
     }
 }
 
-// --- MODIFIED: Load Saved Videos Implementation ---
 async function loadSavedVideos(mode, elements) {
     console.log(`Loading saved videos for: ${mode}`);
-    elements.savedVideosList.innerHTML = '<p>Loading saved subtitles...</p>'; // Show loading state
-    selectedOfflineTimestamp = null; // --- MODIFICATION: Reset selection ---
+    elements.savedVideosList.innerHTML = '<p>Loading saved subtitles...</p>'; 
+    selectedOfflineTimestamp = null; 
 
     try {
         const data = await chrome.storage.local.get('ls_offline_subtitles');
@@ -70,9 +70,8 @@ async function loadSavedVideos(mode, elements) {
             return;
         }
 
-        elements.savedVideosList.innerHTML = ''; // Clear loading/previous content
+        elements.savedVideosList.innerHTML = ''; 
 
-        // Sort by timestamp descending (newest first)
         subsForThisService.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         subsForThisService.forEach(savedSub => {
@@ -80,7 +79,7 @@ async function loadSavedVideos(mode, elements) {
             listItem.className = 'saved-video-item';
 
             const itemText = document.createElement('span');
-            itemText.title = 'Click to select this subtitle'; // MODIFIED: Title
+            itemText.title = 'Click to select this subtitle'; 
 
             const title = savedSub.title || 'Unknown Title';
             const baseLang = getLanguageName(savedSub.baseLang || '??');
@@ -104,7 +103,7 @@ async function loadSavedVideos(mode, elements) {
             deleteButton.title = 'Delete this subtitle';
             
             deleteButton.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent any parent click
+                e.stopPropagation(); 
                 deleteSavedSubtitle(mode, savedSub.timestamp, elements);
             });
 
@@ -118,9 +117,7 @@ async function loadSavedVideos(mode, elements) {
         elements.savedVideosList.innerHTML = '<p>Error loading saved subtitles.</p>';
     }
 }
-// --- END MODIFICATION ---
 
-// --- MODIFICATION START: New function to delete saved subtitles ---
 async function deleteSavedSubtitle(mode, timestamp, elements) {
     console.log(`Attempting to delete subtitle for ${mode} with timestamp: ${timestamp}`);
     try {
@@ -148,9 +145,7 @@ async function deleteSavedSubtitle(mode, timestamp, elements) {
         elements.savedVideosList.innerHTML = '<p>Error occurred while deleting.</p>';
     }
 }
-// --- MODIFICATION END ---
 
-// --- NEW: Master Mode Toggle Function ---
 function updateMasterMode(masterMode, elements) {
     currentMasterMode = masterMode;
     chrome.storage.local.set({ 'ls_master_mode': masterMode });
@@ -190,7 +185,6 @@ function updateGenerateButtonState(elements) {
     elements.confirmButton.disabled = !(isInputValid && isLangValid);
 }
 
-// --- MODIFIED: This function now handles both Online and Offline UI updates ---
 function updateUIMode(mode, elements) {
     currentMode = mode;
     chrome.storage.local.set({ 'ls_mode': mode });
@@ -217,9 +211,6 @@ function updateUIMode(mode, elements) {
     }
 
     elements.languageHeader.textContent = '2. Select Language';
-    // --- MODIFICATION: Update header text (it's hidden, but good to keep it correct) ---
-    // elements.preferencesHeader.textContent = '4. Select Subtitle Preferences'; // This line is removed as the element is hidden
-    // --- END MODIFICATION ---
 
     if (mode === 'netflix') {
         elements.titleHeader.textContent = 'Language Stream';
@@ -236,6 +227,9 @@ function updateUIMode(mode, elements) {
             if (!isProcessing) {
                 document.body.style.height = NETFLIX_SETUP_HEIGHT;
                 checkUrlAndDetectLanguage(elements);
+            } else {
+                // --- MODIFICATION: Set processing height on mode change ---
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
             }
         }
 
@@ -254,6 +248,9 @@ function updateUIMode(mode, elements) {
             if (!isProcessing) {
                 document.body.style.height = YOUTUBE_SETUP_HEIGHT;
                 checkTranscriptAndDetectLanguage(elements);
+            } else {
+                // --- MODIFICATION: Set processing height on mode change ---
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
             }
         }
     } else if (mode === 'disney') {
@@ -272,6 +269,9 @@ function updateUIMode(mode, elements) {
             if (!isProcessing) {
                 document.body.style.height = DISNEY_SETUP_HEIGHT;
                 checkDisneyUrlAndDetectLanguage(elements);
+            } else {
+                // --- MODIFICATION: Set processing height on mode change ---
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
             }
         }
     } else if (mode === 'prime') {
@@ -289,6 +289,9 @@ function updateUIMode(mode, elements) {
             if (!isProcessing) {
                 document.body.style.height = PRIME_SETUP_HEIGHT;
                 checkPrimeFileStatus(elements);
+            } else {
+                // --- MODIFICATION: Set processing height on mode change ---
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
             }
         }
     }
@@ -444,6 +447,12 @@ async function stopProcessingUI(elements) {
     elements.generateHeader.classList.remove('hidden-no-space');
     elements.saveForOfflineCheckbox.parentElement.classList.remove('hidden-no-space');
     elements.confirmButton.classList.remove('hidden-no-space');
+    
+    // --- NEW: Un-hide instruction divs ---
+    elements.urlInstructions.classList.remove('hidden-no-space');
+    elements.transcriptInstructions.classList.remove('hidden-no-space');
+    elements.disneyInstructions.classList.remove('hidden-no-space');
+    elements.primeInstructions.classList.remove('hidden-no-space');
     // --- MODIFICATION END ---
 
     elements.netflixInputs.classList.add('hidden-no-space');
@@ -978,34 +987,30 @@ async function loadSavedStatus(elements) {
         }
 
         if (status && status.progress > 0) {
-            // --- MODIFICATION START: Show preferences, hide setup ---
-            document.body.style.height = PROCESSING_POPUP_HEIGHT;
+            // --- MODIFICATION START: Show preferences, hide setup instructions ---
+            // Set height based on mode
+            if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+            else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+            else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+            else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
 
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
 
-            // Hide setup sections, but keep preferences
-            elements.languageHeader.classList.add('hidden-no-space');
-            elements.targetLanguageInput.classList.add('hidden-no-space');
-            elements.langStatusText.classList.add('hidden-no-space');
-            elements.generateHeader.classList.add('hidden-no-space');
-            elements.saveForOfflineCheckbox.parentElement.classList.add('hidden-no-space');
-            elements.confirmButton.classList.add('hidden-no-space');
-            
-            // Also hide the input section for the current mode
-            if (currentMode === 'netflix') elements.netflixInputs.classList.add('hidden-no-space');
-            else if (currentMode === 'youtube') elements.youtubeInputs.classList.add('hidden-no-space');
-            else if (currentMode === 'disney') elements.disneyInputs.classList.add('hidden-no-space');
-            else if (currentMode === 'prime') elements.primeInputs.classList.add('hidden-no-space');
+            // Hide *instructions* but keep sections
+            elements.urlInstructions.classList.add('hidden-no-space');
+            elements.transcriptInstructions.classList.add('hidden-no-space');
+            elements.disneyInstructions.classList.add('hidden-no-space');
+            elements.primeInstructions.classList.add('hidden-no-space');
 
             elements.targetLanguageInput.disabled = true;
             elements.subtitleUrlInput.disabled = true;
             elements.youtubeTranscriptInput.disabled = true;
             elements.disneyUrlInput.disabled = true;
             elements.primeUploadButton.disabled = true;
-            // Preferences remain enabled
             elements.saveForOfflineCheckbox.disabled = true;
+            elements.confirmButton.disabled = true; // Disable generate button
 
             elements.cancelButton.classList.remove('hidden-no-space');
             elements.cancelButton.textContent = (status.progress < 100) ? "Cancel Subtitle Generation" : "Clear Subtitles";
@@ -1041,7 +1046,7 @@ async function loadSavedStatus(elements) {
                 }
 
                 if (status && status.message && !status.message.includes("Old subtitle URL used") && !status.message.includes("Error fetching subtitles") && !status.message.includes("Invalid URL retrieved")) {
-                elements.statusBox.classList.remove('hidden-no-space');
+                elements.statusBox.classList.remove('hidden-no-space'); // This is in the new location, so it's fine
                 elements.statusText.textContent = status.message;
                 } else {
                 elements.statusText.textContent = "";
@@ -1058,22 +1063,18 @@ async function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log(`[POPUP] 'Generate Subtitles' button clicked for mode: ${currentMode}.`);
 
-    // --- MODIFICATION: Use new processing height ---
-    document.body.style.height = PROCESSING_POPUP_HEIGHT;
+    // --- MODIFICATION: Use new processing height based on mode ---
+    if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+    else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+    else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+    else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
     // --- END MODIFICATION ---
 
-    // --- MODIFICATION START: Hide setup UI, keep preferences ---
-    elements.languageHeader.classList.add('hidden-no-space');
-    elements.targetLanguageInput.classList.add('hidden-no-space');
-    elements.langStatusText.classList.add('hidden-no-space');
-    elements.generateHeader.classList.add('hidden-no-space');
-    elements.saveForOfflineCheckbox.parentElement.classList.add('hidden-no-space');
-    elements.confirmButton.classList.add('hidden-no-space');
-    
-    if (currentMode === 'netflix') elements.netflixInputs.classList.add('hidden-no-space');
-    else if (currentMode === 'youtube') elements.youtubeInputs.classList.add('hidden-no-space');
-    else if (currentMode === 'disney') elements.disneyInputs.classList.add('hidden-no-space');
-    else if (currentMode === 'prime') elements.primeInputs.classList.add('hidden-no-space');
+    // --- MODIFICATION START: Hide setup instructions, keep preferences ---
+    elements.urlInstructions.classList.add('hidden-no-space');
+    elements.transcriptInstructions.classList.add('hidden-no-space');
+    elements.disneyInstructions.classList.add('hidden-no-space');
+    elements.primeInstructions.classList.add('hidden-no-space');
     // --- MODIFICATION END ---
 
     isCancelledByPopup = false;
@@ -1090,7 +1091,8 @@ async function handleConfirmClick(elements) {
     elements.youtubeTranscriptInput.disabled = true;
     elements.disneyUrlInput.disabled = true;
     elements.primeUploadButton.disabled = true;
-    elements.saveForOfflineCheckbox.disabled = true; 
+    elements.saveForOfflineCheckbox.disabled = true;
+    elements.confirmButton.disabled = true; // Disable generate button
     // --- END MODIFICATION ---
 
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
@@ -1308,9 +1310,7 @@ async function handleCancelClick(elements) {
     await stopProcessingUI(elements);
 }
 
-// --- MODIFICATION START: New function to send live style updates ---
 async function sendLiveStyleUpdate(elements) {
-    // Only send updates if we are in a processing/completed state
     if (elements.statusBox.classList.contains('hidden-no-space')) {
         return;
     }
@@ -1348,7 +1348,6 @@ async function sendLiveStyleUpdate(elements) {
         console.warn("Could not send live style update:", e);
     }
 }
-// --- MODIFICATION END ---
 
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1383,17 +1382,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         netflixInputs: document.getElementById('netflixInputs'),
         youtubeInputs: document.getElementById('youtubeInputs'),
         transcriptHeader: document.getElementById('transcriptHeader'),
+        // --- MODIFICATION: Add instruction divs to elements object ---
         transcriptInstructions: document.getElementById('transcriptInstructions'),
-        youtubeTranscriptInput: document.getElementById('youtubeTranscriptInput'),
-        transcriptStatusText: document.getElementById('transcriptStatusText'),
         disneyInputs: document.getElementById('disneyInputs'),
         disneyHeader: document.getElementById('disneyHeader'),
         disneyInstructions: document.getElementById('disneyInstructions'),
+        // --- END MODIFICATION ---
         disneyUrlInput: document.getElementById('disneyUrlInput'),
         disneyUrlStatusText: document.getElementById('disneyUrlStatusText'),
         primeInputs: document.getElementById('primeInputs'),
         primeHeader: document.getElementById('primeHeader'),
+        // --- MODIFICATION: Add instruction div to elements object ---
         primeInstructions: document.getElementById('primeInstructions'),
+        // --- END MODIFICATION ---
         primeFileInput: document.getElementById('primeFileInput'),
         primeUploadButton: document.getElementById('primeUploadButton'),
         primeUrlStatusText: document.getElementById('primeUrlStatusText'),
@@ -1584,7 +1585,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 500);
     });
 
-    // --- MODIFICATION START: Listen for storage changes to send live updates ---
     chrome.storage.onChanged.addListener((changes, namespace) => {
         if (namespace === 'local') {
             const keys = Object.keys(changes);
@@ -1601,7 +1601,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     });
-    // --- MODIFICATION END ---
 
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (!isPopupInitialized) {
@@ -1619,8 +1618,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            // --- MODIFICATION: Use new processing height ---
-            document.body.style.height = PROCESSING_POPUP_HEIGHT;
+            // --- MODIFICATION: Use new processing height based on mode ---
+            if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+            else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+            else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+            else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
             // --- END MODIFICATION ---
 
             const { progress, message, route } = request;
@@ -1678,25 +1680,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
                 elements.saveForOfflineCheckbox.disabled = true; 
-                // Preferences remain enabled
+                elements.confirmButton.disabled = true; // Disable generate button
 
-                elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
 
             } else if (progress > 0) {
-                // --- MODIFICATION START: Hide setup sections ---
-                elements.languageHeader.classList.add('hidden-no-space');
-                elements.targetLanguageInput.classList.add('hidden-no-space');
-                elements.langStatusText.classList.add('hidden-no-space');
-                elements.generateHeader.classList.add('hidden-no-space');
-                elements.saveForOfflineCheckbox.parentElement.classList.add('hidden-no-space');
-                elements.confirmButton.classList.add('hidden-no-space');
-            
-                if (currentMode === 'netflix') elements.netflixInputs.classList.add('hidden-no-space');
-                else if (currentMode === 'youtube') elements.youtubeInputs.classList.add('hidden-no-space');
-                else if (currentMode === 'disney') elements.disneyInputs.classList.add('hidden-no-space');
-                else if (currentMode === 'prime') elements.primeInputs.classList.add('hidden-no-space');
+                // --- MODIFICATION START: Hide setup instructions ---
+                elements.urlInstructions.classList.add('hidden-no-space');
+                elements.transcriptInstructions.classList.add('hidden-no-space');
+                elements.disneyInstructions.classList.add('hidden-no-space');
+                elements.primeInstructions.classList.add('hidden-no-space');
                 // --- MODIFICATION END ---
                 
                 elements.targetLanguageInput.disabled = true;
@@ -1705,7 +1699,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
                 elements.saveForOfflineCheckbox.disabled = true; 
-                // Preferences remain enabled
+                elements.confirmButton.disabled = true; // Disable generate button
 
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";

@@ -151,12 +151,10 @@
       }
       /* --- END --- */
       
-      /* --- MODIFICATION START: Added margin-bottom --- */
       #confirmButton {
         margin-top: 10px;
-        margin-bottom: 10px; /* Was 0 */
+        margin-bottom: 10px; 
       }
-      /* --- MODIFICATION END --- */
       
       button:hover {
         background-color: #f40a16;
@@ -508,6 +506,12 @@
 
       <button id="confirmButton">Generate Subtitles</button>
       
+      <div id="statusBox" class="hidden-no-space">
+        <p id="statusText">Waiting for URL...</p>
+        <div id="progressBarContainer">
+          <div id="progressBar"></div>
+        </div>
+      </div>
       <h3 id="preferencesHeader" class="hidden-no-space">4. Select Subtitle Preferences</h3>
 
       <div class="preference-row">
@@ -563,13 +567,6 @@
       
     </div>
     <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
-
-    <div id="statusBox" class="hidden-no-space">
-      <p id="statusText">Waiting for URL...</p>
-      <div id="progressBarContainer">
-        <div id="progressBar"></div>
-      </div>
-    </div>
 
     <script src="popup.js"></script>
   </body>
