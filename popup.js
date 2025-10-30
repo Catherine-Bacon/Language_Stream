@@ -1,4 +1,4 @@
-/* --- popup.js (ZMODYFIKOWANY) --- */
+/* --- popup.js (REVISED) --- */
 console.log("1. popup.js script file loaded.");
 
 let isPopupInitialized = false;
@@ -375,8 +375,6 @@ async function resetStatus(elements) {
     elements.subtitleStyleNetflix.checked = true;
     elements.editStyleSettingsButton.disabled = false;
     elements.editStyleSettingsButton.title = `Edit Netflix Settings`;
-
-    elements.saveForOfflineCheckbox.checked = false;
 
     // --- MODIFICATION START: Reset confirm button state ---
     isConfirmButtonAsCancel = false;
@@ -952,9 +950,9 @@ async function loadSavedStatus(elements) {
     ]);
 
     currentMasterMode = data.ls_master_mode || 'online';
-    updateMasterMode(currentMasterMode, elements);
+    currentMode = data.ls_mode || 'youtube'; // <<< MODIFIED: Load currentMode first
 
-    currentMode = data.ls_mode || 'youtube';
+    updateMasterMode(currentMasterMode, elements); // This calls updateUIMode which now uses the correct currentMode
 
     const status = data.ls_status;
 
