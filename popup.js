@@ -251,13 +251,14 @@ function updateUIMode(mode, elements) {
 
     // Set common headers
     elements.languageHeader.textContent = '2. Select Language';
-    elements.preferencesHeader.textContent = '3. Select Subtitle Preferences';
+    // --- MODIFICATION: Update header text to "4." ---
+    elements.preferencesHeader.textContent = '4. Select Subtitle Preferences';
+    // --- END MODIFICATION ---
 
     if (mode === 'netflix') {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#e50914';
         elements.netflixModeButton.classList.add('active');
-        // elements.offlineTitle.textContent = "Saved Netflix Subtitles"; // <-- REMOVED
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
             <p>Select the relevant pre-saved subtitles below > Press display</p>
@@ -276,7 +277,6 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#FF0000';
         elements.youtubeModeButton.classList.add('active');
-        // elements.offlineTitle.textContent = "Saved YouTube Subtitles"; // <-- REMOVED
         elements.offlineInstructionsText.innerHTML = `
             <p>Navigate to your downloaded YouTube video on your laptop on youtube.com</p>
             <p>Select the relevant pre-saved subtitles below > Press display</p>
@@ -294,7 +294,6 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#0d8199';
         elements.disneyModeButton.classList.add('active');
-        // elements.offlineTitle.textContent = "Saved Disney+ Subtitles"; // <-- REMOVED
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
             <p>Select the relevant pre-saved subtitles below > Press display</p>
@@ -313,7 +312,6 @@ function updateUIMode(mode, elements) {
         elements.titleHeader.textContent = 'Language Stream';
         elements.titleHeader.style.color = '#00A8E1';
         elements.primeModeButton.classList.add('active');
-        // elements.offlineTitle.textContent = "Saved Prime Video Subtitles"; // <-- REMOVED
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
             <p>Select the relevant pre-saved subtitles below > Press display</p>
@@ -1369,6 +1367,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Section headers
         urlHeader: document.getElementById('urlHeader'),
         languageHeader: document.getElementById('languageHeader'),
+        // --- MODIFICATION: Add generateHeader ---
+        generateHeader: document.getElementById('generateHeader'),
+        // --- END MODIFICATION ---
         preferencesHeader: document.getElementById('preferencesHeader'),
         // Netflix inputs
         netflixInputs: document.getElementById('netflixInputs'),

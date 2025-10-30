@@ -454,7 +454,7 @@
         </div>
         <textarea id="youtubeTranscriptInput" placeholder="Paste full YouTube transcript here..."></textarea>
 
-        <p id="transcriptStatusText" class="status-text">&nbsp;</p>
+        <p id="transcriptStatusText" class="status-text">&nbsp;</S>
       </div>
 
       <div id="disneyInputs" class="hidden-no-space">
@@ -495,7 +495,14 @@
 
       <p id="langStatusText" class="status-text">&nbsp;</p>
 
+      <h2 id="generateHeader">3. (Save and) Generate Subtitles</h2>
+      
+      <div class="checkbox-row" style="margin-top: 5px;">
+          <input type="checkbox" id="saveForOfflineCheckbox" name="saveForOffline">
+          <label for="saveForOfflineCheckbox">Save subtitles for offline mode</label>
+      </div>
 
+      <button id="confirmButton">Generate Subtitles</button>
       <h3 id="preferencesHeader">3. Select Subtitle Preferences</h3>
 
       <div class="preference-row">
@@ -533,13 +540,7 @@
           </div>
       </div>
       
-      <div class="checkbox-row">
-          <input type="checkbox" id="saveForOfflineCheckbox" name="saveForOffline">
-          <label for="saveForOfflineCheckbox">Save subtitles for offline mode</label>
       </div>
-
-      <button id="confirmButton">Generate Subtitles</button>
-    </div>
     
     <div id="offline-mode-container" class="hidden-no-space">
       <div id="offline-instructions">
@@ -555,7 +556,7 @@
       
       <button id="displayOfflineSubtitlesButton" type="button" style="margin-top: 5px; background-color: #4CAF50;">Display Subtitles</button>
       
-      </div>
+    </div>
     <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
 
     <div id="statusBox" class="hidden-no-space">
