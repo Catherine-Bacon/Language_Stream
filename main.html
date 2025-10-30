@@ -6,7 +6,7 @@
         padding: 15px 15px 10px 15px;
         width: 350px;
         /* Start with Netflix height, JS will adjust */
-        height: 485px;
+        height: 440px; /* Adjusted height */
         overflow-y: hidden;
         padding-top: 50px;
         position: relative;
@@ -150,10 +150,14 @@
         background-color: #00bfff;
       }
       /* --- END --- */
+      
+      /* --- MODIFICATION START: Added margin-bottom --- */
       #confirmButton {
-        margin-top: 10px; /* MODIFIED: Was 15px */
-        margin-bottom: 0;
+        margin-top: 10px;
+        margin-bottom: 10px; /* Was 0 */
       }
+      /* --- MODIFICATION END --- */
+      
       button:hover {
         background-color: #f40a16;
       }
