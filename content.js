@@ -267,8 +267,8 @@ function createFloatingWindow() {
     } else {
         const windowDiv = document.createElement('div');
         windowDiv.id = 'language-stream-window';
-        // --- MODIFICATION: Changed 'position: absolute' to 'position: fixed' ---
-        windowDiv.style.cssText = `position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
+        // --- MODIFICATION: Changed 'position: fixed' back to 'position: absolute' ---
+        windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
         // --- END MODIFICATION ---
         makeDraggable(windowDiv);
 
