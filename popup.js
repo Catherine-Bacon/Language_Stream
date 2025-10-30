@@ -3,6 +3,8 @@ console.log("1. popup.js script file loaded.");
 
 let isPopupInitialized = false;
 let selectedOfflineTimestamp = null;
+// --- NEW: Flag to control logic flow when button is used for cancel/clear ---
+let isConfirmButtonAsCancel = false;
 
 // --- MODIFICATION: Define heights for all modes (Processing height increased) ---
 const NETFLIX_SETUP_HEIGHT = '440px'; 
@@ -158,8 +160,13 @@ function updateMasterMode(masterMode, elements) {
         elements.offlineModeContainer.classList.remove('hidden-no-space');
 
         elements.statusBox.classList.add('hidden-no-space');
-        elements.cancelButton.classList.add('hidden-no-space');
-
+        
+        // --- MODIFICATION: Hide the old cancelButton and confirmButton takes its place ---
+        isConfirmButtonAsCancel = false;
+        elements.confirmButton.textContent = "Generate Subtitles";
+        elements.confirmButton.classList.add('hidden-no-space');
+        // elements.cancelButton.classList.add('hidden-no-space'); // Removed
+        
         document.body.style.height = OFFLINE_POPUP_HEIGHT;
 
         updateUIMode(currentMode, elements);
@@ -176,6 +183,9 @@ function updateMasterMode(masterMode, elements) {
 }
 
 function updateGenerateButtonState(elements) {
+    // Check if button is in "Generate" mode
+    if (isConfirmButtonAsCancel) return; 
+
     const isInputValid = (currentMode === 'netflix' && elements.urlStatusText.style.color === 'green') ||
                          (currentMode === 'youtube' && elements.transcriptStatusText.style.color === 'green') ||
                          (currentMode === 'disney' && elements.disneyUrlStatusText.style.color === 'green') ||
@@ -189,8 +199,6 @@ function updateUIMode(mode, elements) {
     currentMode = mode;
     chrome.storage.local.set({ 'ls_mode': mode });
     selectedOfflineTimestamp = null; 
-
-    const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
 
     // Deactivate all mode buttons
     elements.netflixModeButton.classList.remove('active');
@@ -209,6 +217,19 @@ function updateUIMode(mode, elements) {
         elements.disneyUrlStatusText.classList.add('hidden-no-space');
         elements.primeUrlStatusText.classList.add('hidden-no-space');
     }
+    
+    // --- MODIFICATION: Ensure confirm button is in generate mode and visible (online) ---
+    const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
+
+    if (!isProcessing && currentMasterMode === 'online') {
+        isConfirmButtonAsCancel = false;
+        elements.confirmButton.textContent = "Generate Subtitles";
+        elements.confirmButton.classList.remove('hidden-no-space');
+        elements.confirmButton.style.backgroundColor = ''; // Reset to default (e50914)
+    } else if (currentMasterMode === 'offline') {
+        elements.confirmButton.classList.add('hidden-no-space'); // Hide generate button in offline mode
+    }
+    // --- END MODIFICATION ---
 
     elements.languageHeader.textContent = '2. Select Language';
 
@@ -357,19 +378,22 @@ async function resetStatus(elements) {
 
     elements.saveForOfflineCheckbox.checked = false;
 
+    // --- MODIFICATION START: Reset confirm button state ---
+    isConfirmButtonAsCancel = false;
+    elements.confirmButton.textContent = "Generate Subtitles";
+    elements.confirmButton.style.backgroundColor = ''; // Reset to default (e50914)
     elements.confirmButton.disabled = true;
+    // elements.cancelButton.classList.add('hidden-no-space'); // Removed
+    // --- MODIFICATION END ---
+    
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
     elements.youtubeTranscriptInput.disabled = false;
     elements.disneyUrlInput.disabled = false;
     elements.primeUploadButton.disabled = false;
-    elements.primeUploadButton.textContent = "Upload .ttml2 File";
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-
-    elements.cancelButton.classList.add('hidden-no-space');
-    elements.cancelButton.textContent = "Cancel Subtitle Generation";
 
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
@@ -431,7 +455,14 @@ async function stopProcessingUI(elements) {
     elements.editStyleSettingsButton.disabled = !hasSettings;
     elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
 
-    elements.cancelButton.classList.add('hidden-no-space');
+    // --- MODIFICATION START: Reset confirm button state ---
+    isConfirmButtonAsCancel = false;
+    elements.confirmButton.textContent = "Generate Subtitles";
+    elements.confirmButton.style.backgroundColor = ''; // Reset to default (e50914)
+    elements.confirmButton.classList.remove('hidden-no-space');
+    // elements.cancelButton.classList.add('hidden-no-space'); // Removed
+    // --- MODIFICATION END ---
+
     elements.statusBox.classList.add('hidden-no-space');
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
@@ -941,8 +972,7 @@ async function loadSavedStatus(elements) {
         elements.disneyUrlInput.disabled = false;
         elements.primeUploadButton.disabled = false;
 
-        elements.cancelButton.classList.add('hidden-no-space');
-        elements.cancelButton.textContent = "Cancel Subtitle Generation";
+        // elements.cancelButton.classList.add('hidden-no-space'); // Removed
         elements.statusBox.classList.add('hidden-no-space');
 
         if (data.translated_only_pref === true) {
@@ -960,8 +990,10 @@ async function loadSavedStatus(elements) {
         elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
 
         const isProcessing = status && status.progress > 0 && status.progress < 100;
+        const isFinished = status && status.progress >= 100;
 
-        if (!isProcessing) {
+        if (!isProcessing && !isFinished) {
+             // Not processing, UI in setup state
             if (data.ui_temp_state) {
                 elements.targetLanguageInput.value = data.ui_temp_state.targetLang || '';
                 elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
@@ -975,6 +1007,7 @@ async function loadSavedStatus(elements) {
                 elements.disneyUrlInput.value = data.last_input.disneyUrl || '';
             }
         } else if (data.last_input) {
+            // Processing or finished, load from last input
             const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
             elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
             elements.subtitleUrlInput.value = data.last_input.url || '';
@@ -1006,10 +1039,18 @@ async function loadSavedStatus(elements) {
             elements.disneyUrlInput.disabled = true;
             elements.primeUploadButton.disabled = true;
             elements.saveForOfflineCheckbox.disabled = true;
-            elements.confirmButton.disabled = true; // Disable generate button
-
-            elements.cancelButton.classList.remove('hidden-no-space');
-            elements.cancelButton.textContent = (status.progress < 100) ? "Cancel Subtitle Generation" : "Clear Subtitles";
+            elements.confirmButton.disabled = false; // Enable the button for cancel/clear
+            
+            // --- MODIFICATION: Set confirmButton to cancel/clear mode ---
+            isConfirmButtonAsCancel = true;
+            if (status.progress < 100) {
+                elements.confirmButton.textContent = "Cancel Subtitle Generation";
+                elements.confirmButton.style.backgroundColor = '#777';
+            } else {
+                elements.confirmButton.textContent = "Clear Subtitles";
+                elements.confirmButton.style.backgroundColor = '#777';
+            }
+            // elements.cancelButton.classList.remove('hidden-no-space'); // Removed
             // --- MODIFICATION END ---
 
         } else {
@@ -1020,6 +1061,12 @@ async function loadSavedStatus(elements) {
                 else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
                 else setupHeight = PRIME_SETUP_HEIGHT;
                 document.body.style.height = setupHeight;
+                
+                // --- MODIFICATION: Reset confirm button state ---
+                isConfirmButtonAsCancel = false;
+                elements.confirmButton.textContent = "Generate Subtitles";
+                elements.confirmButton.style.backgroundColor = '';
+                // --- END MODIFICATION ---
 
                 elements.langStatusText.classList.remove('hidden-no-space');
 
@@ -1057,6 +1104,12 @@ async function loadSavedStatus(elements) {
 }
 
 async function handleConfirmClick(elements) {
+    if (isConfirmButtonAsCancel) {
+        // If the button is in its cancel/clear role, treat it as a cancel click
+        await handleCancelClick(elements);
+        return;
+    }
+    
     console.log(`[POPUP] 'Generate Subtitles' button clicked for mode: ${currentMode}.`);
 
     // --- MODIFICATION: Use new processing height based on mode ---
@@ -1075,8 +1128,15 @@ async function handleConfirmClick(elements) {
 
     isCancelledByPopup = false;
     elements.statusBox.classList.remove('hidden-no-space');
-    elements.cancelButton.classList.remove('hidden-no-space');
-    elements.cancelButton.textContent = "Cancel Subtitle Generation";
+    
+    // --- MODIFICATION: Set confirmButton to cancel mode ---
+    isConfirmButtonAsCancel = true;
+    elements.confirmButton.textContent = "Cancel Subtitle Generation";
+    elements.confirmButton.style.backgroundColor = '#777';
+    elements.confirmButton.disabled = false; // Enable the button for cancel
+    // elements.cancelButton.classList.remove('hidden-no-space'); // Removed
+    // elements.cancelButton.textContent = "Cancel Subtitle Generation"; // Removed
+    // --- END MODIFICATION ---
 
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
@@ -1088,7 +1148,7 @@ async function handleConfirmClick(elements) {
     elements.disneyUrlInput.disabled = true;
     elements.primeUploadButton.disabled = true;
     elements.saveForOfflineCheckbox.disabled = true;
-    elements.confirmButton.disabled = true; // Disable generate button
+    // elements.confirmButton.disabled = true; // Was disabled here, now only disabled above if processing
     // --- END MODIFICATION ---
 
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
@@ -1268,8 +1328,9 @@ async function handleConfirmClick(elements) {
 
 async function handleCancelClick(elements) {
     isCancelledByPopup = true;
-
-    if (elements.cancelButton.textContent === "Clear Subtitles") {
+    
+    // --- MODIFICATION: Check confirmButton text for clear vs. cancel ---
+    if (elements.confirmButton.textContent === "Clear Subtitles") {
         console.log("[POPUP] 'Clear Subtitles' clicked. Performing full reset.");
         await resetStatus(elements);
 
@@ -1284,7 +1345,7 @@ async function handleCancelClick(elements) {
         return;
     }
 
-    if (elements.cancelButton.textContent === "Cancel Subtitle Generation") {
+    if (elements.confirmButton.textContent === "Cancel Subtitle Generation") {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0] || !tabs[0].id) {
                 console.error("[POPUP] Cannot cancel: Active tab ID is unavailable.");
@@ -1302,6 +1363,7 @@ async function handleCancelClick(elements) {
             });
         });
     }
+    // --- END MODIFICATION ---
 
     await stopProcessingUI(elements);
 }
@@ -1354,7 +1416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusBox: document.getElementById('statusBox'),
         statusText: document.getElementById('statusText'),
         progressBar: document.getElementById('progressBar'),
-        cancelButton: document.getElementById('cancelButton'),
+        // cancelButton: document.getElementById('cancelButton'), // Removed
         urlStatusText: document.getElementById('urlStatusText'),
         langStatusText: document.getElementById('langStatusText'),
         subtitleModeGroup: document.getElementById('subtitleModeGroup'),
@@ -1403,6 +1465,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton'),
         saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox')
     };
+    
+    // --- MODIFICATION: Set a reference to the hidden original cancel button to keep styles for now ---
+    const originalCancelButton = document.getElementById('cancelButton');
+    // --- END MODIFICATION ---
 
     let languageInputTimer;
     let transcriptInputTimer;
@@ -1478,7 +1544,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.primeModeButton.addEventListener('click', () => updateUIMode('prime', elements));
 
     elements.confirmButton.addEventListener('click', () => handleConfirmClick(elements));
-    elements.cancelButton.addEventListener('click', () => handleCancelClick(elements));
+    // elements.cancelButton.addEventListener('click', () => handleCancelClick(elements)); // Removed
 
     elements.subtitleModeGroup.querySelectorAll('input[type="radio"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
@@ -1676,10 +1742,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
                 elements.saveForOfflineCheckbox.disabled = true; 
-                elements.confirmButton.disabled = true; // Disable generate button
-
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Clear Subtitles";
+                elements.confirmButton.disabled = false; // Enable the button for clear
+                
+                // --- MODIFICATION: Set confirmButton to clear mode ---
+                isConfirmButtonAsCancel = true;
+                elements.confirmButton.textContent = "Clear Subtitles";
+                elements.confirmButton.style.backgroundColor = '#777';
+                // elements.cancelButton.classList.remove('hidden-no-space'); // Removed
+                // --- END MODIFICATION ---
 
             } else if (progress > 0) {
                 // --- MODIFICATION START: Hide setup instructions ---
@@ -1695,10 +1765,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
                 elements.saveForOfflineCheckbox.disabled = true; 
-                elements.confirmButton.disabled = true; // Disable generate button
-
-                elements.cancelButton.classList.remove('hidden-no-space');
-                elements.cancelButton.textContent = "Cancel Subtitle Generation";
+                elements.confirmButton.disabled = false; // Enable the button for cancel
+                
+                // --- MODIFICATION: Set confirmButton to cancel mode ---
+                isConfirmButtonAsCancel = true;
+                elements.confirmButton.textContent = "Cancel Subtitle Generation";
+                elements.confirmButton.style.backgroundColor = '#777';
+                // elements.cancelButton.classList.remove('hidden-no-space'); // Removed
+                // --- END MODIFICATION ---
             } else {
                 await stopProcessingUI(elements);
             }
