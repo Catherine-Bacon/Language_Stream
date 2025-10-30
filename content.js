@@ -267,9 +267,7 @@ function createFloatingWindow() {
     } else {
         const windowDiv = document.createElement('div');
         windowDiv.id = 'language-stream-window';
-        // --- MODIFICATION: Changed 'position: fixed' back to 'position: absolute' ---
         windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
-        // --- END MODIFICATION ---
         makeDraggable(windowDiv);
 
         let playerContainer = getNetflixPlayerContainer(); // Try Netflix first
@@ -280,8 +278,6 @@ function createFloatingWindow() {
         const parentElement = playerContainer || document.body;
         parentElement.appendChild(windowDiv);
 
-        // This block (from the previous fix) is still correct.
-        // We do NOT want to apply 'position: relative' to 'dv-web-player'.
         if (playerContainer && (playerContainer.classList.contains('watch-video--player-view') || playerContainer.id === 'movie_player' || playerContainer.id === 'vader_Player' || playerContainer.classList.contains('btm-media-player-container'))) {
             playerContainer.style.position = 'relative';
         }
@@ -428,15 +424,11 @@ async function processVocabColorCoding(subtitle) {
             }
         }
     }
-    // Store temporarily for display, but don't save permanently
     subtitle.tempBaseWordColors = baseWordColors;
     subtitle.tempTranslatedWordColors = translatedWordColors;
-    // subtitle.baseWordColors = baseWordColors;
-    // subtitle.translatedWordColors = translatedWordColors;
     subtitle.colorCodeCount = colorCodeCounter;
 }
 
-// --- MODIFICATION: Added saving step ---
 async function translateAllSubtitles(url) {
     const totalSubs = parsedSubtitles.length;
     const baseLang = subtitleLanguages.base;
@@ -446,14 +438,13 @@ async function translateAllSubtitles(url) {
     const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
     const START_PROGRESS = 60;
     const isVocab = (subtitleStylePref === 'vocabulary');
-    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; // Weight for translation part
-    const MATCHING_WEIGHT = isVocab ? 10 : 0; // Weight for matching part
+    const TRANSLATION_WEIGHT = isVocab ? 20 : 30; 
+    const MATCHING_WEIGHT = isVocab ? 10 : 0; 
     const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT;
     const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? 20 : 30;
     const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
     const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT;
-    // --- NEW: Define final progress step before 100 ---
-    const SAVING_PROGRESS_POINT = 98; // Use 98% to indicate saving step
+    const SAVING_PROGRESS_POINT = 98; 
 
     sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
 
@@ -480,10 +471,9 @@ async function translateAllSubtitles(url) {
         }
         if (index % 5 === 0 || index === concurrentBatch.length - 1) {
             const progressRatio = (index + 1) / concurrentBatch.length;
-            // Cap progress just below saving point if saving is needed
             const maxProgressBeforeSave = shouldSaveOffline ? SAVING_PROGRESS_POINT - 1 : 99;
             const progress = CONCURRENT_START_PROGRESS + Math.floor(progressRatio * CONCURRENT_BATCH_TOTAL_WEIGHT);
-            const displayProgress = Math.min(progress, maxProgressBeforeSave); // Cap before saving step
+            const displayProgress = Math.min(progress, maxProgressBeforeSave); 
 
             if (displayProgress < 100) {
                 const totalReady = CRITICAL_BATCH_SIZE + index + 1;
@@ -497,21 +487,18 @@ async function translateAllSubtitles(url) {
 
     if (!isCancelled) {
         console.log("Translation complete. Checking if saving is needed...");
-        // --- MODIFICATION: Save if requested BEFORE sending 100% ---
         if (shouldSaveOffline) {
             sendStatusUpdate("Saving subtitles for offline use...", SAVING_PROGRESS_POINT, url);
-            await saveSubtitlesOffline(); // Wait for save to complete
-            sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url); // Final 100% after saving
+            await saveSubtitlesOffline(); 
+            sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url); 
         } else {
-            sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url); // Final 100% immediately
+            sendStatusUpdate(`Translation complete! ${totalSubs} lines ready.`, 100, url); 
         }
         console.log("Native translation and saving (if applicable) process finished.");
-        // --- END MODIFICATION ---
     } else {
         console.log("Translation finished, but process was cancelled.");
     }
 }
-// --- END MODIFICATION ---
 
 function getFontSizeEm(preference) {
     switch (preference) {
@@ -553,13 +540,18 @@ function getIndexedColor(index, alpha) {
     return colorNameToRgba(colorName, alpha);
 }
 
-// --- MODIFIED: Split startSubtitleSync and created separate loops ---
-function startSubtitleSync() {
-    if (syncInterval) clearInterval(syncInterval);
-    disneyTimeElement = null; // Reset disney element reference
-    let currentSubtitleIndex = -1;
-    let lastTime = -1; // Initialize to -1 to ensure first run
-    if (floatingWindow) floatingWindow.style.display = 'block';
+
+// --- MODIFICATION: Renamed to updateSubtitleDisplay and logic separated ---
+let lastTime = -1; // Moved to global scope for persistence
+let currentSubtitleIndex = -1; // Moved to global scope for persistence
+
+function updateSubtitleDisplay(currentTime) {
+    if (currentTime === lastTime && lastTime !== -1) return; // Only update if time changed
+    lastTime = currentTime;
+    
+    if (!floatingWindow || !parsedSubtitles || parsedSubtitles.length === 0) {
+        return;
+    }
 
     const currentFontSizeEm = getFontSizeEm(fontSizeEm);
     const currentFontShadow = getFontShadowCss(fontShadowPref);
@@ -567,10 +559,8 @@ function startSubtitleSync() {
     let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
     const fontWeight = (subtitleStylePref === 'netflix') ? 'bold' : 'normal';
 
-    if (floatingWindow) {
-        floatingWindow.style.textShadow = currentFontShadow;
-        floatingWindow.style.color = baseFontColor;
-    }
+    floatingWindow.style.textShadow = currentFontShadow;
+    floatingWindow.style.color = baseFontColor;
 
     const getSpanStyle = (colorOverride = null) => {
         const finalColor = colorOverride || baseFontColor;
@@ -605,136 +595,118 @@ function startSubtitleSync() {
         return `<span style="${style}">${text}</span>`;
     }
 
-    // --- Core logic shared by both loops ---
-    const updateSubtitleDisplay = (currentTime) => {
-        if (currentTime === lastTime && lastTime !== -1) return; // Only update if time changed
-        lastTime = currentTime;
+    let low = 0, high = parsedSubtitles.length - 1;
+    let bestMatchIndex = -1;
 
-        let low = 0, high = parsedSubtitles.length - 1;
-        let bestMatchIndex = -1;
-
-        while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            if (parsedSubtitles[mid].begin <= currentTime) {
-                bestMatchIndex = mid;
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        if (parsedSubtitles[mid].begin <= currentTime) {
+            bestMatchIndex = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
         }
+    }
 
-        let newSubtitle = null;
-        let newIndex = -1;
-        if (bestMatchIndex !== -1) {
-            const sub = parsedSubtitles[bestMatchIndex];
-            // Ensure currentTime is within the subtitle duration
-            // Add a small buffer (e.g., 0.1s) to account for interval timing
-            if (currentTime < sub.end + 0.1) {
-                newSubtitle = sub;
-                newIndex = bestMatchIndex;
-            }
+    let newSubtitle = null;
+    let newIndex = -1;
+    if (bestMatchIndex !== -1) {
+        const sub = parsedSubtitles[bestMatchIndex];
+        if (currentTime < sub.end + 0.1) {
+            newSubtitle = sub;
+            newIndex = bestMatchIndex;
         }
+    }
 
-        if (newIndex !== -1) {
-            if (newIndex !== currentSubtitleIndex) {
-                // --- MODIFICATION: Use temp color properties ---
-                // --- MODIFICATION START: Offline subs won't have temp... colors. Check for them.
-                let baseColors = newSubtitle.tempBaseWordColors;
-                let translatedColors = newSubtitle.tempTranslatedWordColors;
-                
-                // Offline subs (and non-vocab subs) won't have these.
-                // We must rely on the main `text` and `translatedText` properties.
-                const { text, translatedText } = newSubtitle; 
-                // --- END MODIFICATION ---
-
-                let innerHTML = '';
-                if (translatedText) {
-                    if (subtitleStylePref === 'vocabulary') {
-                        // --- MODIFICATION: Use correct color properties ---
-                        const baseHtml = buildColorCodedHtml(text, baseColors, baseFontColor, true);
-                        const translatedHtml = buildColorCodedHtml(translatedText, translatedColors, baseFontColor, false);
-                        // --- END MODIFICATION ---
-                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
-                    } else {
-                        const baseHtml = buildSimpleHtml(text, false);
-                        const translatedHtml = buildSimpleHtml(translatedText, true);
-                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
-                    }
-                } else if (!isTranslatedOnly) {
-                    // This case should only happen for online streaming partial load
-                    const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
-                    innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">(Translating...)</span>`;
+    if (newIndex !== -1) {
+        // --- MODIFICATION: Force re-render if styles changed, even if index is the same ---
+        if (newIndex !== currentSubtitleIndex) {
+            let baseColors = newSubtitle.tempBaseWordColors;
+            let translatedColors = newSubtitle.tempTranslatedWordColors;
+            const { text, translatedText } = newSubtitle; 
+            let innerHTML = '';
+            if (translatedText) {
+                if (subtitleStylePref === 'vocabulary') {
+                    const baseHtml = buildColorCodedHtml(text, baseColors, baseFontColor, true);
+                    const translatedHtml = buildColorCodedHtml(translatedText, translatedColors, baseFontColor, false);
+                    innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
+                } else {
+                    const baseHtml = buildSimpleHtml(text, false);
+                    const translatedHtml = buildSimpleHtml(translatedText, true);
+                    innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                 }
-                floatingWindow.innerHTML = innerHTML;
-                currentSubtitleIndex = newIndex;
+            } else if (!isTranslatedOnly) {
+                const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
+                innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">(Translating...)</span>`;
             }
-        } else if (currentSubtitleIndex !== -1) {
-            floatingWindow.innerHTML = '';
-            currentSubtitleIndex = -1;
+            floatingWindow.innerHTML = innerHTML;
+            currentSubtitleIndex = newIndex;
         }
-    };
-    // --- End core logic ---
+    } else if (currentSubtitleIndex !== -1) {
+        floatingWindow.innerHTML = '';
+        currentSubtitleIndex = -1;
+    }
+}
 
-    // --- Loop for Netflix/YouTube/Prime (uses video.currentTime) ---
+function startSubtitleSync() {
+    if (syncInterval) clearInterval(syncInterval);
+    disneyTimeElement = null;
+    currentSubtitleIndex = -1;
+    lastTime = -1; 
+    if (floatingWindow) floatingWindow.style.display = 'block';
+
     const syncLoopStandard = (videoElement) => {
         if (!videoElement) {
             console.error("Video element lost during sync loop.");
             clearInterval(syncInterval);
             return;
         }
-        const currentTime = videoElement.currentTime;
-        updateSubtitleDisplay(currentTime);
+        updateSubtitleDisplay(videoElement.currentTime);
     };
 
-    // --- Loop for Disney+ (uses aria-valuenow) ---
     const syncLoopDisney = () => {
         if (!disneyTimeElement) {
-            // Attempt to re-find the element if lost (e.g., page navigation/reload within Disney+)
              const progressBarHost = document.querySelector('progress-bar');
              if (progressBarHost && progressBarHost.shadowRoot) {
                  disneyTimeElement = progressBarHost.shadowRoot.querySelector('.progress-bar__thumb');
              }
              if (!disneyTimeElement) {
-                console.error("Disney+ time element lost during sync loop and couldn't be re-found.");
+                console.error("Disney+ time element lost and couldn't be re-found.");
                 clearInterval(syncInterval);
                 sendStatusUpdate("Error: Lost connection to Disney+ player time.", 0);
                 return;
              }
         }
         const timeString = disneyTimeElement.getAttribute('aria-valuenow');
-        if (timeString === null) return; // Element might not be ready yet or attribute removed temporarily
+        if (timeString === null) return; 
 
         const currentTime = parseFloat(timeString);
-        if (isNaN(currentTime)) return; // Invalid time value
+        if (isNaN(currentTime)) return; 
 
         updateSubtitleDisplay(currentTime);
     };
 
-    // --- Determine which loop to start ---
     const hostname = window.location.hostname;
     if (hostname === 'www.disneyplus.com') {
-        // Find the Disney time element ONCE
         const progressBarHost = document.querySelector('progress-bar');
         if (progressBarHost && progressBarHost.shadowRoot) {
             disneyTimeElement = progressBarHost.shadowRoot.querySelector('.progress-bar__thumb');
             if (disneyTimeElement) {
-                syncInterval = setInterval(syncLoopDisney, 100); // Check 10 times per second
-                console.log("Disney+ subtitle sync loop started (using aria-valuenow polling).");
+                syncInterval = setInterval(syncLoopDisney, 100); 
+                console.log("Disney+ subtitle sync loop started.");
             } else {
-                console.error("Could not find '.progress-bar__thumb' element inside Disney+ shadow root for time polling.");
+                console.error("Could not find '.progress-bar__thumb' element inside Disney+ shadow root.");
                 sendStatusUpdate("Error: Could not find Disney+ time element.", 0);
             }
         } else {
-            console.error("Could not find Disney+ <progress-bar> element or its shadow root for time polling.");
+            console.error("Could not find Disney+ <progress-bar> element or its shadow root.");
             sendStatusUpdate("Error: Could not find Disney+ progress bar.", 0);
         }
     } else {
-        // Assume Netflix, YouTube or Prime Video
         const videoElement = getVideoElement();
         if (videoElement) {
-            // Need to wrap syncLoopStandard to pass videoElement correctly
-            syncInterval = setInterval(() => syncLoopStandard(videoElement), 100); // Check 10 times per second
-            console.log("Standard subtitle sync loop started (using video.currentTime polling).");
+            syncInterval = setInterval(() => syncLoopStandard(videoElement), 100); 
+            console.log("Standard subtitle sync loop started.");
         } else {
             console.error("Could not find video element for Netflix/YouTube/Prime sync loop.");
             sendStatusUpdate("Error: Could not find video player.", 0);
@@ -765,7 +737,6 @@ function getVideoElement() {
     if (video) return video;
     video = document.querySelector('#vader_Player video');
     if (video) return video;
-    // NEW: Prime Video video element
     video = document.querySelector('.dv-player-video');
     if (video) return video;
     return null;
@@ -794,8 +765,6 @@ function parseYouTubeTranscript(transcriptText) {
             }
             currentSubtitle = {
                 begin: newTime, end: 0, text: "", translatedText: null,
-                // Remove color properties
-                // baseWordColors: null, translatedWordColors: null
             };
         } else if (currentSubtitle) {
             currentSubtitle.text = (currentSubtitle.text + " " + trimmedLine).trim();
@@ -809,7 +778,6 @@ function parseYouTubeTranscript(transcriptText) {
     return parsedSubtitles.length > 0;
 }
 
-// --- NEW FUNCTION: Get Video Title ---
 function getVideoTitle() {
     const hostname = window.location.hostname;
     let title = 'Unknown Title';
@@ -824,7 +792,6 @@ function getVideoTitle() {
                     document.querySelector('meta[property="og:title"]')?.content ||
                     document.title.split(' | ')[0].trim();
         } else if (hostname.includes('disneyplus.com')) {
-            // Disney titles might be harder due to dynamic loading
             title = document.querySelector('h1[data-testid="program-title"]')?.textContent.trim() ||
                     document.querySelector('meta[property="og:title"]')?.content ||
                     document.title.split(' | ')[0].trim();
@@ -837,13 +804,10 @@ function getVideoTitle() {
     } catch (e) {
         console.warn("Could not reliably extract video title:", e);
     }
-    // Clean up potential extra info
-    title = title.replace(/\s+\(.*\)$/, ''); // Remove things like (Official Music Video)
+    title = title.replace(/\s+\(.*\)$/, ''); 
     return title || 'Unknown Title';
 }
-// --- END NEW FUNCTION ---
 
-// --- MODIFIED FUNCTION: Save Subtitles to Storage (with style prefs) ---
 async function saveSubtitlesOffline() {
     console.log("Attempting to save subtitles for offline use...");
     if (!parsedSubtitles || parsedSubtitles.length === 0) {
@@ -851,7 +815,6 @@ async function saveSubtitlesOffline() {
         return;
     }
 
-    // Determine the current service mode based on hostname
     let serviceMode = 'unknown';
     const hostname = window.location.hostname;
     if (hostname.includes('youtube.com')) serviceMode = 'youtube';
@@ -872,9 +835,7 @@ async function saveSubtitlesOffline() {
         isTranslatedOnly: isTranslatedOnly,
         style: subtitleStylePref,
         timestamp: Date.now(),
-        subtitles: parsedSubtitles, // Save the full array
-        
-        // --- MODIFICATION START: Add all style properties ---
+        subtitles: parsedSubtitles, 
         stylePrefs: {
             font_size: fontSizeEm,
             background_color: backgroundColorPref,
@@ -883,38 +844,30 @@ async function saveSubtitlesOffline() {
             font_color: fontColorPref,
             font_color_alpha: fontColorAlphaPref
         }
-        // --- MODIFICATION END ---
     };
 
     try {
         const data = await chrome.storage.local.get('ls_offline_subtitles');
-        const allSavedSubs = data.ls_offline_subtitles || {}; // { netflix: [], youtube: [], ... }
+        const allSavedSubs = data.ls_offline_subtitles || {}; 
 
         if (!allSavedSubs[serviceMode]) {
             allSavedSubs[serviceMode] = [];
         }
 
-        // Add the new data
         allSavedSubs[serviceMode].push(saveData);
 
-        // Optional: Limit the number of saved items per service (e.g., keep last 20)
         const MAX_SAVED_PER_SERVICE = 20;
         if (allSavedSubs[serviceMode].length > MAX_SAVED_PER_SERVICE) {
-            // Sort by timestamp descending (newest first) and keep the top N
             allSavedSubs[serviceMode].sort((a, b) => b.timestamp - a.timestamp);
             allSavedSubs[serviceMode] = allSavedSubs[serviceMode].slice(0, MAX_SAVED_PER_SERVICE);
         }
 
         await chrome.storage.local.set({ 'ls_offline_subtitles': allSavedSubs });
         console.log(`Subtitles saved successfully for ${serviceMode}: "${videoTitle}"`);
-        // We don't need a status update here, popup shows it on completion message
     } catch (error) {
         console.error("Error saving subtitles to chrome.storage.local:", error);
-        // Optionally send an error status update if needed
-        // sendStatusUpdate("Error saving subtitles offline.", 99);
     }
 }
-// --- END MODIFIED FUNCTION ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Check Language Pair
@@ -929,7 +882,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             } else { console.warn("Translator API (or availability function) not available."); }
             sendResponse({ isAvailable: isAvailable, baseLang: request.baseLang, targetLang: request.targetLang });
         })();
-        return true; // Indicates asynchronous response
+        return true; 
     }
 
     // Detect Language from Text (YouTube Transcript)
@@ -941,7 +894,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // --- NEW: Detect Language from TTML File Content (Prime Video) ---
+    // Detect Language from TTML File Content (Prime Video)
     if (request.command === "detect_language_from_ttml") {
         (async () => {
             parsedSubtitles = [];
@@ -996,10 +949,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
-        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
-        shouldSaveOffline = request.saveOffline; // --- NEW ---
+        shouldSaveOffline = request.saveOffline; 
         fontSizeEm = request.font_size;
         backgroundColorPref = request.background_color;
         backgroundAlphaPref = request.background_alpha;
@@ -1016,7 +968,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const xmlContent = await fetchSubtitleContent(url);
             if (!xmlContent || isCancelled) { isProcessing = false; return; }
             createFloatingWindow();
-            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
+            hideNativeSubtitles(); 
             disableNetflixSubObserver();
             const parseSuccess = parseTtmlXml(xmlContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
@@ -1025,10 +977,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (isCancelled) { isProcessing = false; return; }
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url); }
-                startSubtitleSync(); // Call the modified function
+                startSubtitleSync(); 
                 try {
                     await translateAllSubtitles(url);
-                    // Saving now happens inside translateAllSubtitles if needed
                 }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
@@ -1042,10 +993,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
-        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
-        shouldSaveOffline = request.saveOffline; // --- NEW ---
+        shouldSaveOffline = request.saveOffline; 
         fontSizeEm = request.font_size;
         backgroundColorPref = request.background_color;
         backgroundAlphaPref = request.background_alpha;
@@ -1059,7 +1009,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         (async () => {
             createFloatingWindow();
-            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
+            hideNativeSubtitles(); 
             const parseSuccess = parseYouTubeTranscript(request.transcript);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, null, 'transcript');
@@ -1067,10 +1017,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (isCancelled) { isProcessing = false; return; }
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, null, 'transcript'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, null, 'transcript'); }
-                startSubtitleSync(); // Call the modified function
+                startSubtitleSync(); 
                 try {
                     await translateAllSubtitles(null);
-                    // Saving now happens inside translateAllSubtitles if needed
                 }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
@@ -1085,10 +1034,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
-        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
-        shouldSaveOffline = request.saveOffline; // --- NEW ---
+        shouldSaveOffline = request.saveOffline; 
         fontSizeEm = request.font_size;
         backgroundColorPref = request.background_color;
         backgroundAlphaPref = request.background_alpha;
@@ -1105,7 +1053,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const vttContent = await fetchSubtitleContent(url);
             if (!vttContent || isCancelled) { if (!isCancelled) sendStatusUpdate("Error fetching Disney+ subtitles.", 0, url, 'url'); isProcessing = false; return; }
             createFloatingWindow();
-            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
+            hideNativeSubtitles(); 
             const parseSuccess = parseVttContent(vttContent, url);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, url, 'url');
@@ -1113,10 +1061,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (isCancelled) { isProcessing = false; return; }
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, url, 'url'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, url, 'url'); }
-                startSubtitleSync(); // Call the modified function
+                startSubtitleSync(); 
                 try {
                     await translateAllSubtitles(url);
-                     // Saving now happens inside translateAllSubtitles if needed
                 }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
@@ -1126,15 +1073,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // NEW: Process Prime Video File Content
+    // Process Prime Video File Content
     if (request.command === "process_prime_file" && request.ttmlString) {
         if (isProcessing) return false;
         isProcessing = true;
         isCancelled = false;
-        // Assign preferences...
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
-        shouldSaveOffline = request.saveOffline; // --- NEW ---
+        shouldSaveOffline = request.saveOffline; 
         fontSizeEm = request.font_size;
         backgroundColorPref = request.background_color;
         backgroundAlphaPref = request.background_alpha;
@@ -1144,14 +1090,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
-        const urlStub = 'prime_file_upload'; // Use a stub for status updates
+        const urlStub = 'prime_file_upload'; 
         if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, urlStub, 'url'); isProcessing = false; return false; }
 
         (async () => {
             const ttmlContent = request.ttmlString;
             createFloatingWindow();
-            hideNativeSubtitles(); // --- MODIFICATION: Hide native subs ---
-            // Prime Video uses TTML, so we reuse the TTML parser
+            hideNativeSubtitles(); 
             const parseSuccess = parseTtmlXml(ttmlContent, urlStub);
             if (parseSuccess && parsedSubtitles.length > 0 && !isCancelled) {
                 sendStatusUpdate("Detecting language...", 30, urlStub, 'url');
@@ -1159,10 +1104,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (isCancelled) { isProcessing = false; return; }
                 if (!subtitleLanguages.base) { sendStatusUpdate(`Detection FAIL. Fallback 'en'...`, 30, urlStub, 'url'); subtitleLanguages.base = 'en'; }
                 else { sendStatusUpdate(`Detected: ${subtitleLanguages.base.toUpperCase()}. Translating...`, 30, urlStub, 'url'); }
-                startSubtitleSync(); // Call the modified function
+                startSubtitleSync(); 
                 try {
                     await translateAllSubtitles(urlStub);
-                    // Saving now happens inside translateAllSubtitles if needed
                 }
                 catch (e) { if (e.message !== "ABORT_TRANSLATION") console.error("Translation error:", e); }
                 isProcessing = false;
@@ -1172,32 +1116,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
     
-    // --- MODIFICATION START: New listener for displaying offline subs ---
+    // Display Offline Subtitles
     if (request.command === "display_offline_subtitles" && request.subData) {
         console.log("Received command to display offline subtitles.");
         if (isProcessing) {
             console.warn("Cannot display offline subs while processing online subs.");
-            return false; // Let popup know we're busy
+            return false; 
         }
         if (syncInterval) clearInterval(syncInterval);
         
         const data = request.subData;
         
-        // 1. Set subtitles
         parsedSubtitles = data.subtitles || [];
         if (parsedSubtitles.length === 0) {
             console.error("Offline data sent, but subtitles array is empty.");
             return false;
         }
 
-        // 2. Set preferences from saved data
         subtitleLanguages.base = data.baseLang || 'en';
         subtitleLanguages.target = data.targetLang || 'es';
         isTranslatedOnly = data.isTranslatedOnly || false;
         subtitleStylePref = data.style || 'netflix';
         
-        // 3. Set style preferences
-        const prefs = data.stylePrefs || {}; // Get the saved style object
+        const prefs = data.stylePrefs || {}; 
         fontSizeEm = prefs.font_size || 'medium';
         backgroundColorPref = prefs.background_color || 'black';
         backgroundAlphaPref = prefs.background_alpha || 0.8;
@@ -1205,19 +1146,56 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         fontColorPref = prefs.font_color || 'white';
         fontColorAlphaPref = prefs.font_color_alpha || 1.0;
         
-        // 4. Reset state
         isProcessing = false;
         isCancelled = false;
-        translationCache = {}; // Clear any old cache
+        translationCache = {}; 
         
-        // 5. Create UI and start sync
         createFloatingWindow();
         hideNativeSubtitles();
         startSubtitleSync();
         
         console.log(`Successfully loaded ${parsedSubtitles.length} offline subtitles for display.`);
         
-        return false; // No async response needed
+        return false; 
+    }
+
+    // --- MODIFICATION START: New listener for live style updates ---
+    if (request.command === "update_style_and_mode") {
+        console.log("Received live style update:", request);
+        
+        // Update global variables
+        isTranslatedOnly = request.translatedOnly;
+        subtitleStylePref = request.colourCoding;
+        fontSizeEm = request.font_size;
+        backgroundColorPref = request.background_color;
+        backgroundAlphaPref = request.background_alpha;
+        fontShadowPref = request.font_shadow;
+        fontColorPref = request.font_color;
+        fontColorAlphaPref = request.font_color_alpha;
+        
+        // Force a re-render of the current subtitle
+        const videoElement = getVideoElement();
+        if (videoElement) {
+            // Force re-draw by briefly clearing the index and re-running update
+            const tempIndex = currentSubtitleIndex;
+            currentSubtitleIndex = -1; // Force re-render
+            updateSubtitleDisplay(videoElement.currentTime);
+            currentSubtitleIndex = tempIndex; // Restore index
+        } else if (disneyTimeElement) {
+             // For Disney+, just call the update function
+             const timeString = disneyTimeElement.getAttribute('aria-valuenow');
+             if (timeString !== null) {
+                const currentTime = parseFloat(timeString);
+                if (!isNaN(currentTime)) {
+                    const tempIndex = currentSubtitleIndex;
+                    currentSubtitleIndex = -1; // Force re-render
+                    updateSubtitleDisplay(currentTime);
+                    currentSubtitleIndex = tempIndex; // Restore index
+                }
+             }
+        }
+        
+        return false;
     }
     // --- MODIFICATION END ---
 
@@ -1228,22 +1206,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             clearInterval(syncInterval);
             syncInterval = null;
         }
-        // Reset element references on cancel
         disneyTimeElement = null;
         if (floatingWindow) {
             floatingWindow.style.display = 'none';
             floatingWindow.innerHTML = '';
         }
-        // --- MODIFICATION: Clear style overrides on cancel ---
         let styleSheet = document.getElementById('ls-style-overrides');
         if (styleSheet) {
-            styleSheet.textContent = ''; // Clear the rules
+            styleSheet.textContent = ''; 
         }
-        // --- END MODIFICATION ---
         isProcessing = false;
         (async () => { await chrome.storage.local.remove(['ls_status']); console.log("Processing cancelled. Cleared status from storage."); })();
         return false;
     }
 
-    return false; // Indicate no async response for other commands
+    return false; 
 });

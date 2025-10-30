@@ -6,14 +6,15 @@ let isPopupInitialized = false;
 let selectedOfflineTimestamp = null;
 // --- END MODIFICATION ---
 
-// --- MODIFICATION: Define heights for all modes ---
-const NETFLIX_SETUP_HEIGHT = '485px'; // Taller height for setup state (Netflix)
-const YOUTUBE_SETUP_HEIGHT = '510px'; // NEW: Taller height for YouTube w/ transcript
-const DISNEY_SETUP_HEIGHT = '450px'; // NEW: Height for Disney+
-const PRIME_SETUP_HEIGHT = '510px'; // NEW: Height for Prime Video (File Upload)
-const PROCESSING_POPUP_HEIGHT = '360px'; // Shorter height for processing state
+// --- MODIFICATION: Define heights for all modes (Processing height increased) ---
+const NETFLIX_SETUP_HEIGHT = '440px';
+const YOUTUBE_SETUP_HEIGHT = '465px';
+const DISNEY_SETUP_HEIGHT = '405px';
+const PRIME_SETUP_HEIGHT = '465px';
+const PROCESSING_POPUP_HEIGHT = '456px'; // Was 360px, added 96px for preferences
 // --- NEW: Offline Height ---
 const OFFLINE_POPUP_HEIGHT = '485px';
+// --- END MODIFICATION ---
 
 const NETFLIX_PRESET = {
     font_size: 'medium',
@@ -39,11 +40,7 @@ const LANGUAGE_MAP = {
 };
 
 let isCancelledByPopup = false;
-// --- MODIFICATION: Changed default mode to youtube ---
 let currentMode = 'youtube';
-// --- END MODIFICATION ---
-
-// --- NEW: Master Mode ---
 let currentMasterMode = 'online';
 
 function getModeColor() {
@@ -79,14 +76,12 @@ async function loadSavedVideos(mode, elements) {
         subsForThisService.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         subsForThisService.forEach(savedSub => {
-            // --- MODIFICATION START: Create list item with delete button ---
             const listItem = document.createElement('div');
             listItem.className = 'saved-video-item';
 
             const itemText = document.createElement('span');
             itemText.title = 'Click to select this subtitle'; // MODIFIED: Title
 
-            // Build the label string
             const title = savedSub.title || 'Unknown Title';
             const baseLang = getLanguageName(savedSub.baseLang || '??');
             const targetLang = getLanguageName(savedSub.targetLang || '??');
@@ -94,36 +89,28 @@ async function loadSavedVideos(mode, elements) {
             const styleText = (savedSub.style || 'N/A').charAt(0).toUpperCase() + (savedSub.style || 'N/A').slice(1);
             itemText.textContent = `${title} - ${baseLang} to ${targetLang} - ${modeText} - ${styleText}`;
             
-            // --- MODIFICATION START: Add click listener for selection ---
             itemText.addEventListener('click', () => {
-                // Remove 'active' from all other items
                 Array.from(elements.savedVideosList.children).forEach(child => {
                     child.classList.remove('active');
                 });
-                // Add 'active' to the parent list item
                 listItem.classList.add('active');
-                // Store the timestamp
                 selectedOfflineTimestamp = savedSub.timestamp;
                 console.log(`Selected offline sub: ${selectedOfflineTimestamp}`);
             });
-            // --- MODIFICATION END ---
             
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'X';
             deleteButton.className = 'delete-sub-btn';
             deleteButton.title = 'Delete this subtitle';
             
-            // Add click listener for deletion
             deleteButton.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevent any parent click
-                // Call the new delete function
                 deleteSavedSubtitle(mode, savedSub.timestamp, elements);
             });
 
             listItem.appendChild(itemText);
             listItem.appendChild(deleteButton);
             elements.savedVideosList.appendChild(listItem);
-            // --- MODIFICATION END ---
         });
 
     } catch (error) {
@@ -145,28 +132,15 @@ async function deleteSavedSubtitle(mode, timestamp, elements) {
             return;
         }
 
-        const originalCount = allSavedSubs[mode].length;
-
-        // Filter out the item with the matching timestamp
         allSavedSubs[mode] = allSavedSubs[mode].filter(sub => sub.timestamp !== timestamp);
 
-        const newCount = allSavedSubs[mode].length;
-
-        if (newCount === originalCount) {
-            console.warn("Could not find subtitle with that timestamp to delete.");
-        }
-
-        // Save the modified object back
         await chrome.storage.local.set({ 'ls_offline_subtitles': allSavedSubs });
         console.log("Subtitle deleted. Refreshing list.");
         
-        // --- MODIFICATION: If the deleted item was the selected one, clear selection ---
         if (selectedOfflineTimestamp === timestamp) {
             selectedOfflineTimestamp = null;
         }
-        // --- END MODIFICATION ---
 
-        // Refresh the UI by reloading the list
         loadSavedVideos(mode, elements);
 
     } catch (error) {
@@ -188,15 +162,12 @@ function updateMasterMode(masterMode, elements) {
         elements.onlineModeContainer.classList.add('hidden-no-space');
         elements.offlineModeContainer.classList.remove('hidden-no-space');
 
-        // Hide processing UI if it was open
         elements.statusBox.classList.add('hidden-no-space');
         elements.cancelButton.classList.add('hidden-no-space');
 
         document.body.style.height = OFFLINE_POPUP_HEIGHT;
 
-        // Update offline title based on current streaming mode
-        updateUIMode(currentMode, elements); // This will call loadSavedVideos
-        // Load the list of saved videos is now called within updateUIMode
+        updateUIMode(currentMode, elements);
 
     } else { // 'online'
         elements.onlineModeButton.classList.add('active');
@@ -205,7 +176,6 @@ function updateMasterMode(masterMode, elements) {
         elements.onlineModeContainer.classList.remove('hidden-no-space');
         elements.offlineModeContainer.classList.add('hidden-no-space');
 
-        // Restore correct online UI state and height
         updateUIMode(currentMode, elements);
     }
 }
@@ -224,7 +194,7 @@ function updateGenerateButtonState(elements) {
 function updateUIMode(mode, elements) {
     currentMode = mode;
     chrome.storage.local.set({ 'ls_mode': mode });
-    selectedOfflineTimestamp = null; // --- MODIFICATION: Reset selection when changing mode ---
+    selectedOfflineTimestamp = null; 
 
     const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
 
@@ -234,25 +204,21 @@ function updateUIMode(mode, elements) {
     elements.disneyModeButton.classList.remove('active');
     elements.primeModeButton.classList.remove('active');
 
-    // --- Logic for ONLINE mode ---
     if (currentMasterMode === 'online') {
-        // Hide all input sections
         elements.netflixInputs.classList.add('hidden-no-space');
         elements.youtubeInputs.classList.add('hidden-no-space');
         elements.disneyInputs.classList.add('hidden-no-space');
         elements.primeInputs.classList.add('hidden-no-space');
 
-        // Hide all input status texts
         elements.urlStatusText.classList.add('hidden-no-space');
         elements.transcriptStatusText.classList.add('hidden-no-space');
         elements.disneyUrlStatusText.classList.add('hidden-no-space');
         elements.primeUrlStatusText.classList.add('hidden-no-space');
     }
 
-    // Set common headers
     elements.languageHeader.textContent = '2. Select Language';
-    // --- MODIFICATION: Update header text to "4." ---
-    elements.preferencesHeader.textContent = '4. Select Subtitle Preferences';
+    // --- MODIFICATION: Update header text (it's hidden, but good to keep it correct) ---
+    // elements.preferencesHeader.textContent = '4. Select Subtitle Preferences'; // This line is removed as the element is hidden
     // --- END MODIFICATION ---
 
     if (mode === 'netflix') {
@@ -327,13 +293,11 @@ function updateUIMode(mode, elements) {
         }
     }
 
-    // Re-validate language and button state (only if online)
     if (currentMasterMode === 'online') {
         checkLanguagePairAvailability(elements);
         updateGenerateButtonState(elements);
     } else {
-        // We are offline, load the saved videos for this new mode
-        loadSavedVideos(mode, elements); // <-- Call loadSavedVideos here
+        loadSavedVideos(mode, elements);
     }
 }
 
@@ -367,7 +331,6 @@ async function resetStatus(elements) {
 
     if (!elements.confirmButton) return;
 
-    // --- MODIFIED: Height check now respects master mode ---
     if (currentMasterMode === 'online') {
         let setupHeight;
         if (currentMode === 'netflix') setupHeight = NETFLIX_SETUP_HEIGHT;
@@ -376,7 +339,6 @@ async function resetStatus(elements) {
         else setupHeight = PRIME_SETUP_HEIGHT;
         document.body.style.height = setupHeight;
     }
-    // --- END MODIFICATION ---
 
     elements.subtitleUrlInput.value = '';
     elements.youtubeTranscriptInput.value = '';
@@ -394,7 +356,6 @@ async function resetStatus(elements) {
     elements.editStyleSettingsButton.disabled = false;
     elements.editStyleSettingsButton.title = `Edit Netflix Settings`;
 
-    // --- NEW: Reset checkbox ---
     elements.saveForOfflineCheckbox.checked = false;
 
     elements.confirmButton.disabled = true;
@@ -447,7 +408,6 @@ async function resetStatus(elements) {
 }
 
 async function stopProcessingUI(elements) {
-    // --- MODIFIED: Height check now respects master mode ---
     if (currentMasterMode === 'online') {
         let setupHeight;
         if (currentMode === 'netflix') setupHeight = NETFLIX_SETUP_HEIGHT;
@@ -456,7 +416,6 @@ async function stopProcessingUI(elements) {
         else setupHeight = PRIME_SETUP_HEIGHT;
         document.body.style.height = setupHeight;
     }
-    // --- END MODIFICATION ---
 
     elements.targetLanguageInput.disabled = false;
     elements.subtitleUrlInput.disabled = false;
@@ -466,7 +425,7 @@ async function stopProcessingUI(elements) {
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
-    elements.saveForOfflineCheckbox.disabled = false; // --- NEW ---
+    elements.saveForOfflineCheckbox.disabled = false; 
 
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
@@ -478,7 +437,14 @@ async function stopProcessingUI(elements) {
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
 
+    // --- MODIFICATION START: Show setup sections again ---
+    elements.languageHeader.classList.remove('hidden-no-space');
+    elements.targetLanguageInput.classList.remove('hidden-no-space');
+    elements.langStatusText.classList.remove('hidden-no-space');
+    elements.generateHeader.classList.remove('hidden-no-space');
+    elements.saveForOfflineCheckbox.parentElement.classList.remove('hidden-no-space');
     elements.confirmButton.classList.remove('hidden-no-space');
+    // --- MODIFICATION END ---
 
     elements.netflixInputs.classList.add('hidden-no-space');
     elements.youtubeInputs.classList.add('hidden-no-space');
@@ -526,27 +492,22 @@ async function openCustomSettingsWindow(selectedStyle) {
 }
 
 function getLanguageName(langCode) {
-    // Check cache first
     if (getLanguageName.cache && getLanguageName.cache[langCode]) {
         return getLanguageName.cache[langCode];
     }
-    // Build cache if it doesn't exist
     if (!getLanguageName.cache) {
         getLanguageName.cache = {};
         for (const key in LANGUAGE_MAP) {
             getLanguageName.cache[LANGUAGE_MAP[key]] = key.charAt(0).toUpperCase() + key.slice(1);
         }
     }
-    // Look up and cache if needed
     const name = getLanguageName.cache[langCode] || langCode.toUpperCase();
     return name;
 }
 
 
 async function checkLanguagePairAvailability(elements) {
-    // --- MODIFIED: Don't run this check if offline ---
     if (currentMasterMode === 'offline') return;
-    // --- END MODIFICATION ---
 
     const inputLang = elements.targetLanguageInput.value.trim().toLowerCase();
     if (inputLang === '') {
@@ -951,21 +912,13 @@ async function loadSavedStatus(elements) {
     const data = await chrome.storage.local.get([
         'ls_status', 'last_input', 'translated_only_pref', 'subtitle_style_pref',
         'detected_base_lang_name', 'ui_temp_state', 'ls_mode',
-        'ls_master_mode' // --- NEW: Load master mode ---
+        'ls_master_mode'
     ]);
 
-    // --- NEW: Set master mode FIRST ---
     currentMasterMode = data.ls_master_mode || 'online';
     updateMasterMode(currentMasterMode, elements);
-    // --- END NEW ---
 
-    // --- MODIFICATION: Changed default mode to youtube ---
     currentMode = data.ls_mode || 'youtube';
-    // --- END MODIFICATION ---
-
-    // updateUIMode needs to be called AFTER master mode is set.
-    // updateMasterMode calls updateUIMode, so we don't need to call it explicitly here anymore.
-    // updateUIMode(currentMode, elements); // Set streaming mode second
 
     const status = data.ls_status;
 
@@ -975,7 +928,6 @@ async function loadSavedStatus(elements) {
         chrome.storage.local.set({ 'ls_status': status });
     }
 
-    // --- This UI logic only applies to ONLINE mode ---
     if (currentMasterMode === 'online') {
         elements.progressBar.style.width = '0%';
         elements.targetLanguageInput.disabled = false;
@@ -1026,27 +978,38 @@ async function loadSavedStatus(elements) {
         }
 
         if (status && status.progress > 0) {
-            // Processing/Complete State
+            // --- MODIFICATION START: Show preferences, hide setup ---
             document.body.style.height = PROCESSING_POPUP_HEIGHT;
 
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
             elements.progressBar.style.width = status.progress + '%';
 
-            elements.onlineModeContainer.classList.add('hidden-no-space'); // Hide the whole container
+            // Hide setup sections, but keep preferences
+            elements.languageHeader.classList.add('hidden-no-space');
+            elements.targetLanguageInput.classList.add('hidden-no-space');
+            elements.langStatusText.classList.add('hidden-no-space');
+            elements.generateHeader.classList.add('hidden-no-space');
+            elements.saveForOfflineCheckbox.parentElement.classList.add('hidden-no-space');
+            elements.confirmButton.classList.add('hidden-no-space');
+            
+            // Also hide the input section for the current mode
+            if (currentMode === 'netflix') elements.netflixInputs.classList.add('hidden-no-space');
+            else if (currentMode === 'youtube') elements.youtubeInputs.classList.add('hidden-no-space');
+            else if (currentMode === 'disney') elements.disneyInputs.classList.add('hidden-no-space');
+            else if (currentMode === 'prime') elements.primeInputs.classList.add('hidden-no-space');
 
             elements.targetLanguageInput.disabled = true;
             elements.subtitleUrlInput.disabled = true;
             elements.youtubeTranscriptInput.disabled = true;
             elements.disneyUrlInput.disabled = true;
             elements.primeUploadButton.disabled = true;
-            elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-            elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-            elements.editStyleSettingsButton.disabled = true;
-            elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
+            // Preferences remain enabled
+            elements.saveForOfflineCheckbox.disabled = true;
 
             elements.cancelButton.classList.remove('hidden-no-space');
             elements.cancelButton.textContent = (status.progress < 100) ? "Cancel Subtitle Generation" : "Clear Subtitles";
+            // --- MODIFICATION END ---
 
         } else {
                 // Initial/Error State
@@ -1088,8 +1051,6 @@ async function loadSavedStatus(elements) {
                 updateGenerateButtonState(elements);
         }
     }
-    // --- END Online-only logic ---
-
     isPopupInitialized = true;
     console.log("4. Popup initialization complete.");
 }
@@ -1097,10 +1058,23 @@ async function loadSavedStatus(elements) {
 async function handleConfirmClick(elements) {
     console.log(`[POPUP] 'Generate Subtitles' button clicked for mode: ${currentMode}.`);
 
+    // --- MODIFICATION: Use new processing height ---
     document.body.style.height = PROCESSING_POPUP_HEIGHT;
+    // --- END MODIFICATION ---
 
-    // Hide setup UI
-    elements.onlineModeContainer.classList.add('hidden-no-space'); // NEW: Hide main container
+    // --- MODIFICATION START: Hide setup UI, keep preferences ---
+    elements.languageHeader.classList.add('hidden-no-space');
+    elements.targetLanguageInput.classList.add('hidden-no-space');
+    elements.langStatusText.classList.add('hidden-no-space');
+    elements.generateHeader.classList.add('hidden-no-space');
+    elements.saveForOfflineCheckbox.parentElement.classList.add('hidden-no-space');
+    elements.confirmButton.classList.add('hidden-no-space');
+    
+    if (currentMode === 'netflix') elements.netflixInputs.classList.add('hidden-no-space');
+    else if (currentMode === 'youtube') elements.youtubeInputs.classList.add('hidden-no-space');
+    else if (currentMode === 'disney') elements.disneyInputs.classList.add('hidden-no-space');
+    else if (currentMode === 'prime') elements.primeInputs.classList.add('hidden-no-space');
+    // --- MODIFICATION END ---
 
     isCancelledByPopup = false;
     elements.statusBox.classList.remove('hidden-no-space');
@@ -1110,16 +1084,14 @@ async function handleConfirmClick(elements) {
     elements.statusText.textContent = "Generating subtitles...";
     elements.progressBar.style.width = '5%';
 
-    // Disable inputs
+    // --- MODIFICATION: Only disable setup inputs, not preferences ---
     elements.targetLanguageInput.disabled = true;
     elements.subtitleUrlInput.disabled = true;
     elements.youtubeTranscriptInput.disabled = true;
     elements.disneyUrlInput.disabled = true;
     elements.primeUploadButton.disabled = true;
-    elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-    elements.editStyleSettingsButton.disabled = true;
-    elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
+    elements.saveForOfflineCheckbox.disabled = true; 
+    // --- END MODIFICATION ---
 
     await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
 
@@ -1146,7 +1118,7 @@ async function handleConfirmClick(elements) {
     const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-    const saveOffline = elements.saveForOfflineCheckbox.checked; // --- NEW: Get checkbox state ---
+    const saveOffline = elements.saveForOfflineCheckbox.checked;
 
     const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
     const stylePrefix = `${selectedStyle}_`;
@@ -1236,7 +1208,7 @@ async function handleConfirmClick(elements) {
                 url: url,
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
-                saveOffline: saveOffline, // --- NEW ---
+                saveOffline: saveOffline, 
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
@@ -1246,7 +1218,7 @@ async function handleConfirmClick(elements) {
                 transcript: transcript,
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
-                saveOffline: saveOffline, // --- NEW ---
+                saveOffline: saveOffline, 
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
@@ -1257,7 +1229,7 @@ async function handleConfirmClick(elements) {
                 url: disneyUrl,
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
-                saveOffline: saveOffline, // --- NEW ---
+                saveOffline: saveOffline, 
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
@@ -1268,7 +1240,7 @@ async function handleConfirmClick(elements) {
                 ttmlString: primeTtmlString,
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
-                saveOffline: saveOffline, // --- NEW ---
+                saveOffline: saveOffline, 
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
@@ -1310,7 +1282,6 @@ async function handleCancelClick(elements) {
                 });
             }
         });
-        // --- NEW: Make sure we're in online mode after clearing ---
         updateMasterMode('online', elements);
         return;
     }
@@ -1337,6 +1308,48 @@ async function handleCancelClick(elements) {
     await stopProcessingUI(elements);
 }
 
+// --- MODIFICATION START: New function to send live style updates ---
+async function sendLiveStyleUpdate(elements) {
+    // Only send updates if we are in a processing/completed state
+    if (elements.statusBox.classList.contains('hidden-no-space')) {
+        return;
+    }
+    
+    console.log("Sending live style update to content script...");
+
+    const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
+    const translatedOnly = (selectedSubtitleMode === 'translated_only');
+    const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
+
+    const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+    const stylePrefix = `${selectedStyle}_`;
+    const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
+    const storedData = await chrome.storage.local.get(keysToLoad);
+
+    const finalStylePrefs = {};
+    for (const key of PREF_KEYS) {
+        const storedKey = `${stylePrefix}${key}`;
+        finalStylePrefs[key] = storedData[storedKey] ?? defaults[key];
+    }
+    
+    const message = {
+        command: "update_style_and_mode",
+        translatedOnly: translatedOnly,
+        colourCoding: selectedStyle,
+        ...finalStylePrefs
+    };
+    
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs[0] && tabs[0].id) {
+             chrome.tabs.sendMessage(tabs[0].id, message);
+        }
+    } catch (e) {
+        console.warn("Could not send live style update:", e);
+    }
+}
+// --- MODIFICATION END ---
+
 
 document.addEventListener('DOMContentLoaded', async () => {
     const elements = {
@@ -1358,51 +1371,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         subtitleStyleVocabulary: document.getElementById('subtitleStyleVocabulary'),
         editStyleSettingsButton: document.getElementById('editStyleSettingsButton'),
         urlInstructions: document.getElementById('urlInstructions'),
-        // Mode switcher elements
         titleHeader: document.getElementById('titleHeader'),
         netflixModeButton: document.getElementById('netflixModeButton'),
         youtubeModeButton: document.getElementById('youtubeModeButton'),
         disneyModeButton: document.getElementById('disneyModeButton'),
         primeModeButton: document.getElementById('primeModeButton'),
-        // Section headers
         urlHeader: document.getElementById('urlHeader'),
         languageHeader: document.getElementById('languageHeader'),
-        // --- MODIFICATION: Add generateHeader ---
         generateHeader: document.getElementById('generateHeader'),
-        // --- END MODIFICATION ---
         preferencesHeader: document.getElementById('preferencesHeader'),
-        // Netflix inputs
         netflixInputs: document.getElementById('netflixInputs'),
-        // YouTube inputs
         youtubeInputs: document.getElementById('youtubeInputs'),
         transcriptHeader: document.getElementById('transcriptHeader'),
         transcriptInstructions: document.getElementById('transcriptInstructions'),
         youtubeTranscriptInput: document.getElementById('youtubeTranscriptInput'),
         transcriptStatusText: document.getElementById('transcriptStatusText'),
-        // Disney+ inputs
         disneyInputs: document.getElementById('disneyInputs'),
         disneyHeader: document.getElementById('disneyHeader'),
         disneyInstructions: document.getElementById('disneyInstructions'),
         disneyUrlInput: document.getElementById('disneyUrlInput'),
         disneyUrlStatusText: document.getElementById('disneyUrlStatusText'),
-        // Prime Video inputs
         primeInputs: document.getElementById('primeInputs'),
         primeHeader: document.getElementById('primeHeader'),
         primeInstructions: document.getElementById('primeInstructions'),
         primeFileInput: document.getElementById('primeFileInput'),
         primeUploadButton: document.getElementById('primeUploadButton'),
         primeUrlStatusText: document.getElementById('primeUrlStatusText'),
-        // --- NEW: Master Mode Elements ---
         onlineModeButton: document.getElementById('onlineModeButton'),
         offlineModeButton: document.getElementById('offlineModeButton'),
         onlineModeContainer: document.getElementById('online-mode-container'),
         offlineModeContainer: document.getElementById('offline-mode-container'),
-        // --- MODIFICATION: Removed offlineTitle ---
-        // offlineTitle: document.getElementById('offline-title'),
         savedVideosList: document.getElementById('saved-videos-list'),
         offlineInstructionsText: document.getElementById('offlineInstructionsText'),
         displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton'),
-        // --- MODIFICATION: Add new checkbox ---
         saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox')
     };
 
@@ -1416,18 +1417,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     console.log("2. All DOM elements found. Attaching listeners.");
 
-    await loadSavedStatus(elements); // Load status *first* and wait for it
+    await loadSavedStatus(elements); 
 
-    // --- NEW: Master Mode Listeners ---
     elements.onlineModeButton.addEventListener('click', () => updateMasterMode('online', elements));
     elements.offlineModeButton.addEventListener('click', () => updateMasterMode('offline', elements));
-    // --- END NEW ---
     
-    // --- MODIFICATION START: Add click listener for Display Offline Subtitles ---
     elements.displayOfflineSubtitlesButton.addEventListener('click', async () => {
         if (!selectedOfflineTimestamp) {
             elements.savedVideosList.innerHTML = '<p style="color: red;">Please select a subtitle file from the list first.</p>';
-            setTimeout(() => loadSavedVideos(currentMode, elements), 2000); // Reset list after 2s
+            setTimeout(() => loadSavedVideos(currentMode, elements), 2000); 
             return;
         }
 
@@ -1444,7 +1442,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            // Send the full subtitle object to content.js
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs[0] && tabs[0].id) {
                 chrome.scripting.executeScript({
@@ -1456,7 +1453,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                          elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
                          return;
                     }
-                    // After ensuring script is injected, send the message
                     chrome.tabs.sendMessage(tabs[0].id, {
                         command: "display_offline_subtitles",
                         subData: selectedSub
@@ -1465,7 +1461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             console.warn("Could not send offline display message:", chrome.runtime.lastError.message);
                              elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
                          } else {
-                            window.close(); // Close popup on success
+                            window.close(); 
                          }
                     });
                 });
@@ -1478,7 +1474,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             elements.savedVideosList.innerHTML = `<p style="color: red;">Error: ${e.message}. Reload tab and try again.</p>`;
         }
     });
-    // --- MODIFICATION END ---
 
     elements.netflixModeButton.addEventListener('click', () => updateUIMode('netflix', elements));
     elements.youtubeModeButton.addEventListener('click', () => updateUIMode('youtube', elements));
@@ -1514,13 +1509,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         openCustomSettingsWindow(selectedStyle);
     });
 
-    // Netflix URL input listener
     elements.subtitleUrlInput.addEventListener('input', () => {
         checkUrlAndDetectLanguage(elements);
         saveCurrentInputs(elements);
     });
 
-    // YouTube transcript input listener
     elements.youtubeTranscriptInput.addEventListener('input', () => {
         clearTimeout(transcriptInputTimer);
         transcriptInputTimer = setTimeout(() => {
@@ -1529,7 +1522,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 500);
     });
 
-    // Disney+ URL input listener
     elements.disneyUrlInput.addEventListener('input', () => {
         clearTimeout(disneyUrlInputTimer);
         disneyUrlInputTimer = setTimeout(() => {
@@ -1538,7 +1530,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 500);
     });
 
-    // Prime Video File Input Listeners
     elements.primeUploadButton.addEventListener('click', () => {
         if (elements.primeUploadButton.textContent === "Clear Uploaded TTML") {
             chrome.storage.local.remove([
@@ -1585,7 +1576,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         reader.readAsText(file);
     });
 
-    // Target language input listener
     elements.targetLanguageInput.addEventListener('input', () => {
         clearTimeout(languageInputTimer);
         languageInputTimer = setTimeout(() => {
@@ -1594,6 +1584,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 500);
     });
 
+    // --- MODIFICATION START: Listen for storage changes to send live updates ---
+    chrome.storage.onChanged.addListener((changes, namespace) => {
+        if (namespace === 'local') {
+            const keys = Object.keys(changes);
+            const hasPrefChange = keys.some(key => 
+                key.endsWith('_pref') || 
+                key.startsWith('custom_') || 
+                key.startsWith('netflix_') || 
+                key.startsWith('vocabulary_')
+            );
+            
+            if (hasPrefChange && isPopupInitialized && currentMasterMode === 'online') {
+                console.log("Detected style or mode change, sending live update...");
+                sendLiveStyleUpdate(elements);
+            }
+        }
+    });
+    // --- MODIFICATION END ---
+
     chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         if (!isPopupInitialized) {
             console.log("Popup not initialized, ignoring message:", request.command);
@@ -1601,18 +1610,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (request.command === "update_status") {
-            // --- NEW: If we get a status update, force switch to online mode ---
             if (currentMasterMode === 'offline') {
                 updateMasterMode('online', elements);
             }
-            // --- END NEW ---
 
             if (isCancelledByPopup) {
                 console.log("Popup is in cancelled state. Ignoring status update.");
                 return;
             }
-
+            
+            // --- MODIFICATION: Use new processing height ---
             document.body.style.height = PROCESSING_POPUP_HEIGHT;
+            // --- END MODIFICATION ---
 
             const { progress, message, route } = request;
             elements.statusBox.classList.remove('hidden-no-space');
@@ -1651,17 +1660,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (progress >= 100) {
                 const popcornEmoji = "\u{1F37F}";
                 let completionMessage = `Enjoy your show !${popcornEmoji}`;
-                // --- NEW: Append saved message ---
                 if (elements.saveForOfflineCheckbox.checked) {
                     completionMessage += " Subtitles saved for offline use.";
                 }
-                // --- END NEW ---
                 elements.statusText.textContent = completionMessage;
 
 
                 const { ls_status } = await chrome.storage.local.get('ls_status');
                 if (ls_status) {
-                    ls_status.message = completionMessage; // Use the potentially modified message
+                    ls_status.message = completionMessage; 
                     await chrome.storage.local.set({ ls_status });
                 }
 
@@ -1670,30 +1677,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.youtubeTranscriptInput.disabled = true;
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
-
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
+                elements.saveForOfflineCheckbox.disabled = true; 
+                // Preferences remain enabled
 
                 elements.confirmButton.classList.add('hidden-no-space');
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Clear Subtitles";
 
             } else if (progress > 0) {
-                elements.onlineModeContainer.classList.add('hidden-no-space'); // Hide inputs during processing
+                // --- MODIFICATION START: Hide setup sections ---
+                elements.languageHeader.classList.add('hidden-no-space');
+                elements.targetLanguageInput.classList.add('hidden-no-space');
+                elements.langStatusText.classList.add('hidden-no-space');
+                elements.generateHeader.classList.add('hidden-no-space');
+                elements.saveForOfflineCheckbox.parentElement.classList.add('hidden-no-space');
                 elements.confirmButton.classList.add('hidden-no-space');
-
+            
+                if (currentMode === 'netflix') elements.netflixInputs.classList.add('hidden-no-space');
+                else if (currentMode === 'youtube') elements.youtubeInputs.classList.add('hidden-no-space');
+                else if (currentMode === 'disney') elements.disneyInputs.classList.add('hidden-no-space');
+                else if (currentMode === 'prime') elements.primeInputs.classList.add('hidden-no-space');
+                // --- MODIFICATION END ---
+                
                 elements.targetLanguageInput.disabled = true;
                 elements.subtitleUrlInput.disabled = true;
                 elements.youtubeTranscriptInput.disabled = true;
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
+                elements.saveForOfflineCheckbox.disabled = true; 
+                // Preferences remain enabled
 
-                elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = true);
-                elements.editStyleSettingsButton.disabled = true;
-                elements.saveForOfflineCheckbox.disabled = true; // --- NEW ---
                 elements.cancelButton.classList.remove('hidden-no-space');
                 elements.cancelButton.textContent = "Cancel Subtitle Generation";
             } else {
