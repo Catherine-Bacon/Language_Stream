@@ -2,6 +2,9 @@
 console.log("1. popup.js script file loaded.");
 
 let isPopupInitialized = false;
+// --- MODIFICATION: Add variable to track selected offline sub ---
+let selectedOfflineTimestamp = null;
+// --- END MODIFICATION ---
 
 // --- MODIFICATION: Define heights for all modes ---
 const NETFLIX_SETUP_HEIGHT = '485px'; // Taller height for setup state (Netflix)
@@ -58,6 +61,7 @@ function getModeColor() {
 async function loadSavedVideos(mode, elements) {
     console.log(`Loading saved videos for: ${mode}`);
     elements.savedVideosList.innerHTML = '<p>Loading saved subtitles...</p>'; // Show loading state
+    selectedOfflineTimestamp = null; // --- MODIFICATION: Reset selection ---
 
     try {
         const data = await chrome.storage.local.get('ls_offline_subtitles');
@@ -80,7 +84,7 @@ async function loadSavedVideos(mode, elements) {
             listItem.className = 'saved-video-item';
 
             const itemText = document.createElement('span');
-            itemText.title = 'Click to display (functionality not yet implemented)'; // Placeholder title
+            itemText.title = 'Click to select this subtitle'; // MODIFIED: Title
 
             // Build the label string
             const title = savedSub.title || 'Unknown Title';
@@ -90,8 +94,19 @@ async function loadSavedVideos(mode, elements) {
             const styleText = (savedSub.style || 'N/A').charAt(0).toUpperCase() + (savedSub.style || 'N/A').slice(1);
             itemText.textContent = `${title} - ${baseLang} to ${targetLang} - ${modeText} - ${styleText}`;
             
-            // TODO: Add click listener to itemText to handle displaying subtitles
-            // itemText.addEventListener('click', () => { /* ... logic to display savedSub.subtitles ... */ });
+            // --- MODIFICATION START: Add click listener for selection ---
+            itemText.addEventListener('click', () => {
+                // Remove 'active' from all other items
+                Array.from(elements.savedVideosList.children).forEach(child => {
+                    child.classList.remove('active');
+                });
+                // Add 'active' to the parent list item
+                listItem.classList.add('active');
+                // Store the timestamp
+                selectedOfflineTimestamp = savedSub.timestamp;
+                console.log(`Selected offline sub: ${selectedOfflineTimestamp}`);
+            });
+            // --- MODIFICATION END ---
             
             const deleteButton = document.createElement('button');
             deleteButton.textContent = 'X';
@@ -144,6 +159,12 @@ async function deleteSavedSubtitle(mode, timestamp, elements) {
         // Save the modified object back
         await chrome.storage.local.set({ 'ls_offline_subtitles': allSavedSubs });
         console.log("Subtitle deleted. Refreshing list.");
+        
+        // --- MODIFICATION: If the deleted item was the selected one, clear selection ---
+        if (selectedOfflineTimestamp === timestamp) {
+            selectedOfflineTimestamp = null;
+        }
+        // --- END MODIFICATION ---
 
         // Refresh the UI by reloading the list
         loadSavedVideos(mode, elements);
@@ -203,6 +224,7 @@ function updateGenerateButtonState(elements) {
 function updateUIMode(mode, elements) {
     currentMode = mode;
     chrome.storage.local.set({ 'ls_mode': mode });
+    selectedOfflineTimestamp = null; // --- MODIFICATION: Reset selection when changing mode ---
 
     const isProcessing = elements.statusBox.classList.contains('hidden-no-space') === false;
 
@@ -1398,6 +1420,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     elements.onlineModeButton.addEventListener('click', () => updateMasterMode('online', elements));
     elements.offlineModeButton.addEventListener('click', () => updateMasterMode('offline', elements));
     // --- END NEW ---
+    
+    // --- MODIFICATION START: Add click listener for Display Offline Subtitles ---
+    elements.displayOfflineSubtitlesButton.addEventListener('click', async () => {
+        if (!selectedOfflineTimestamp) {
+            elements.savedVideosList.innerHTML = '<p style="color: red;">Please select a subtitle file from the list first.</p>';
+            setTimeout(() => loadSavedVideos(currentMode, elements), 2000); // Reset list after 2s
+            return;
+        }
+
+        try {
+            const data = await chrome.storage.local.get('ls_offline_subtitles');
+            const allSavedSubs = data.ls_offline_subtitles || {};
+            const subsForThisService = allSavedSubs[currentMode] || [];
+            
+            const selectedSub = subsForThisService.find(s => s.timestamp === selectedOfflineTimestamp);
+            
+            if (!selectedSub) {
+                elements.savedVideosList.innerHTML = '<p style="color: red;">Error: Could not find the selected subtitle. Please try again.</p>';
+                setTimeout(() => loadSavedVideos(currentMode, elements), 2000);
+                return;
+            }
+            
+            // Send the full subtitle object to content.js
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0] && tabs[0].id) {
+                chrome.scripting.executeScript({
+                    target: { tabId: tabs[0].id },
+                    files: ['content.js']
+                }, () => {
+                    if (chrome.runtime.lastError) {
+                         console.error("Error injecting content.js for offline mode:", chrome.runtime.lastError.message);
+                         elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
+                         return;
+                    }
+                    // After ensuring script is injected, send the message
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        command: "display_offline_subtitles",
+                        subData: selectedSub
+                    }, () => {
+                         if (chrome.runtime.lastError) {
+                            console.warn("Could not send offline display message:", chrome.runtime.lastError.message);
+                             elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
+                         } else {
+                            window.close(); // Close popup on success
+                         }
+                    });
+                });
+            } else {
+                throw new Error("Could not find active tab.");
+            }
+            
+        } catch (e) {
+            console.error("Error sending offline subtitles to content script:", e);
+            elements.savedVideosList.innerHTML = `<p style="color: red;">Error: ${e.message}. Reload tab and try again.</p>`;
+        }
+    });
+    // --- MODIFICATION END ---
 
     elements.netflixModeButton.addEventListener('click', () => updateUIMode('netflix', elements));
     elements.youtubeModeButton.addEventListener('click', () => updateUIMode('youtube', elements));

@@ -638,14 +638,21 @@ function startSubtitleSync() {
         if (newIndex !== -1) {
             if (newIndex !== currentSubtitleIndex) {
                 // --- MODIFICATION: Use temp color properties ---
-                const { text, translatedText, tempBaseWordColors, tempTranslatedWordColors } = newSubtitle;
+                // --- MODIFICATION START: Offline subs won't have temp... colors. Check for them.
+                let baseColors = newSubtitle.tempBaseWordColors;
+                let translatedColors = newSubtitle.tempTranslatedWordColors;
+                
+                // Offline subs (and non-vocab subs) won't have these.
+                // We must rely on the main `text` and `translatedText` properties.
+                const { text, translatedText } = newSubtitle; 
                 // --- END MODIFICATION ---
+
                 let innerHTML = '';
                 if (translatedText) {
                     if (subtitleStylePref === 'vocabulary') {
-                        // --- MODIFICATION: Use temp color properties ---
-                        const baseHtml = buildColorCodedHtml(text, tempBaseWordColors, baseFontColor, true);
-                        const translatedHtml = buildColorCodedHtml(translatedText, tempTranslatedWordColors, baseFontColor, false);
+                        // --- MODIFICATION: Use correct color properties ---
+                        const baseHtml = buildColorCodedHtml(text, baseColors, baseFontColor, true);
+                        const translatedHtml = buildColorCodedHtml(translatedText, translatedColors, baseFontColor, false);
                         // --- END MODIFICATION ---
                         innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     } else {
@@ -654,6 +661,7 @@ function startSubtitleSync() {
                         innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     }
                 } else if (!isTranslatedOnly) {
+                    // This case should only happen for online streaming partial load
                     const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
                     innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">(Translating...)</span>`;
                 }
@@ -835,7 +843,7 @@ function getVideoTitle() {
 }
 // --- END NEW FUNCTION ---
 
-// --- NEW FUNCTION: Save Subtitles to Storage ---
+// --- MODIFIED FUNCTION: Save Subtitles to Storage (with style prefs) ---
 async function saveSubtitlesOffline() {
     console.log("Attempting to save subtitles for offline use...");
     if (!parsedSubtitles || parsedSubtitles.length === 0) {
@@ -864,7 +872,18 @@ async function saveSubtitlesOffline() {
         isTranslatedOnly: isTranslatedOnly,
         style: subtitleStylePref,
         timestamp: Date.now(),
-        subtitles: parsedSubtitles // Save the full array
+        subtitles: parsedSubtitles, // Save the full array
+        
+        // --- MODIFICATION START: Add all style properties ---
+        stylePrefs: {
+            font_size: fontSizeEm,
+            background_color: backgroundColorPref,
+            background_alpha: backgroundAlphaPref,
+            font_shadow: fontShadowPref,
+            font_color: fontColorPref,
+            font_color_alpha: fontColorAlphaPref
+        }
+        // --- MODIFICATION END ---
     };
 
     try {
@@ -895,7 +914,7 @@ async function saveSubtitlesOffline() {
         // sendStatusUpdate("Error saving subtitles offline.", 99);
     }
 }
-// --- END NEW FUNCTION ---
+// --- END MODIFIED FUNCTION ---
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Check Language Pair
@@ -981,12 +1000,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         shouldSaveOffline = request.saveOffline; // --- NEW ---
-        fontSizeEm = request.fontSize;
-        backgroundColorPref = request.backgroundColor;
-        backgroundAlphaPref = request.backgroundAlpha;
-        fontShadowPref = request.fontShadow;
-        fontColorPref = request.fontColor;
-        fontColorAlphaPref = request.fontColorAlpha;
+        fontSizeEm = request.font_size;
+        backgroundColorPref = request.background_color;
+        backgroundAlphaPref = request.background_alpha;
+        fontShadowPref = request.font_shadow;
+        fontColorPref = request.font_color;
+        fontColorAlphaPref = request.font_color_alpha;
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
@@ -1027,12 +1046,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         shouldSaveOffline = request.saveOffline; // --- NEW ---
-        fontSizeEm = request.fontSize;
-        backgroundColorPref = request.backgroundColor;
-        backgroundAlphaPref = request.backgroundAlpha;
-        fontShadowPref = request.fontShadow;
-        fontColorPref = request.fontColor;
-        fontColorAlphaPref = request.fontColorAlpha;
+        fontSizeEm = request.font_size;
+        backgroundColorPref = request.background_color;
+        backgroundAlphaPref = request.background_alpha;
+        fontShadowPref = request.font_shadow;
+        fontColorPref = request.font_color;
+        fontColorAlphaPref = request.font_color_alpha;
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
@@ -1070,12 +1089,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         shouldSaveOffline = request.saveOffline; // --- NEW ---
-        fontSizeEm = request.fontSize;
-        backgroundColorPref = request.backgroundColor;
-        backgroundAlphaPref = request.backgroundAlpha;
-        fontShadowPref = request.fontShadow;
-        fontColorPref = request.fontColor;
-        fontColorAlphaPref = request.fontColorAlpha;
+        fontSizeEm = request.font_size;
+        backgroundColorPref = request.background_color;
+        backgroundAlphaPref = request.background_alpha;
+        fontShadowPref = request.font_shadow;
+        fontColorPref = request.font_color;
+        fontColorAlphaPref = request.font_color_alpha;
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
@@ -1116,12 +1135,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         subtitleLanguages.target = request.targetLang;
         isTranslatedOnly = request.translatedOnly;
         shouldSaveOffline = request.saveOffline; // --- NEW ---
-        fontSizeEm = request.fontSize;
-        backgroundColorPref = request.backgroundColor;
-        backgroundAlphaPref = request.backgroundAlpha;
-        fontShadowPref = request.fontShadow;
-        fontColorPref = request.fontColor;
-        fontColorAlphaPref = request.fontColorAlpha;
+        fontSizeEm = request.font_size;
+        backgroundColorPref = request.background_color;
+        backgroundAlphaPref = request.background_alpha;
+        fontShadowPref = request.font_shadow;
+        fontColorPref = request.font_color;
+        fontColorAlphaPref = request.font_color_alpha;
         subtitleStylePref = request.colourCoding;
         translationCache = {};
         if (syncInterval) clearInterval(syncInterval);
@@ -1152,6 +1171,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ status: "processing_started" });
         return true;
     }
+    
+    // --- MODIFICATION START: New listener for displaying offline subs ---
+    if (request.command === "display_offline_subtitles" && request.subData) {
+        console.log("Received command to display offline subtitles.");
+        if (isProcessing) {
+            console.warn("Cannot display offline subs while processing online subs.");
+            return false; // Let popup know we're busy
+        }
+        if (syncInterval) clearInterval(syncInterval);
+        
+        const data = request.subData;
+        
+        // 1. Set subtitles
+        parsedSubtitles = data.subtitles || [];
+        if (parsedSubtitles.length === 0) {
+            console.error("Offline data sent, but subtitles array is empty.");
+            return false;
+        }
+
+        // 2. Set preferences from saved data
+        subtitleLanguages.base = data.baseLang || 'en';
+        subtitleLanguages.target = data.targetLang || 'es';
+        isTranslatedOnly = data.isTranslatedOnly || false;
+        subtitleStylePref = data.style || 'netflix';
+        
+        // 3. Set style preferences
+        const prefs = data.stylePrefs || {}; // Get the saved style object
+        fontSizeEm = prefs.font_size || 'medium';
+        backgroundColorPref = prefs.background_color || 'black';
+        backgroundAlphaPref = prefs.background_alpha || 0.8;
+        fontShadowPref = prefs.font_shadow || 'black_shadow';
+        fontColorPref = prefs.font_color || 'white';
+        fontColorAlphaPref = prefs.font_color_alpha || 1.0;
+        
+        // 4. Reset state
+        isProcessing = false;
+        isCancelled = false;
+        translationCache = {}; // Clear any old cache
+        
+        // 5. Create UI and start sync
+        createFloatingWindow();
+        hideNativeSubtitles();
+        startSubtitleSync();
+        
+        console.log(`Successfully loaded ${parsedSubtitles.length} offline subtitles for display.`);
+        
+        return false; // No async response needed
+    }
+    // --- MODIFICATION END ---
 
     // Cancel Processing
     if (request.command === "cancel_processing") {
