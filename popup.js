@@ -228,7 +228,6 @@ function updateUIMode(mode, elements) {
                 document.body.style.height = NETFLIX_SETUP_HEIGHT;
                 checkUrlAndDetectLanguage(elements);
             } else {
-                // --- MODIFICATION: Set processing height on mode change ---
                 document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
             }
         }
@@ -249,7 +248,6 @@ function updateUIMode(mode, elements) {
                 document.body.style.height = YOUTUBE_SETUP_HEIGHT;
                 checkTranscriptAndDetectLanguage(elements);
             } else {
-                // --- MODIFICATION: Set processing height on mode change ---
                 document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
             }
         }
@@ -270,7 +268,6 @@ function updateUIMode(mode, elements) {
                 document.body.style.height = DISNEY_SETUP_HEIGHT;
                 checkDisneyUrlAndDetectLanguage(elements);
             } else {
-                // --- MODIFICATION: Set processing height on mode change ---
                 document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
             }
         }
@@ -290,7 +287,6 @@ function updateUIMode(mode, elements) {
                 document.body.style.height = PRIME_SETUP_HEIGHT;
                 checkPrimeFileStatus(elements);
             } else {
-                // --- MODIFICATION: Set processing height on mode change ---
                 document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
             }
         }
@@ -1382,22 +1378,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         netflixInputs: document.getElementById('netflixInputs'),
         youtubeInputs: document.getElementById('youtubeInputs'),
         transcriptHeader: document.getElementById('transcriptHeader'),
-        // --- MODIFICATION: Add instruction divs to elements object ---
+        // --- MODIFICATION START: Added missing element references ---
         transcriptInstructions: document.getElementById('transcriptInstructions'),
+        youtubeTranscriptInput: document.getElementById('youtubeTranscriptInput'),
+        transcriptStatusText: document.getElementById('transcriptStatusText'),
         disneyInputs: document.getElementById('disneyInputs'),
         disneyHeader: document.getElementById('disneyHeader'),
         disneyInstructions: document.getElementById('disneyInstructions'),
-        // --- END MODIFICATION ---
         disneyUrlInput: document.getElementById('disneyUrlInput'),
         disneyUrlStatusText: document.getElementById('disneyUrlStatusText'),
         primeInputs: document.getElementById('primeInputs'),
         primeHeader: document.getElementById('primeHeader'),
-        // --- MODIFICATION: Add instruction div to elements object ---
         primeInstructions: document.getElementById('primeInstructions'),
-        // --- END MODIFICATION ---
         primeFileInput: document.getElementById('primeFileInput'),
         primeUploadButton: document.getElementById('primeUploadButton'),
         primeUrlStatusText: document.getElementById('primeUrlStatusText'),
+        // --- MODIFICATION END ---
         onlineModeButton: document.getElementById('onlineModeButton'),
         offlineModeButton: document.getElementById('offlineModeButton'),
         onlineModeContainer: document.getElementById('online-mode-container'),
