@@ -1,10 +1,12 @@
-/* --- popup.js (REVISED) --- */
+/* --- popup.js (REVISED AND FIXED) --- */
 console.log("1. popup.js script file loaded.");
 
 let isPopupInitialized = false;
 let selectedOfflineTimestamp = null;
 // --- NEW: Flag to control logic flow when button is used for cancel/clear ---
 let isConfirmButtonAsCancel = false;
+// --- FIXED: Define the missing global variable ---
+let isCancelledByPopup = false; 
 
 // --- MODIFICATION: Define heights for all modes (Processing height increased) ---
 const NETFLIX_SETUP_HEIGHT = '440px'; 
