@@ -36,7 +36,10 @@ const LANGUAGE_MAP = {
 };
 
 let isCancelledByPopup = false;
-let currentMode = 'netflix';
+// --- MODIFICATION: Changed default mode to youtube ---
+let currentMode = 'youtube';
+// --- END MODIFICATION ---
+
 // --- NEW: Master Mode ---
 let currentMasterMode = 'online';
 
@@ -936,7 +939,10 @@ async function loadSavedStatus(elements) {
     updateMasterMode(currentMasterMode, elements);
     // --- END NEW ---
 
-    currentMode = data.ls_mode || 'netflix';
+    // --- MODIFICATION: Changed default mode to youtube ---
+    currentMode = data.ls_mode || 'youtube';
+    // --- END MODIFICATION ---
+
     // updateUIMode needs to be called AFTER master mode is set.
     // updateMasterMode calls updateUIMode, so we don't need to call it explicitly here anymore.
     // updateUIMode(currentMode, elements); // Set streaming mode second
