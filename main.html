@@ -6,18 +6,39 @@
         padding: 15px 15px 10px 15px;
         width: 350px;
         /* Start with Netflix height, JS will adjust */
-        height: 440px; /* Adjusted height */
+        height: 440px; 
         overflow-y: hidden;
         padding-top: 50px;
         position: relative;
       }
+      /* --- NEW: Header Container Style --- */
+      #header-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 50px; /* Same as body padding-top */
+        display: flex;
+        align-items: center;
+        padding: 0 15px;
+        box-sizing: border-box;
+        z-index: 1000; /* Ensure it stays above content */
+      }
+      
+      h1 {
+        color: #e50914; /* Netflix Red */
+        font-size: 1.5em;
+        margin: 0; /* Remove default margins */
+        flex-shrink: 0;
+        /* Removed absolute positioning */
+      }
       /* --- START: Mode Switcher Styles (MODIFIED) --- */
       .mode-switcher {
-        position: absolute;
-        top: 10px;
         right: 15px;
         display: flex;
         gap: 8px;
+        margin-left: auto; /* Push to the far right */
+        align-items: center;
       }
       .mode-icon {
         width: 30px;
@@ -51,25 +72,23 @@
       }
       /* --- END: Mode Switchter Styles --- */
 
-      /* --- NEW: Master Mode Toggle Styles --- */
+      /* --- NEW: Master Mode Toggle Styles (MODIFIED) --- */
       .master-mode-switcher {
         display: flex;
-        width: 100%;
-        margin-top: 0;
-        margin-bottom: 10px;
+        margin-right: 15px; /* Spacing between the toggle and streaming buttons */
         border-radius: 4px;
         overflow: hidden;
-        /* --- MODIFICATION: Removed border --- */
-        /* border: 1px solid #ccc; */
+        flex-shrink: 0; /* Prevent shrinking */
+        width: 130px; /* Set a fixed width for the toggle */
       }
       .master-mode-btn {
-        width: 50%;
-        padding: 8px;
+        width: 50%; /* Adjusted width */
+        padding: 6px 4px; /* Adjusted padding */
         background-color: #f0f0f0;
         color: #555;
         border: none;
         cursor: pointer;
-        font-size: 0.9em;
+        font-size: 0.8em; /* Reduced font size */
         font-weight: bold;
         transition: background-color 0.2s, color 0.2s;
         /* --- NEW: Add border radius to inner buttons --- */
@@ -90,15 +109,7 @@
       }
       /* --- END: Master Mode Styles --- */
 
-      h1 {
-        color: #e50914; /* Netflix Red */
-        font-size: 1.5em;
-        margin-top: 0px;
-        margin-bottom: 0px;
-        position: absolute;
-        top: 12px;
-        left: 15px;
-      }
+      /* ... (rest of CSS remains the same) ... */
       h2 {
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
@@ -227,7 +238,7 @@
           display: flex;
           align-items: center;
           gap: 10px;
-          margin-bottom: 10px;
+          margin-bottom: 15px;
       }
       .preference-row p {
           flex-shrink: 0;
@@ -402,34 +413,32 @@
          margin-top: 0; /* Remove top margin from the first h2 in offline mode */
       }
       
-      /* --- CSS RULE REMOVED --- */
-      /* The rule for #offline-instructions p was here. 
-         It's now gone, so paragraphs inside #offlineInstructionsText 
-         will get default browser margins, matching the online mode. */
-
     </style>
   </head>
   <body>
-    <h1 id="titleHeader">Language Stream</h1>
-    <div class="mode-switcher">
-      <div class="mode-icon active" id="youtubeModeButton" title="YouTube Mode">
-        <img src="youtube_icon.png" width="24" height="24" alt="YouTube Mode">
-      </div>
-      <div class="mode-icon" id="netflixModeButton" title="Netflix Mode">
-        <img src="netflix_icon.png" width="24" height="24" alt="Netflix Mode">
-      </div>
-      <div class="mode-icon" id="disneyModeButton" title="Disney+ Mode">
-        <img src="disney_icon.png" width="24" height="24" alt="Disney+ Mode" style="border-radius: 3px;">
-      </div>
-      <div class="mode-icon" id="primeModeButton" title="Prime Video Mode">
-        <img src="amazon_video_icon.png" width="28" height="28" alt="Prime Video Mode">
-      </div>
-      </div>
-
-    <div class="master-mode-switcher">
-      <button id="onlineModeButton" class="master-mode-btn active">Online</button>
-      <button id="offlineModeButton" class="master-mode-btn">Offline</button>
+    
+    <div id="header-container">
+        <h1 id="titleHeader">Language Stream</h1>
+        <div class="master-mode-switcher">
+          <button id="onlineModeButton" class="master-mode-btn active">Online</button>
+          <button id="offlineModeButton" class="master-mode-btn">Offline</button>
+        </div>
+        <div class="mode-switcher">
+          <div class="mode-icon active" id="youtubeModeButton" title="YouTube Mode">
+            <img src="youtube_icon.png" width="24" height="24" alt="YouTube Mode">
+          </div>
+          <div class="mode-icon" id="netflixModeButton" title="Netflix Mode">
+            <img src="netflix_icon.png" width="24" height="24" alt="Netflix Mode">
+          </div>
+          <div class="mode-icon" id="disneyModeButton" title="Disney+ Mode">
+            <img src="disney_icon.png" width="24" height="24" alt="Disney+ Mode" style="border-radius: 3px;">
+          </div>
+          <div class="mode-icon" id="primeModeButton" title="Prime Video Mode">
+            <img src="amazon_video_icon.png" width="28" height="28" alt="Prime Video Mode">
+          </div>
+        </div>
     </div>
+
 
     <div id="online-mode-container">
       <div id="netflixInputs">
