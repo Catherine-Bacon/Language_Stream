@@ -17,8 +17,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const NETFLIX_PRESET = {
         font_size: 1.0, // Mapped 'medium' to default numeric size 1.0
-        background_color: 'none',
-        background_alpha: 1.0,
+        background_color: 'none', // MODIFIED: Changed to 'none' for vocab default
+        background_alpha: 0.0, // MODIFIED: Changed to 0.0 for vocab default
         font_shadow: 'black_shadow',
         font_color: 'white',
         font_color_alpha: 1.0
@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- NEW PRESET: YouTube/Disney+/Prime Default ---
     const DEFAULT_STREAMING_PRESET = {
         font_size: 1.0, 
-        background_color: 'black',
-        background_alpha: 0.0, // MODIFIED: Window background is now fully transparent
+        background_color: 'none', // MODIFIED: Set to 'none' to ensure window background is transparent
+        background_alpha: 0.0, // MODIFIED: Window background is fully transparent
         font_shadow: 'black_shadow',
         font_color: 'white',
         font_color_alpha: 1.0
@@ -102,28 +102,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 settings[key] = storedData[storedKey] ?? defaults[key];
             }
             
-            const capitalizedContext = settingsContext.charAt(0).toUpperCase() + settingsContext.slice(1);
-            elements.title.textContent = `Settings - ${capitalizedContext}`;
+            // --- MODIFIED: Logic to set the descriptive title ---
+            let displayTitle;
+            if (settingsContext === 'default') {
+                displayTitle = 'YouTube/Disney+/Prime Video';
+            } else {
+                displayTitle = settingsContext.charAt(0).toUpperCase() + settingsContext.slice(1);
+            }
+            
+            elements.title.textContent = `Settings - ${displayTitle}`;
+            // --- END MODIFIED ---
 
-            // --- MODIFIED: Context logic to handle hiding controls for 'default' ---
-            if (settingsContext === 'vocabulary' || settingsContext === 'default') {
-                hideAllControls();
-                elements.resetButton.style.display = 'none';
-            } else if (settingsContext === 'netflix') {
-                // Only hide the fields not configurable in netflix mode
-                document.getElementById('fontColorRow').style.display = 'flex';
-                document.getElementById('fontColorAlphaSlider').closest('.preference-row').style.display = 'flex';
-                document.getElementById('fontShadowGroup').closest('.preference-row').style.display = 'flex';
-                document.getElementById('backgroundColorGroup').closest('.preference-row').style.display = 'flex';
-                document.getElementById('backgroundAlphaSlider').closest('.preference-row').style.display = 'flex';
+            // --- MODIFIED: Context logic to SHOW all customizable controls for custom, vocab, and default ---
+            const preferenceRows = document.querySelectorAll('.preference-row');
+            preferenceRows.forEach(row => {
+                row.style.display = 'flex';
+            });
+            elements.fontColorRow.style.display = 'flex';
+
+            if (settingsContext === 'netflix') {
                 elements.resetButton.style.display = 'block'; // Show reset button for Netflix
-            } else { // 'custom'
-                // Show all controls for Custom mode
-                const preferenceRows = document.querySelectorAll('.preference-row');
-                preferenceRows.forEach(row => {
-                    row.style.display = 'flex';
-                });
-                elements.resetButton.style.display = 'none'; // Hide for Custom
+            } else { // 'custom', 'vocabulary', 'default'
+                elements.resetButton.style.display = 'none'; // Hide reset for all other modes
             }
             
             applySettingsToUI(settings);
