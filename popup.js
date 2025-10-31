@@ -251,7 +251,7 @@ function updateUIMode(mode, elements) {
         isConfirmButtonAsCancel = false;
         elements.confirmButton.textContent = "Generate Subtitles";
         elements.confirmButton.classList.remove('hidden-no-space');
-        elements.confirmButton.style.backgroundColor = ''; // Reset to default (e50914)
+        elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
     } else if (currentMasterMode === 'offline') {
         elements.confirmButton.classList.add('hidden-no-space'); // Hide generate button in offline mode
     }
@@ -411,7 +411,7 @@ async function resetStatus(elements) {
     // --- MODIFICATION START: Reset confirm button state ---
     isConfirmButtonAsCancel = false;
     elements.confirmButton.textContent = "Generate Subtitles";
-    elements.confirmButton.style.backgroundColor = ''; // Reset to default (e50914)
+    elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
     elements.confirmButton.disabled = true;
     // elements.cancelButton.classList.add('hidden-no-space'); // Removed
     // --- MODIFICATION END ---
@@ -488,7 +488,7 @@ async function stopProcessingUI(elements) {
     // --- MODIFICATION START: Reset confirm button state ---
     isConfirmButtonAsCancel = false;
     elements.confirmButton.textContent = "Generate Subtitles";
-    elements.confirmButton.style.backgroundColor = ''; // Reset to default (e50914)
+    elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
     elements.confirmButton.classList.remove('hidden-no-space');
     // elements.cancelButton.classList.add('hidden-no-space'); // Removed
     // --- MODIFICATION END ---
@@ -497,7 +497,7 @@ async function stopProcessingUI(elements) {
     elements.statusText.textContent = "";
     elements.progressBar.style.width = '0%';
 
-    // --- MODIFICATION START: Show setup sections again ---
+    // --- MODIFICATION START: Show setup instructions, hide processing UI ---
     elements.languageHeader.classList.remove('hidden-no-space');
     elements.targetLanguageInput.classList.remove('hidden-no-space');
     elements.langStatusText.classList.remove('hidden-no-space');
@@ -1113,7 +1113,7 @@ async function loadSavedStatus(elements) {
                 // --- MODIFICATION: Reset confirm button state ---
                 isConfirmButtonAsCancel = false;
                 elements.confirmButton.textContent = "Generate Subtitles";
-                elements.confirmButton.style.backgroundColor = '';
+                elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
                 // --- END MODIFICATION ---
 
                 elements.langStatusText.classList.remove('hidden-no-space');
