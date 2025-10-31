@@ -8,33 +8,33 @@
         /* Start with Netflix height, JS will adjust */
         height: 440px; 
         overflow-y: hidden;
-        padding-top: 50px;
+        /* Increased padding-top to fit two header rows */
+        padding-top: 80px; 
         position: relative;
       }
-      /* --- NEW: Header Container Style --- */
+      /* --- NEW: Header Container Style (Top Row: Title + Streaming Service Icons) --- */
       #header-container {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
-        height: 50px; /* Same as body padding-top */
+        height: 40px; 
         display: flex;
         align-items: center;
         padding: 0 15px;
         box-sizing: border-box;
-        z-index: 1000; /* Ensure it stays above content */
+        z-index: 1000;
       }
       
       h1 {
         color: #e50914; /* Netflix Red */
         font-size: 1.5em;
-        margin: 0; /* Remove default margins */
+        margin: 0;
         flex-shrink: 0;
-        /* Removed absolute positioning */
       }
-      /* --- START: Mode Switcher Styles (MODIFIED) --- */
+      
+      /* --- START: Mode Switcher Styles (Streaming Service Icons) --- */
       .mode-switcher {
-        right: 15px;
         display: flex;
         gap: 8px;
         margin-left: auto; /* Push to the far right */
@@ -50,55 +50,63 @@
         justify-content: center;
         border: 2px solid transparent;
         transition: border-color 0.2s, background-color 0.2s;
-        /* 'fill' property removed */
       }
       .mode-icon:hover {
         background-color: #f0f0f0;
       }
       .mode-icon.active {
-        border-color: #e50914; /* Netflix Red */
-        /* 'fill' property removed */
+        border-color: #e50914; /* Default to Netflix Red */
       }
       .mode-icon.active#youtubeModeButton {
-        border-color: #FF0000; /* YouTube Red */
-        /* 'fill' property removed */
+        border-color: #FF0000;
       }
       .mode-icon.active#disneyModeButton {
-        border-color: #0d8199; /* Disney+ Teal */
+        border-color: #0d8199;
       }
-      /* --- NEW: Prime Video Active Style --- */
       .mode-icon.active#primeModeButton {
-        border-color: #00A8E1; /* Prime Video Blue */
+        border-color: #00A8E1;
       }
       /* --- END: Mode Switchter Styles --- */
 
-      /* --- NEW: Master Mode Toggle Styles (MODIFIED) --- */
+      /* --- NEW: Master Mode Container (Second Row, below the header) --- */
+      #master-mode-container-wrapper {
+        position: absolute;
+        top: 40px; /* Position below the header (40px) */
+        left: 0;
+        width: 100%;
+        padding: 5px 15px 5px 15px; /* Adjust padding for spacing */
+        box-sizing: border-box;
+        display: flex;
+        justify-content: flex-end; /* Align contents to the right */
+        z-index: 999;
+        border-bottom: 1px solid #eee;
+      }
+
       .master-mode-switcher {
         display: flex;
-        margin-right: 15px; /* Spacing between the toggle and streaming buttons */
         border-radius: 4px;
         overflow: hidden;
-        flex-shrink: 0; /* Prevent shrinking */
-        width: 130px; /* Set a fixed width for the toggle */
+        flex-shrink: 0;
+        width: 130px; /* Retain the custom width */
+        margin-left: auto; /* Push the toggle to the right */
       }
       .master-mode-btn {
-        width: 50%; /* Adjusted width */
-        padding: 6px 4px; /* Adjusted padding */
+        width: 50%;
+        padding: 6px 4px;
         background-color: #f0f0f0;
         color: #555;
         border: none;
         cursor: pointer;
-        font-size: 0.8em; /* Reduced font size */
+        font-size: 0.8em;
         font-weight: bold;
         transition: background-color 0.2s, color 0.2s;
-        /* --- NEW: Add border radius to inner buttons --- */
         border-radius: 4px;
       }
       .master-mode-btn:first-child {
-        margin-right: 2px; /* Add small gap */
+        margin-right: 2px;
       }
       .master-mode-btn:last-child {
-        margin-left: 2px; /* Add small gap */
+        margin-left: 2px;
       }
       .master-mode-btn:hover {
         background-color: #e0e0e0;
@@ -109,7 +117,6 @@
       }
       /* --- END: Master Mode Styles --- */
 
-      /* ... (rest of CSS remains the same) ... */
       h2 {
         font-size: 1.1em;
         border-bottom: 1px solid #ccc;
@@ -129,12 +136,12 @@
         border-radius: 4px;
         border: 1px solid #ddd;
         box-sizing: border-box;
-        font-family: Arial, sans-serif; /* Ensure textarea matches */
+        font-family: Arial, sans-serif;
       }
       /* --- NEW: Textarea styling --- */
       textarea {
         resize: none;
-        height: 100px; /* Give it some height */
+        height: 100px;
         margin-top: 0;
       }
       #subtitleUrlInput, #disneyUrlInput {
@@ -419,10 +426,6 @@
     
     <div id="header-container">
         <h1 id="titleHeader">Language Stream</h1>
-        <div class="master-mode-switcher">
-          <button id="onlineModeButton" class="master-mode-btn active">Online</button>
-          <button id="offlineModeButton" class="master-mode-btn">Offline</button>
-        </div>
         <div class="mode-switcher">
           <div class="mode-icon active" id="youtubeModeButton" title="YouTube Mode">
             <img src="youtube_icon.png" width="24" height="24" alt="YouTube Mode">
@@ -439,7 +442,12 @@
         </div>
     </div>
 
-
+    <div id="master-mode-container-wrapper">
+      <div class="master-mode-switcher">
+        <button id="onlineModeButton" class="master-mode-btn active">Online</button>
+        <button id="offlineModeButton" class="master-mode-btn">Offline</button>
+      </div>
+    </div>
     <div id="online-mode-container">
       <div id="netflixInputs">
         <h2 id="urlHeader">1. Retrieve Subtitle URL</h2>
