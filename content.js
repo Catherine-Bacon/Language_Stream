@@ -18,7 +18,7 @@
     var subtitleLanguages = { base: '', target: '' };
     var translationCache = {};
     var isTranslatedOnly = false;
-    var fontSizeEm = 'medium';
+    var fontSizeEm = 1.0; // MODIFIED: Changed from string 'medium' to numeric 1.0
     var backgroundColorPref = 'black';
     var backgroundAlphaPref = 1.0;
     var fontColorAlphaPref = 1.0;
@@ -40,7 +40,7 @@
 
     // Define preset defaults for style loading robustness (used in display_offline_subtitles)
     const NETFLIX_PRESET = {
-        font_size: 'medium',
+        font_size: 1.0, // MODIFIED: Changed from string 'medium' to numeric 1.0
         background_color: 'none',
         background_alpha: 1.0,
         font_shadow: 'black_shadow',
@@ -48,7 +48,7 @@
         font_color_alpha: 1.0
     };
     const CUSTOM_DEFAULTS = {
-        font_size: 'medium',
+        font_size: 1.0, // MODIFIED: Changed from string 'medium' to numeric 1.0
         background_color: 'black',
         background_alpha: 0.8,
         font_shadow: 'black_shadow',
@@ -541,11 +541,8 @@
     }
 
     function getFontSizeEm(preference) {
-        switch (preference) {
-            case 'small': return '0.75em';
-            case 'large': return '1.25em';
-            default: return '1em';
-        }
+        // MODIFIED: Now handles numeric values from slider directly.
+        return `${preference}em`;
     }
 
     function getFontShadowCss(preference) {
@@ -591,7 +588,7 @@
             return;
         }
 
-        const currentFontSizeEm = getFontSizeEm(fontSizeEm);
+        const currentFontSizeEm = getFontSizeEm(fontSizeEm); // MODIFIED: Call function with numeric value
         const currentFontShadow = getFontShadowCss(fontShadowPref);
         const baseFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
         let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
@@ -603,6 +600,7 @@
         const getSpanStyle = (colorOverride = null) => {
             const finalColor = colorOverride || baseFontColor;
             const finalBgColor = (subtitleStylePref === 'vocabulary') ? colorNameToRgba('none', 0) : currentSpanBgColor;
+            // MODIFIED: Use the calculated font size variable
             return `display: inline-block; padding: 0 0.2em; border-radius: 0.2em; background-color: ${finalBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
         };
 
@@ -612,7 +610,7 @@
             // If the current preference is NOT 'vocabulary', fall back to simple rendering immediately.
             if (subtitleStylePref !== 'vocabulary' || !colorCodes || colorCodes.length === 0) {
                 const finalStyle = isBaseLanguage ? getSpanStyle(defaultColor) : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
-                return `<span style="${getSpanStyle(finalStyle)}">${text}</span>`; 
+                return `<span style="${finalStyle}">${text}</span>`; 
             }
             // --- END FIX 1 ---
 
@@ -879,7 +877,7 @@
 
     // --- MODIFIED: Added language name map for save string ---
     const LANGUAGE_MAP_REVERSE = {
-        "aa": "Afar", "ab": "Abkhazian", "ae": "Avesta", "af": "Afrikaans", "ak": "Akan", "am": "Amharic", "an": "Aragonese", "ar": "Arabic", "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijan", "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari languages", "bi": "Bislama", "bm": "Bambara", "bn": "Bengali / bangla", "bo": "Tibetan", "br": "Breton", "bs": "Bosnian", "ca": "Catalan / valencian", "ce": "Chechen", "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech", "cu": "Church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish", "de": "German", "dv": "Dhivehi / divehi / maldivian", "dz": "Dzongkha", "ee": "Ewe", "el": "Modern greek (1453-)", "en": "English", "eo": "Esperanto", "es": "Spanish / castilian", "et": "Estonian", "eu": "Basque", "fa": "Persian", "ff": "Fulah", "fi": "Finnish", "fj": "Fijian", "fo": "Faroese", "fr": "French", "fy": "Western frisian", "ga": "Irish", "gd": "Scottish gaelic / gaelic", "gl": "Galician", "gn": "Guarani", "gu": "Gujarati", "gv": "Manx", "ha": "Hausa", "he": "Hebrew", "hi": "Hindi", "ho": "Hiri motu", "hr": "Croatian", "ht": "Haitian / haitian creole", "hu": "Hungarian", "hy": "Armenian", "hz": "Herero", "ia": "Interlingua (international auxiliary language association)", "id": "Indonesian", "ie": "Interlingue / occidental", "ig": "Igbo", "ii": "Sichuan yi / nuosu", "ik": "Inupiaq", "io": "Ido", "is": "Icelandic", "it": "Italian", "iu": "Inuktitut", "ja": "Japanese", "jv": "Javanese", "ka": "Georgian", "kg": "Kongo", "ki": "Kikuyu / gikuyu", "kj": "Kuanyama / kwanyama", "kk": "Kazakh", "kl": "Kalaallisut / greenlandic", "km": "Khmer / central khmer", "kn": "Kn", "ko": "Korean", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "ms": "Malay (macrolanguage)", "mt": "Maltese", "my": "Burmese", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quechua", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan", "ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "ts": "Tsonga", "tt": "Tatar", "tw": "Twi", "ty": "Tahitian", "ug": "Uighur / uyghur", "uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "ve": "Venda", "vi": "Vietnamese", "vo": "Volapük", "wa": "Walloon", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yo": "Yoruba", "za": "Zhuang / chuang", "zh": "Chinese", "zu": "Zulu"
+        "aa": "Afar", "ab": "Abkhazian", "ae": "Avesta", "af": "Afrikaans", "ak": "Akan", "am": "Amharic", "an": "Aragonese", "ar": "Arabic", "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijan", "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari languages", "bi": "Bislama", "bm": "Bambara", "bn": "Bengali / bangla", "bo": "Tibetan", "br": "Breton", "bs": "Bosnian", "ca": "Catalan / valencian", "ce": "Chechen", "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech", "cu": "Church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish", "de": "German", "dv": "Dhivehi / divehi / maldivian", "dz": "Dzongkha", "ee": "Ewe", "el": "Modern greek (1453-)", "en": "English", "eo": "Esperanto", "es": "Spanish / castilian", "et": "Estonian", "eu": "Basque", "fa": "Persian", "ff": "Fulah", "fi": "Finnish", "fj": "Fijian", "fo": "Faroese", "fr": "French", "fy": "Western frisian", "ga": "Irish", "gd": "Scottish gaelic / gaelic", "gl": "Galician", "gn": "Guarani", "gu": "Gujarati", "gv": "Manx", "ha": "Hausa", "he": "Hebrew", "hi": "Hindi", "ho": "Hiri motu", "hr": "Croatian", "ht": "Haitian / haitian creole", "hu": "Hungarian", "hy": "Armenian", "hz": "Herero", "ia": "Interlingua (international auxiliary language association)", "id": "Indonesian", "ie": "Interlingue / occidental", "ig": "Igbo", "ii": "Sichuan yi / nuosu", "ik": "Inupiaq", "io": "Ido", "is": "Icelandic", "it": "Italian", "iu": "Inuktitut", "ja": "Japanese", "jv": "Javanese", "ka": "Georgian", "kg": "Kongo", "ki": "Kikuyu / gikuyu", "kj": "Kuanyama / kwanyama", "kk": "Kazakh", "kl": "Kalaallisut / greenlandic", "km": "Khmer / central khmer", "kn": "Kn", "ko": "Korean", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "ms": "Malay (macrolanguage)", "mt": "Maltese", "my": "Burmese", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quechua", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan", "ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "ts": "Tsonga", "tt": "Tatar", "tw": "Twi", "tahitian": "Ty", "ug": "Uighur / uyghur", "uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "ve": "Venda", "vi": "Vietnamese", "vo": "Volapük", "wa": "Walloon", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yo": "Yoruba", "za": "Zhuang / chuang", "zh": "Chinese", "zu": "Zulu"
     };
 
     function getLanguageName(langCode) {
@@ -1112,7 +1110,8 @@
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
-            fontSizeEm = request.font_size;
+            // MODIFIED: font_size is now a number
+            fontSizeEm = request.font_size; 
             backgroundColorPref = request.background_color;
             backgroundAlphaPref = request.background_alpha;
             fontShadowPref = request.font_shadow;
@@ -1162,7 +1161,8 @@
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
-            fontSizeEm = request.font_size;
+            // MODIFIED: font_size is now a number
+            fontSizeEm = request.font_size; 
             backgroundColorPref = request.background_color;
             backgroundAlphaPref = request.background_alpha;
             fontShadowPref = request.font_shadow;
@@ -1209,7 +1209,8 @@
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
-            fontSizeEm = request.font_size;
+            // MODIFIED: font_size is now a number
+            fontSizeEm = request.font_size; 
             backgroundColorPref = request.background_color;
             backgroundAlphaPref = request.background_alpha;
             fontShadowPref = request.font_shadow;
@@ -1259,7 +1260,8 @@
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
-            fontSizeEm = request.font_size;
+            // MODIFIED: font_size is now a number
+            fontSizeEm = request.font_size; 
             backgroundColorPref = request.background_color;
             backgroundAlphaPref = request.background_alpha;
             fontShadowPref = request.font_shadow;
@@ -1327,6 +1329,7 @@
                 const stylePrefix = `${subtitleStylePref}_`;
                 const defaults = (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
 
+                // MODIFIED: font_size is now a number
                 fontSizeEm = offlinePrefs[`${stylePrefix}font_size`] || defaults.font_size;
                 backgroundColorPref = offlinePrefs[`${stylePrefix}background_color`] || defaults.background_color;
                 backgroundAlphaPref = offlinePrefs[`${stylePrefix}background_alpha`] || defaults.background_alpha;
@@ -1358,7 +1361,8 @@
             // Update global variables
             isTranslatedOnly = request.translatedOnly;
             subtitleStylePref = request.colourCoding;
-            fontSizeEm = request.font_size;
+            // MODIFIED: font_size is now a number
+            fontSizeEm = request.font_size; 
             backgroundColorPref = request.background_color;
             backgroundAlphaPref = request.background_alpha;
             fontShadowPref = request.font_shadow;

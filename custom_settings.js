@@ -1,6 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         title: document.getElementById('settingsTitle'),
+        // --- MODIFIED: New elements for Font Size slider ---
+        fontSizeSlider: document.getElementById('fontSizeSlider'),
+        fontSizeValue: document.getElementById('fontSizeValue'),
+        // --- END MODIFIED ---
         fontColorAlphaSlider: document.getElementById('fontColorAlphaSlider'),
         fontColorAlphaValue: document.getElementById('fontColorAlphaValue'),
         backgroundAlphaSlider: document.getElementById('backgroundAlphaSlider'),
@@ -12,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const NETFLIX_PRESET = {
-        font_size: 'medium',
+        font_size: 1.0, // Mapped 'medium' to default numeric size 1.0
         background_color: 'none',
         background_alpha: 1.0,
         font_shadow: 'black_shadow',
@@ -20,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         font_color_alpha: 1.0
     };
     const CUSTOM_DEFAULTS = {
-        font_size: 'medium',
+        font_size: 1.0, // Mapped 'medium' to default numeric size 1.0
         background_color: 'black',
         background_alpha: 0.8,
         font_shadow: 'black_shadow',
@@ -31,7 +35,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let settingsPrefix = 'custom_';
 
     function applySettingsToUI(settings) {
-        document.querySelector(`input[name="font_size"][value="${settings.font_size}"]`).checked = true;
+        // --- MODIFIED: Handle Font Size Slider ---
+        elements.fontSizeSlider.value = settings.font_size;
+        elements.fontSizeValue.textContent = settings.font_size.toFixed(2);
+        // --- END MODIFIED ---
+        
         document.querySelector(`input[name="background_color"][value="${settings.background_color}"]`).checked = true;
         document.querySelector(`input[name="font_shadow"][value="${settings.font_shadow}"]`).checked = true;
         document.querySelector(`input[name="font_color"][value="${settings.font_color}"]`).checked = true;
@@ -59,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chrome.storage.local.get(keysToLoad, (storedData) => {
             const settings = {};
-            const defaults = (settingsContext === 'netflix') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+            const defaults = (settingsContext === 'netflix' || settingsContext === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
 
             for (const key of PREF_KEYS) {
                 const storedKey = `${settingsPrefix}${key}`;
@@ -92,6 +100,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // --- MODIFIED: Font Size Slider Event Listener ---
+    elements.fontSizeSlider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        elements.fontSizeValue.textContent = value.toFixed(2);
+        savePreference('font_size', value);
+    });
+    // --- END MODIFIED ---
 
     elements.fontColorAlphaSlider.addEventListener('input', (e) => {
         const value = parseFloat(e.target.value);
