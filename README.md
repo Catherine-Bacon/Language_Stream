@@ -1,8 +1,8 @@
 # Language_Stream
 Smart subtitle generator built for language learners and binge watchers
-<div style="text-align: center;">
+<center>
   <img src="logo.png" alt="Language Stream logo" title="Language Stream">
-</div>
+</center>
 
 APIs used: Translator API and Language Detection API
 
