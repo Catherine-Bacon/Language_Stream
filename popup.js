@@ -744,14 +744,14 @@ async function checkPrimeFileAndDetectLanguage(elements, ttmlString) {
                if (!e.message.includes('Receiving end does not exist')) {
                     console.warn("Could not send detection message, content script not ready:", e);
                }
-               elements.primeUrlStatusText.textContent = `Detection failed. Reload tab.`;
+               elements.primeUrlStatusText.textContent = `Detection failed. Please reload the Prime Video tab.`;
                elements.primeUrlStatusText.style.color = "#00A8E1";
                updateGenerateButtonState(elements);
             });
         }
     } catch (e) {
         console.warn("Could not query tabs for Prime detection:", e);
-        elements.primeUrlStatusText.textContent = `Detection failed. Reload tab.`;
+        elements.primeUrlStatusText.textContent = `Detection failed. Please reload the Prime Video tab.`;
         elements.primeUrlStatusText.style.color = "#00A8E1";
         updateGenerateButtonState(elements);
     }
@@ -808,11 +808,15 @@ async function checkDisneyUrlAndDetectLanguage(elements) {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
                    }
+                   elements.disneyUrlStatusText.textContent = `Detection failed. Please reload the Disney+ tab.`;
+                   elements.disneyUrlStatusText.style.color = "#0d8199";
                    updateGenerateButtonState(elements);
                 });
             }
         } catch (e) {
             console.warn("Could not query tabs for Disney detection:", e);
+            elements.disneyUrlStatusText.textContent = `Detection failed. Please reload the Disney+ tab.`;
+            elements.disneyUrlStatusText.style.color = "#0d8199";
             updateGenerateButtonState(elements);
         }
     } else {
@@ -871,11 +875,15 @@ async function checkTranscriptAndDetectLanguage(elements) {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
                    }
+                   elements.transcriptStatusText.textContent = `Detection failed. Please reload the YouTube tab.`;
+                   elements.transcriptStatusText.style.color = "#FF0000";
                    updateGenerateButtonState(elements);
                 });
             }
         } catch (e) {
             console.warn("Could not query tabs for YouTube detection:", e);
+            elements.transcriptStatusText.textContent = `Detection failed. Please reload the YouTube tab.`;
+            elements.transcriptStatusText.style.color = "#FF0000";
             updateGenerateButtonState(elements);
         }
     } else {
@@ -937,11 +945,15 @@ async function checkUrlAndDetectLanguage(elements) {
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
                    }
+                   elements.urlStatusText.textContent = `Detection failed. Please reload the Netflix tab.`;
+                   elements.urlStatusText.style.color = "#e50914";
                    updateGenerateButtonState(elements);
                 });
             }
         } catch (e) {
             console.warn("Could not query tabs for Netflix detection:", e);
+            elements.urlStatusText.textContent = `Detection failed. Please reload the Netflix tab.`;
+            elements.urlStatusText.style.color = "#e50914";
             updateGenerateButtonState(elements);
         }
     } else {
