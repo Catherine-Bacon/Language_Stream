@@ -1,3 +1,4 @@
+Gemini
 /* --- content.js (ZMODYFIKOWANY AND FIXED) --- */
 // Wrap the entire script in an IIFE to isolate scope and prevent redeclaration errors
 (function() {
@@ -143,11 +144,6 @@
                 }
             });
             console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-            // --- MODIFIED: Return false if no subtitles were successfully parsed ---
-            if (parsedSubtitles.length === 0) {
-                 sendStatusUpdate("No valid subtitles found in content. Check URL validity.", 0, url, 'url');
-                 return false;
-            }
             return true;
         } catch (e) {
             console.error("Fatal error during XML parsing:", e);
@@ -194,13 +190,7 @@
                 }
             }
             console.log(`Successfully parsed ${parsedSubtitles.length} VTT subtitles.`);
-            // --- MODIFIED: Ensure proper status update on zero length parse ---
-            if (parsedSubtitles.length === 0) {
-                const isDisney = window.location.hostname === 'www.disneyplus.com';
-                sendStatusUpdate(isDisney ? "No valid subtitles found in Disney+ content." : "No valid subtitles found in VTT content.", 0, url, 'url');
-                return false;
-            }
-            return true;
+            return parsedSubtitles.length > 0;
         } catch (e) {
             console.error("Fatal error during VTT parsing:", e);
             // MODIFIED: Added check for context
@@ -927,7 +917,6 @@
 
         // Detect Language from URL (Netflix)
         if (request.command === "detect_language") {
-            console.log("[CONTENT: detect_language] 🟢 Message RECEIVED. Starting fetch/parse process."); // <-- NEW LOG
             (async () => {
                 parsedSubtitles = [];
                 const xmlContent = await fetchSubtitleContent(request.url);
@@ -938,7 +927,6 @@
                         baseLangCode = await detectBaseLanguage();
                     }
                 }
-                console.log("[CONTENT: detect_language] ⬅️ Sending final response back to popup. baseLangCode:", baseLangCode); // <-- NEW LOG
                 sendResponse({ url: request.url, baseLangCode: baseLangCode });
             })();
             return true;
