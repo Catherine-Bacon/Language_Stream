@@ -1,4 +1,3 @@
-Gemini
 /* --- content.js (ZMODYFIKOWANY AND FIXED) --- */
 // Wrap the entire script in an IIFE to isolate scope and prevent redeclaration errors
 (function() {
