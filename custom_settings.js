@@ -23,6 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
         font_color: 'white',
         font_color_alpha: 1.0
     };
+    
+    // --- NEW PRESET: YouTube/Disney+/Prime Default ---
+    const DEFAULT_STREAMING_PRESET = {
+        font_size: 1.0, 
+        background_color: 'black',
+        background_alpha: 0.8, // Semi-transparent black
+        font_shadow: 'black_shadow',
+        font_color: 'white',
+        font_color_alpha: 1.0
+    };
+    // --- END NEW PRESET ---
+    
     const CUSTOM_DEFAULTS = {
         font_size: 1.0, // Mapped 'medium' to default numeric size 1.0
         background_color: 'black',
@@ -58,6 +70,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1500);
         });
     }
+    
+    // --- NEW FUNCTION: Helper to hide all controls (for preset modes) ---
+    function hideAllControls() {
+        const preferenceRows = document.querySelectorAll('.preference-row');
+        preferenceRows.forEach(row => {
+            row.style.display = 'none';
+        });
+        document.getElementById('fontColorRow').style.display = 'none';
+    }
+    // --- END NEW FUNCTION ---
 
     chrome.storage.local.get('settings_context', (data) => {
         const settingsContext = data.settings_context || 'custom';
@@ -67,7 +89,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         chrome.storage.local.get(keysToLoad, (storedData) => {
             const settings = {};
-            const defaults = (settingsContext === 'netflix' || settingsContext === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+            const defaults = (settingsContext === 'netflix') 
+                ? NETFLIX_PRESET 
+                : (settingsContext === 'vocabulary') 
+                    ? NETFLIX_PRESET 
+                    : (settingsContext === 'default') 
+                        ? DEFAULT_STREAMING_PRESET
+                        : CUSTOM_DEFAULTS;
 
             for (const key of PREF_KEYS) {
                 const storedKey = `${settingsPrefix}${key}`;
@@ -77,15 +105,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const capitalizedContext = settingsContext.charAt(0).toUpperCase() + settingsContext.slice(1);
             elements.title.textContent = `Settings - ${capitalizedContext}`;
 
-            // --- MODIFICATION: Remove 'grammar' from conditions ---
-            if (settingsContext === 'vocabulary') {
-                elements.fontColorRow.style.display = 'none';
-                elements.resetButton.style.display = 'none'; // Hide reset for learning modes
+            // --- MODIFIED: Context logic to handle hiding controls for 'default' ---
+            if (settingsContext === 'vocabulary' || settingsContext === 'default') {
+                hideAllControls();
+                elements.resetButton.style.display = 'none';
             } else if (settingsContext === 'netflix') {
-                elements.fontColorRow.style.display = 'flex';
+                // Only hide the fields not configurable in netflix mode
+                document.getElementById('fontColorRow').style.display = 'flex';
+                document.getElementById('fontColorAlphaSlider').closest('.preference-row').style.display = 'flex';
+                document.getElementById('fontShadowGroup').closest('.preference-row').style.display = 'flex';
+                document.getElementById('backgroundColorGroup').closest('.preference-row').style.display = 'flex';
+                document.getElementById('backgroundAlphaSlider').closest('.preference-row').style.display = 'flex';
                 elements.resetButton.style.display = 'block'; // Show reset button for Netflix
             } else { // 'custom'
-                elements.fontColorRow.style.display = 'flex';
+                // Show all controls for Custom mode
+                const preferenceRows = document.querySelectorAll('.preference-row');
+                preferenceRows.forEach(row => {
+                    row.style.display = 'flex';
+                });
                 elements.resetButton.style.display = 'none'; // Hide for Custom
             }
             

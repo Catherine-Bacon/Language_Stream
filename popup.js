@@ -30,6 +30,16 @@ const NETFLIX_PRESET = {
     font_color: 'white',
     font_color_alpha: 1.0
 };
+// --- NEW PRESET: YouTube/Disney+/Prime Default ---
+const DEFAULT_STREAMING_PRESET = {
+    font_size: 1.0, 
+    background_color: 'black',
+    background_alpha: 0.8, // Semi-transparent black
+    font_shadow: 'black_shadow',
+    font_color: 'white',
+    font_color_alpha: 1.0
+};
+// --- END NEW PRESET ---
 const CUSTOM_DEFAULTS = {
     font_size: 1.0, // MODIFIED: Changed from 'medium' to numeric 1.0 for consistency
     background_color: 'black',
@@ -536,7 +546,7 @@ async function stopProcessingUI(elements) {
     elements.saveForOfflineCheckbox.disabled = false; 
 
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
-    const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
+    const hasSettings = ['netflix', 'custom', 'vocabulary', 'default'].includes(selectedStyle); // ADDED 'default'
     elements.editStyleSettingsButton.disabled = !hasSettings;
     elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
 
@@ -1092,7 +1102,7 @@ async function loadSavedStatus(elements) {
         const styleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}`);
         if (styleElement) styleElement.checked = true;
 
-        const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(savedStyle);
+        const hasSettings = ['netflix', 'custom', 'vocabulary', 'default'].includes(savedStyle); // ADDED 'default'
         elements.editStyleSettingsButton.disabled = !hasSettings;
         elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
         
@@ -1296,7 +1306,14 @@ async function handleConfirmClick(elements) {
     const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
     const saveOffline = elements.saveForOfflineCheckbox.checked;
 
-    const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+    const defaults = (selectedStyle === 'netflix') 
+        ? NETFLIX_PRESET 
+        : (selectedStyle === 'vocabulary') 
+            ? NETFLIX_PRESET 
+            : (selectedStyle === 'default') 
+                ? DEFAULT_STREAMING_PRESET
+                : CUSTOM_DEFAULTS;
+
     const stylePrefix = `${selectedStyle}_`;
     const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
     const storedData = await chrome.storage.local.get(keysToLoad);
@@ -1437,7 +1454,6 @@ async function handleConfirmClick(elements) {
                 stopProcessingUI(elements);
                 return;
             }
-            elements.statusText.textContent = "Content script injected. Sending start command...";
             chrome.tabs.sendMessage(currentTabId, message, (response) => {
                 if (chrome.runtime.lastError) {
                     console.warn("[POPUP] Error sending message (might be ok if script is just injecting):", chrome.runtime.lastError.message);
@@ -1510,7 +1526,14 @@ async function sendLiveStyleUpdate(elements, isOfflineUpdate = false) {
 
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
 
-    const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+    const defaults = (selectedStyle === 'netflix') 
+        ? NETFLIX_PRESET 
+        : (selectedStyle === 'vocabulary') 
+            ? NETFLIX_PRESET 
+            : (selectedStyle === 'default') 
+                ? DEFAULT_STREAMING_PRESET
+                : CUSTOM_DEFAULTS;
+
     const stylePrefix = `${selectedStyle}_`;
     const keysToLoad = PREF_KEYS.map(key => `${stylePrefix}${key}`);
     const storedData = await chrome.storage.local.get(keysToLoad);
@@ -1715,7 +1738,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.target.checked) {
                 const selectedStyle = e.target.value;
                 chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle }, () => {
-                    const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
+                    const hasSettings = ['netflix', 'custom', 'vocabulary', 'default'].includes(selectedStyle); // ADDED 'default'
                     elements.editStyleSettingsButton.disabled = !hasSettings;
                     elements.editStyleSettingsButton.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
                 });
@@ -1738,7 +1761,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.target.checked) {
                 const selectedStyle = e.target.value;
                 await chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle });
-                const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
+                const hasSettings = ['netflix', 'custom', 'vocabulary', 'default'].includes(selectedStyle); // ADDED 'default'
                 elements.editStyleSettingsButtonOffline.disabled = !hasSettings;
                 elements.editStyleSettingsButtonOffline.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
                 sendLiveStyleUpdate(elements, true); // Send live update for offline mode
@@ -1845,7 +1868,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 key.endsWith('_pref') || 
                 key.startsWith('custom_') || 
                 key.startsWith('netflix_') || 
-                key.startsWith('vocabulary_')
+                key.startsWith('vocabulary_') || 
+                key.startsWith('default_') // ADDED 'default'
             );
             
             if (hasPrefChange && isPopupInitialized && currentMasterMode === 'online') {
