@@ -74,9 +74,9 @@ async function loadSavedVideos(mode, elements) {
             return;
         }
 
-        elements.savedVideosList.innerHTML = ''; 
-
         subsForThisService.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        elements.savedVideosList.innerHTML = ''; 
 
         subsForThisService.forEach(savedSub => {
             const listItem = document.createElement('div');
@@ -916,10 +916,12 @@ async function checkUrlAndDetectLanguage(elements) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
             if (tabs[0] && tabs[0].id) {
+                console.log("[POPUP: detect_language] ➡️ Attempting to send message to content script (tabId: " + tabs[0].id + ").");
                 chrome.tabs.sendMessage(tabs[0].id, {
                     command: "detect_language",
                     url: url
                 }).then(async (response) => {
+                    console.log("[POPUP: detect_language] ✅ Received response from content script:", response);
                     if (chrome.runtime.lastError) {
                         console.warn("Detection error:", chrome.runtime.lastError.message);
                         return;
@@ -942,6 +944,7 @@ async function checkUrlAndDetectLanguage(elements) {
                         updateGenerateButtonState(elements);
                     }
                 }).catch(e => {
+                   console.error("[POPUP: detect_language] ❌ Message FAILED, error:", e);
                    if (!e.message.includes('Receiving end does not exist')) {
                         console.warn("Could not send detection message, content script not ready:", e);
                    }
