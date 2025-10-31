@@ -1,4 +1,4 @@
-/* --- content.js (FINAL ZMODYFIKOWANY) --- */
+/* --- content.js (FINAL ZMODYFIKOWANY AND FIXED) --- */
 // Wrap the entire script in an IIFE to isolate scope and prevent redeclaration errors
 (function() {
     // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
@@ -23,10 +23,12 @@
     var shouldSaveOffline = false;
     var TICK_RATE = 10000000; // Netflix TTML ticks per second
     
-    // --- MODIFIED: Moved to local scope for persistence within this IIFE instance ---
+    // --- MODIFICATION: Added isOfflineMode flag ---
+    var isOfflineMode = false;
+    // --- END MODIFICATION ---
+
     let lastTime = -1; 
     let currentSubtitleIndex = -1;
-    // --- END MODIFICATION ---
 
     // Define preset defaults for style loading robustness (used in display_offline_subtitles)
     const NETFLIX_PRESET = {
@@ -471,6 +473,10 @@
         const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
         const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT;
         const SAVING_PROGRESS_POINT = 98; 
+        
+        // --- FIX 2B: Ensure flag is false during online process ---
+        isOfflineMode = false;
+        // --- END FIX 2B ---
 
         sendStatusUpdate(`Translating first ${criticalBatch.length} lines for immediate playback...`, START_PROGRESS, url);
 
@@ -593,10 +599,15 @@
         };
 
         const buildColorCodedHtml = (text, colorCodes, defaultColor, isBaseLanguage) => {
-            if (!colorCodes || subtitleStylePref !== 'vocabulary') {
+            
+            // --- FIX 1: Only proceed with color coding if the VOCAB style is selected ---
+            // If the current preference is NOT 'vocabulary', fall back to simple rendering immediately.
+            if (subtitleStylePref !== 'vocabulary' || !colorCodes || colorCodes.length === 0) {
                 const finalStyle = isBaseLanguage ? getSpanStyle(defaultColor) : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
-                return `<span style="${getSpanStyle(finalStyle)}">${text}</span>`; // Added getSpanStyle() wrapper
+                return `<span style="${getSpanStyle(finalStyle)}">${text}</span>`; 
             }
+            // --- END FIX 1 ---
+
             const words = text.split(/\s+/).filter(w => w.length > 0);
             let finalHtml = words.map((word, index) => {
                 const colorCode = colorCodes[index] || 0;
@@ -659,10 +670,21 @@
                         const translatedHtml = buildSimpleHtml(translatedText, true);
                         innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     }
-                } else if (!isTranslatedOnly) {
+                } 
+                // --- FIX 2C: Check for isOfflineMode to prevent 'Translating...' message offline ---
+                else if (!isTranslatedOnly) {
+                    let placeholderText = '(Translating...)';
+                    if (isOfflineMode) {
+                         // In offline mode, if translation is missing, it means the file was saved too early.
+                         // Display an explicit error instead of an active placeholder.
+                         placeholderText = '(Error: Translation Missing)';
+                    }
+                    
                     const placeholderStyle = `opacity:0.6; ${getSpanStyle()}`;
-                    innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">(Translating...)</span>`;
+                    innerHTML = buildSimpleHtml(text, false) + `<br><span style="${placeholderStyle}">${placeholderText}</span>`;
                 }
+                // --- END FIX 2C ---
+                
                 floatingWindow.innerHTML = innerHTML;
                 currentSubtitleIndex = newIndex;
             }
@@ -1039,6 +1061,9 @@
             if (isProcessing) return false;
             isProcessing = true;
             isCancelled = false;
+            // --- FIX 2B: Ensure flag is false during online process ---
+            isOfflineMode = false;
+            // --- END FIX 2B ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1083,6 +1108,9 @@
             if (isProcessing) return false;
             isProcessing = true;
             isCancelled = false;
+            // --- FIX 2B: Ensure flag is false during online process ---
+            isOfflineMode = false;
+            // --- END FIX 2B ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1124,6 +1152,9 @@
             if (isProcessing) return false;
             isProcessing = true;
             isCancelled = false;
+            // --- FIX 2B: Ensure flag is false during online process ---
+            isOfflineMode = false;
+            // --- END FIX 2B ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1168,6 +1199,9 @@
             if (isProcessing) return false;
             isProcessing = true;
             isCancelled = false;
+            // --- FIX 2B: Ensure flag is false during online process ---
+            isOfflineMode = false;
+            // --- END FIX 2B ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1227,6 +1261,10 @@
 
             subtitleLanguages.base = data.baseLang || 'en';
             subtitleLanguages.target = data.targetLang || 'es';
+            
+            // --- FIX 2B: Set flag to true for offline mode ---
+            isOfflineMode = true;
+            // --- END FIX 2B ---
             
             // --- MODIFICATION START: Load live preferences from storage ---
             // The popup should be sending a new "update_style_and_mode" immediately after 
@@ -1308,6 +1346,9 @@
         // Cancel Processing
         if (request.command === "cancel_processing") {
             isCancelled = true;
+            // --- FIX 2B: Clear flag when processing is cancelled/cleared ---
+            isOfflineMode = false;
+            // --- END FIX 2B ---
             if (syncInterval) {
                 clearInterval(syncInterval);
                 syncInterval = null;
