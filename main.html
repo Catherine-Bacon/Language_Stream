@@ -108,7 +108,7 @@
         font-size: 0.9em;
         color: #333;
       }
-      select, button, input[type="text"], textarea {
+      select, button, input[type="text"], textarea, input[type="number"] {
         width: 100%;
         padding: 8px;
         margin-top: 5px;
@@ -580,6 +580,14 @@
           </div>
       </div>
       
+      <div id="offline-time-input-container" style="margin-top: 15px;">
+        <h2 id="manualTimeHeader">2. Set Start Time (HH:MM:SS)</h2>
+        <div style="display: flex; gap: 5px;">
+          <input type="number" id="startHours" placeholder="HH" min="0" max="99" style="width: 33%; text-align: center; margin-top: 0;">
+          <input type="number" id="startMinutes" placeholder="MM" min="0" max="59" style="width: 33%; text-align: center; margin-top: 0;">
+          <input type="number" id="startSeconds" placeholder="SS" min="0" max="59" style="width: 33%; text-align: center; margin-top: 0;">
+        </div>
+      </div>
       <div id="saved-videos-list">
         <p>No saved videos found for this service.</p>
       </div>

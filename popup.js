@@ -301,6 +301,17 @@ function updateUIMode(mode, elements) {
         elements.subtitleStyleNetflixOffline.checked = true;
         elements.editStyleSettingsButtonOffline.disabled = false;
         elements.editStyleSettingsButtonOffline.title = 'Edit Netflix Settings';
+        
+        // --- NEW MODIFICATION START: Time input visibility for offline mode ---
+        const isYoutube = mode === 'youtube';
+        elements.startHours.parentElement.parentElement.classList.toggle('hidden-no-space', isYoutube);
+        document.getElementById('manualTimeHeader').classList.toggle('hidden-no-space', isYoutube);
+
+        // Update the header text for the saved list based on time input visibility
+        document.querySelector('#offline-mode-container h2:nth-of-type(2)').textContent = isYoutube 
+            ? '2. Select Saved Subtitles' 
+            : '3. Select Saved Subtitles';
+        // --- NEW MODIFICATION END ---
     }
     
     // --- NEW: Recolor master buttons when service mode changes ---
@@ -329,7 +340,7 @@ function updateUIMode(mode, elements) {
         elements.netflixModeButton.classList.add('active');
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
-            <p>Select the relevant pre-saved subtitles below > Press display</p>
+            <p>Enter the video's current time (HH:MM:SS) > Select the relevant pre-saved subtitles below > Press display</p>
         `;
         if (currentMasterMode === 'online') {
             elements.netflixInputs.classList.remove('hidden-no-space');
@@ -368,7 +379,7 @@ function updateUIMode(mode, elements) {
         elements.disneyModeButton.classList.add('active');
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
-            <p>Select the relevant pre-saved subtitles below > Press display</p>
+            <p>Enter the video's current time (HH:MM:SS) > Select the relevant pre-saved subtitles below > Press display</p>
         `;
 
         if (currentMasterMode === 'online') {
@@ -388,7 +399,7 @@ function updateUIMode(mode, elements) {
         elements.primeModeButton.classList.add('active');
         elements.offlineInstructionsText.innerHTML = `
             <p>For this mode you will have to download your video on a supported phone/tablet and lean it against your laptop to watch and read at the same time.</p>
-            <p>Select the relevant pre-saved subtitles below > Press display</p>
+            <p>Enter the video's current time (HH:MM:SS) > Select the relevant pre-saved subtitles below > Press display</p>
         `;
         if (currentMasterMode === 'online') {
             elements.primeInputs.classList.remove('hidden-no-space');
@@ -455,6 +466,12 @@ async function resetStatus(elements) {
     elements.disneyUrlInput.value = '';
     elements.primeFileInput.value = '';
     elements.targetLanguageInput.value = '';
+    
+    // --- NEW MODIFICATION START: Clear manual time inputs ---
+    elements.startHours.value = '';
+    elements.startMinutes.value = '';
+    elements.startSeconds.value = '';
+    // --- NEW MODIFICATION END ---
 
     await chrome.storage.local.set({
         'translated_only_pref': false,
@@ -1618,6 +1635,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         offlineInstructionsText: document.getElementById('offlineInstructionsText'),
         displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton'),
         saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox'),
+        // --- NEW OFFLINE TIME INPUT ELEMENTS ---
+        startHours: document.getElementById('startHours'),
+        startMinutes: document.getElementById('startMinutes'),
+        startSeconds: document.getElementById('startSeconds'),
+        // --- END NEW OFFLINE TIME INPUT ELEMENTS ---
         // --- NEW OFFLINE PREFERENCE ELEMENTS ---
         offlinePreferencesHeader: document.getElementById('offlinePreferencesHeader'),
         subtitleModeGroupOffline: document.getElementById('subtitleModeGroupOffline'),
@@ -1684,6 +1706,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             // --- END: NEW ---
             
+            // --- NEW MODIFICATION START: Calculate Start Time ---
+            let startAtTime = 0;
+            const isYoutube = currentMode === 'youtube';
+            
+            if (!isYoutube) {
+                const h = parseInt(elements.startHours.value) || 0;
+                const m = parseInt(elements.startMinutes.value) || 0;
+                const s = parseInt(elements.startSeconds.value) || 0;
+                startAtTime = (h * 3600) + (m * 60) + s;
+                
+                if (startAtTime < 0) {
+                    elements.savedVideosList.innerHTML = '<p style="color: red;">Error: Time cannot be negative.</p>';
+                    setTimeout(() => loadSavedVideos(currentMode, elements), 2000); 
+                    return;
+                }
+            }
+            // --- NEW MODIFICATION END ---
+            
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs[0] && tabs[0].id) {
                 chrome.scripting.executeScript({
@@ -1697,7 +1737,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     chrome.tabs.sendMessage(tabs[0].id, {
                         command: "display_offline_subtitles",
-                        subData: selectedSub
+                        subData: selectedSub,
+                        startAtTime: startAtTime // <-- PASS THE MANUAL OFFSET
                     }, () => {
                          if (chrome.runtime.lastError) {
                             console.warn("Could not send offline display message:", chrome.runtime.lastError.message);

@@ -18,6 +18,9 @@
     var subtitleLanguages = { base: '', target: '' };
     var translationCache = {};
     var isTranslatedOnly = false;
+    // --- NEW: Time Offset for Offline Modes (in seconds) ---
+    var manualTimeOffset = 0;
+    // --- END NEW ---
     var fontSizeEm = 1.0; // MODIFIED: Changed from string 'medium' to numeric 1.0
     var backgroundColorPref = 'black';
     var backgroundAlphaPref = 1.0;
@@ -589,8 +592,17 @@
     // --- MODIFICATION: Renamed to updateSubtitleDisplay and logic separated ---
     
     function updateSubtitleDisplay(currentTime) {
-        if (currentTime === lastTime && lastTime !== -1) return; // Only update if time changed
-        lastTime = currentTime;
+        // --- NEW MODIFICATION START: Apply manual offset for non-YouTube offline mode ---
+        let effectiveTime = currentTime;
+        const isYoutube = window.location.hostname.includes('youtube.com');
+        
+        if (isOfflineMode && !isYoutube) {
+             effectiveTime = manualTimeOffset + currentTime;
+        }
+
+        if (effectiveTime === lastTime && lastTime !== -1) return; // Only update if time changed
+        lastTime = effectiveTime;
+        // --- NEW MODIFICATION END ---
         
         if (!floatingWindow || !parsedSubtitles || parsedSubtitles.length === 0) {
             return;
@@ -664,7 +676,8 @@
 
         while (low <= high) {
             const mid = Math.floor((low + high) / 2);
-            if (parsedSubtitles[mid].begin <= currentTime) {
+            // --- NEW MODIFICATION START: Use effectiveTime in comparison ---
+            if (parsedSubtitles[mid].begin <= effectiveTime) { 
                 bestMatchIndex = mid;
                 low = mid + 1;
             } else {
@@ -676,10 +689,11 @@
         let newIndex = -1;
         if (bestMatchIndex !== -1) {
             const sub = parsedSubtitles[bestMatchIndex];
-            if (currentTime < sub.end + 0.1) {
+            if (effectiveTime < sub.end + 0.1) {
                 newSubtitle = sub;
                 newIndex = bestMatchIndex;
             }
+            // --- NEW MODIFICATION END ---
         }
 
         if (newIndex !== -1) {
@@ -900,7 +914,7 @@
 
     // --- MODIFIED: Added language name map for save string ---
     const LANGUAGE_MAP_REVERSE = {
-        "aa": "Afar", "ab": "Abkhazian", "ae": "Avesta", "af": "Afrikaans", "ak": "Akan", "am": "Amharic", "an": "Aragonese", "ar": "Arabic", "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijan", "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari languages", "bi": "Bislama", "bm": "Bambara", "bn": "Bengali / bangla", "bo": "Tibetan", "br": "Breton", "bs": "Bosnian", "ca": "Catalan / valencian", "ce": "Chechen", "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech", "cu": "Church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish", "de": "German", "dv": "Dhivehi / divehi / maldivian", "dz": "Dzongkha", "ee": "Ewe", "el": "Modern greek (1453-)", "en": "English", "eo": "Esperanto", "es": "Spanish / castilian", "et": "Estonian", "eu": "Basque", "fa": "Persian", "ff": "Fulah", "fi": "Finnish", "fj": "Fijian", "fo": "Faroese", "fr": "French", "fy": "Western frisian", "ga": "Irish", "gd": "Scottish gaelic / gaelic", "gl": "Galician", "gn": "Guarani", "gu": "Gujarati", "gv": "Manx", "ha": "Hausa", "he": "Hebrew", "hi": "Hindi", "ho": "Hiri motu", "hr": "Croatian", "ht": "Haitian / haitian creole", "hu": "Hungarian", "hy": "Armenian", "hz": "Herero", "ia": "Interlingua (international auxiliary language association)", "id": "Indonesian", "ie": "Interlingue / occidental", "ig": "Igbo", "ii": "Sichuan yi / nuosu", "ik": "Inupiaq", "io": "Ido", "is": "Icelandic", "it": "Italian", "iu": "Inuktitut", "ja": "Japanese", "jv": "Javanese", "ka": "Georgian", "kg": "Kongo", "ki": "Kikuyu / gikuyu", "kj": "Kuanyama / kwanyama", "kk": "Kazakh", "kl": "Kalaallisut / greenlandic", "km": "Khmer / central khmer", "kn": "Kn", "ko": "Korean", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "ms": "Malay (macrolanguage)", "mt": "Maltese", "my": "Burmese", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quechua", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan", "ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "ts": "Tsonga", "tt": "Tatar", "tw": "Twi", "tahitian": "Ty", "ug": "Uighur / uyghur", "uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "ve": "Venda", "vi": "Vietnamese", "vo": "Volapük", "wa": "Walloon", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yo": "Yoruba", "za": "Zhuang / chuang", "zh": "Chinese", "zu": "Zulu"
+        "aa": "Afar", "ab": "Abkhazian", "ae": "Avesta", "af": "Afrikaans", "ak": "Akan", "am": "Amharic", "an": "Aragonese", "ar": "Arabic", "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijan", "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari languages", "bi": "Bislama", "bm": "Bambara", "bn": "Bengali / bangla", "bo": "Tibetan", "br": "Breton", "bs": "Bosnian", "ca": "Catalan / valencian", "ce": "Chechen", "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech", "cu": "Church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish", "de": "German", "dv": "Dhivehi / divehi / maldivian", "dz": "Dzongkha", "ee": "Ewe", "el": "Modern greek (1453-)", "en": "English", "eo": "Esperanto", "es": "Spanish / castilian", "et": "Estonian", "eu": "Basque", "fa": "Persian", "ff": "Fulah", "fi": "Finnish", "fj": "Fijian", "fo": "Faroese", "fr": "French", "fy": "Western frisian", "ga": "Irish", "gd": "Scottish gaelic / gaelic", "gl": "Galician", "gn": "Guarani", "gu": "Gujarati", "gv": "Manx", "ha": "Hausa", "he": "Hebrew", "hi": "Hindi", "ho": "Hiri motu", "hr": "Croatian", "ht": "Haitian / haitian creole", "hu": "Hungarian", "hy": "Armenian", "hz": "Herero", "ia": "Interlingua (international auxiliary language association)", "id": "Indonesian", "ie": "Interlingue / occidental", "ig": "Igbo", "ii": "Sichuan yi / nuosu", "ik": "Inupiaq", "io": "Ido", "is": "Icelandic", "it": "Italian", "iu": "Inuktitut", "ja": "Japanese", "jv": "Javanese", "ka": "Georgiana", "kg": "Kongo", "ki": "Kikuyu / gikuyu", "kj": "Kuanyama / kwanyama", "kk": "Kazakh", "kl": "Kalaallisut / greenlandic", "km": "Khmer / central khmer", "kn": "Kn", "ko": "Korean", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "ms": "Malay (macrolanguage)", "mt": "Maltese", "my": "Burmese", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quechua", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan", "ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "ts": "Tsonga", "tt": "Tatar", "tw": "Twi", "tahitian": "Ty", "ug": "Uighur / uyghur", "uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "ve": "Venda", "vi": "Vietnamese", "vo": "Volapük", "wa": "Walloon", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yo": "Yoruba", "za": "Zhuang / chuang", "zh": "Chinese", "zu": "Zulu"
     };
 
     function getLanguageName(langCode) {
@@ -1333,6 +1347,10 @@
             subtitleLanguages.base = data.baseLang || 'en';
             subtitleLanguages.target = data.targetLang || 'es';
             
+            // --- NEW MODIFICATION START: Set manual time offset ---
+            manualTimeOffset = request.startAtTime || 0; 
+            // --- NEW MODIFICATION END ---
+            
             // --- FIX 2B: Set flag to true for offline mode ---
             isOfflineMode = true;
             // --- END FIX 2B ---
@@ -1426,6 +1444,7 @@
             isCancelled = true;
             // --- FIX 2B: Clear flag when processing is cancelled/cleared ---
             isOfflineMode = false;
+            manualTimeOffset = 0; // Reset offset on cancel
             // --- END FIX 2B ---
             if (syncInterval) {
                 clearInterval(syncInterval);
