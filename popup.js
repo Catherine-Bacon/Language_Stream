@@ -42,7 +42,7 @@ const PREF_KEYS = Object.keys(NETFLIX_PRESET);
 
 
 const LANGUAGE_MAP = {
-    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kn": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "thai": "th", "tigrinya": "ti", "turkmen": "tk", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xhosa", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
+    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kn": "kn", "korean": "ko", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quechua", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan", "ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "tsonga": "ts", "tatar": "tt", "tw": "Twi", "tahitian": "ty", "uighur / uyghur": "ug", "uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yoruba": "Yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
 };
 
 let currentMode = 'youtube';
@@ -89,6 +89,9 @@ async function loadSavedVideos(mode, elements) {
 
         if (subsForThisService.length === 0) {
             elements.savedVideosList.innerHTML = '<p>No saved subtitles found for this service.</p>';
+            // --- MODIFIED: Update button state when list is empty ---
+            updateDisplayOfflineButtonState(elements);
+            // --- END MODIFIED ---
             return;
         }
 
@@ -117,6 +120,7 @@ async function loadSavedVideos(mode, elements) {
                 listItem.classList.add('active');
                 selectedOfflineTimestamp = savedSub.timestamp;
                 console.log(`Selected offline sub: ${selectedOfflineTimestamp}`);
+                updateDisplayOfflineButtonState(elements); // <--- ADDED
             });
             
             const deleteButton = document.createElement('button');
@@ -133,6 +137,10 @@ async function loadSavedVideos(mode, elements) {
             listItem.appendChild(deleteButton);
             elements.savedVideosList.appendChild(listItem);
         });
+        
+        // --- MODIFIED: Ensure initial button state is updated ---
+        updateDisplayOfflineButtonState(elements);
+        // --- END MODIFIED ---
 
     } catch (error) {
         console.error("Error loading saved subtitles:", error);
@@ -161,6 +169,7 @@ async function deleteSavedSubtitle(mode, timestamp, elements) {
         }
 
         loadSavedVideos(mode, elements);
+        // updateDisplayOfflineButtonState will be called inside loadSavedVideos
 
     } catch (error) {
         console.error("Error deleting subtitle:", error);
@@ -234,6 +243,24 @@ function updateGenerateButtonState(elements) {
         elements.confirmButton.style.backgroundColor = '#cccccc'; // Grey when unavailable
     }
 }
+
+// --- NEW FUNCTION: Manages the state and color of the Offline 'Display Subtitles' button ---
+function updateDisplayOfflineButtonState(elements) {
+    const isSelected = selectedOfflineTimestamp !== null;
+    const modeColor = getModeColor();
+    const greyColor = '#cccccc';
+
+    elements.displayOfflineSubtitlesButton.disabled = !isSelected;
+    
+    // Explicitly set the background color
+    if (isSelected) {
+        elements.displayOfflineSubtitlesButton.style.backgroundColor = modeColor;
+    } else {
+        // Use the grey color when disabled
+        elements.displayOfflineSubtitlesButton.style.backgroundColor = greyColor;
+    }
+}
+// --- END NEW FUNCTION ---
 
 // --- MODIFIED updateUIMode to update master button color on service switch ---
 function updateUIMode(mode, elements) {
@@ -1705,6 +1732,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         openCustomSettingsWindow(selectedStyle);
     });
     // --- END: NEW OFFLINE PREFERENCE LISTENERS ---
+    
+    // --- NEW: Add event listener to the offline display button for immediate state update ---
+    elements.displayOfflineSubtitlesButton.addEventListener('click', () => {
+        // Since the click handler includes logic to load/display subs, this is mainly for preventing disabled clicks.
+    });
+    // --- END NEW ---
 
     elements.editStyleSettingsButton.addEventListener('click', () => {
         const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
