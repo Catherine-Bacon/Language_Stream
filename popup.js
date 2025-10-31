@@ -218,6 +218,12 @@ function updateUIMode(mode, elements) {
         elements.transcriptStatusText.classList.add('hidden-no-space');
         elements.disneyUrlStatusText.classList.add('hidden-no-space');
         elements.primeUrlStatusText.classList.add('hidden-no-space');
+    } else { // 'offline'
+        // NEW: Reset offline preference controls to default on mode switch
+        elements.subtitleModeDualOffline.checked = true;
+        elements.subtitleStyleNetflixOffline.checked = true;
+        elements.editStyleSettingsButtonOffline.disabled = false;
+        elements.editStyleSettingsButtonOffline.title = 'Edit Netflix Settings';
     }
     
     // --- MODIFICATION: Ensure confirm button is in generate mode and visible (online) ---
@@ -377,6 +383,12 @@ async function resetStatus(elements) {
     elements.subtitleStyleNetflix.checked = true;
     elements.editStyleSettingsButton.disabled = false;
     elements.editStyleSettingsButton.title = `Edit Netflix Settings`;
+    
+    // NEW: Reset offline controls
+    elements.subtitleModeDualOffline.checked = true;
+    elements.subtitleStyleNetflixOffline.checked = true;
+    elements.editStyleSettingsButtonOffline.disabled = false;
+    elements.editStyleSettingsButtonOffline.title = `Edit Netflix Settings`;
 
     // --- MODIFICATION START: Reset confirm button state ---
     isConfirmButtonAsCancel = false;
@@ -992,6 +1004,17 @@ async function loadSavedStatus(elements) {
         const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(savedStyle);
         elements.editStyleSettingsButton.disabled = !hasSettings;
         elements.editStyleSettingsButton.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
+        
+        // NEW: Set offline controls' initial state based on online preferences
+        const offlineModeElement = document.getElementById(`subtitleMode${(data.translated_only_pref === true ? 'TranslatedOnly' : 'Dual')}Offline`);
+        if (offlineModeElement) offlineModeElement.checked = true;
+        
+        const offlineStyleElement = document.getElementById(`subtitleStyle${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)}Offline`);
+        if (offlineStyleElement) offlineStyleElement.checked = true;
+        
+        elements.editStyleSettingsButtonOffline.disabled = !hasSettings;
+        elements.editStyleSettingsButtonOffline.title = `Edit ${savedStyle.charAt(0).toUpperCase() + savedStyle.slice(1)} Settings`;
+
 
         const isProcessing = status && status.progress > 0 && status.progress < 100;
         const isFinished = status && status.progress >= 100;
@@ -1376,16 +1399,21 @@ async function handleCancelClick(elements) {
     await stopProcessingUI(elements);
 }
 
-async function sendLiveStyleUpdate(elements) {
-    if (elements.statusBox.classList.contains('hidden-no-space')) {
+// MODIFIED: Added optional parameter to indicate if calling from offline mode
+async function sendLiveStyleUpdate(elements, isOfflineUpdate = false) {
+    if (elements.statusBox.classList.contains('hidden-no-space') && !isOfflineUpdate) {
         return;
     }
     
     console.log("Sending live style update to content script...");
 
-    const selectedSubtitleMode = document.querySelector('input[name="subtitleMode"]:checked').value;
+    // Use the appropriate radio groups based on context
+    const modeGroup = isOfflineUpdate ? elements.subtitleModeGroupOffline : elements.subtitleModeGroup;
+    const styleGroup = isOfflineUpdate ? elements.subtitleStyleGroupOffline : elements.subtitleStyleGroup;
+    
+    const selectedSubtitleMode = modeGroup.querySelector('input[name="subtitleMode' + (isOfflineUpdate ? 'Offline' : '') + '"]:checked').value;
     const translatedOnly = (selectedSubtitleMode === 'translated_only');
-    const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;
+    const selectedStyle = styleGroup.querySelector('input[name="subtitleStyle' + (isOfflineUpdate ? 'Offline' : '') + '"]:checked').value;
 
     const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
     const stylePrefix = `${selectedStyle}_`;
@@ -1471,7 +1499,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         savedVideosList: document.getElementById('saved-videos-list'),
         offlineInstructionsText: document.getElementById('offlineInstructionsText'),
         displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton'),
-        saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox')
+        saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox'),
+        // --- NEW OFFLINE PREFERENCE ELEMENTS ---
+        offlinePreferencesHeader: document.getElementById('offlinePreferencesHeader'),
+        subtitleModeGroupOffline: document.getElementById('subtitleModeGroupOffline'),
+        subtitleModeDualOffline: document.getElementById('subtitleModeDualOffline'),
+        subtitleModeTranslatedOnlyOffline: document.getElementById('subtitleModeTranslatedOnlyOffline'),
+        subtitleStyleGroupOffline: document.getElementById('subtitleStyleGroupOffline'),
+        subtitleStyleNetflixOffline: document.getElementById('subtitleStyleNetflixOffline'),
+        subtitleStyleCustomOffline: document.getElementById('subtitleStyleCustomOffline'),
+        subtitleStyleVocabularyOffline: document.getElementById('subtitleStyleVocabularyOffline'),
+        editStyleSettingsButtonOffline: document.getElementById('editStyleSettingsButtonOffline')
+        // --- END NEW OFFLINE PREFERENCE ELEMENTS ---
     };
     
     // --- MODIFICATION: Set a reference to the hidden original cancel button to keep styles for now ---
@@ -1512,6 +1551,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setTimeout(() => loadSavedVideos(currentMode, elements), 2000);
                 return;
             }
+
+            // --- START: NEW: Set initial state of offline preference controls ---
+            const initialMode = selectedSub.isTranslatedOnly ? 'translated_only' : 'dual';
+            const initialStyle = selectedSub.style || 'netflix';
+            
+            document.getElementById(`subtitleMode${initialMode.charAt(0).toUpperCase() + initialMode.slice(1)}Offline`).checked = true;
+            
+            const styleElement = document.getElementById(`subtitleStyle${initialStyle.charAt(0).toUpperCase() + initialStyle.slice(1)}Offline`);
+            if (styleElement) styleElement.checked = true;
+            
+            const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(initialStyle);
+            elements.editStyleSettingsButtonOffline.disabled = !hasSettings;
+            elements.editStyleSettingsButtonOffline.title = `Edit ${initialStyle.charAt(0).toUpperCase() + initialStyle.slice(1)} Settings`;
+            // --- END: NEW ---
             
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs[0] && tabs[0].id) {
@@ -1574,6 +1627,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+    
+    // --- START: NEW OFFLINE PREFERENCE LISTENERS ---
+    elements.subtitleModeGroupOffline.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                sendLiveStyleUpdate(elements, true); // Send live update for offline mode
+            }
+        });
+    });
+
+    elements.subtitleStyleGroupOffline.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                const selectedStyle = e.target.value;
+                const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
+                elements.editStyleSettingsButtonOffline.disabled = !hasSettings;
+                elements.editStyleSettingsButtonOffline.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
+                sendLiveStyleUpdate(elements, true); // Send live update for offline mode
+            }
+        });
+    });
+
+    elements.editStyleSettingsButtonOffline.addEventListener('click', () => {
+        const selectedStyle = document.querySelector('input[name="subtitleStyleOffline"]:checked').value;
+        openCustomSettingsWindow(selectedStyle);
+    });
+    // --- END: NEW OFFLINE PREFERENCE LISTENERS ---
 
     elements.editStyleSettingsButton.addEventListener('click', () => {
         const selectedStyle = document.querySelector('input[name="subtitleStyle"]:checked').value;

@@ -273,6 +273,23 @@
       #editStyleSettingsButton:hover {
           background-color: #777;
       }
+      
+      #editStyleSettingsButtonOffline {
+          width: 28px;
+          height: 28px;
+          padding: 0;
+          margin-left: 10px;
+          align-self: center;
+          margin-top: 2px;
+          background-color: #555;
+          line-height: 1;
+          font-size: 1em;
+          border: none;
+          flex-shrink: 0;
+      }
+      #editStyleSettingsButtonOffline:hover {
+          background-color: #777;
+      }
 
       .style-selection-group {
           display: flex;
@@ -559,7 +576,43 @@
       
       <button id="displayOfflineSubtitlesButton" type="button" style="margin-top: 5px; background-color: #4CAF50;">Display Subtitles</button>
       
-    </div>
+      <h3 id="offlinePreferencesHeader" style="margin-top: 15px;">Subtitle Preferences</h3> 
+      
+      <div class="preference-row">
+          <p>Mode:</p>
+          <div id="subtitleModeGroupOffline" class="radio-group">
+              <label>
+                  <input type="radio" name="subtitleModeOffline" value="dual" id="subtitleModeDualOffline" checked>
+                  Dual
+              </label>
+              <label>
+                  <input type="radio" name="subtitleModeOffline" value="translated_only" id="subtitleModeTranslatedOnlyOffline">
+                  Translated
+              </label>
+          </div>
+      </div>
+
+      <div class="preference-row" style="margin-bottom: 15px;">
+          <p>Style:</p>
+          <div class="style-selection-group">
+              <div id="subtitleStyleGroupOffline" class="style-radio-group">
+                  <label>
+                      <input type="radio" name="subtitleStyleOffline" value="netflix" id="subtitleStyleNetflixOffline" checked>
+                      Netflix
+                  </label>
+                  <label>
+                      <input type="radio" name="subtitleStyleOffline" value="custom" id="subtitleStyleCustomOffline">
+                      Custom
+                  </label>
+                  <label>
+                      <input type="radio" name="subtitleStyleOffline" value="vocabulary" id="subtitleStyleVocabularyOffline">
+                      Vocab
+                  </label>
+                  </div>
+              <button id="editStyleSettingsButtonOffline" title="Edit Style Settings" disabled>&#x2699;</button>
+          </div>
+      </div>
+      </div>
     <button id="cancelButton" class="hidden-no-space">Cancel Subtitle Generation</button>
 
     <script src="popup.js"></script>
