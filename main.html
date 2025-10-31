@@ -380,10 +380,11 @@
         flex-grow: 1;
         margin-right: 10px;
         cursor: pointer;
-        /* Truncate text if too long */
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        /* Allow text to wrap to prevent cutoff of language info */
+        white-space: normal; /* Allow wrapping */
+        overflow: visible;    /* Allow content to be visible */
+        text-overflow: clip;   /* Prevent ellipsis */
+        word-break: break-word; /* Ensure long words don't overflow */
       }
       /* --- NEW: Style for selected item --- */
       .saved-video-item.active {
