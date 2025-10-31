@@ -85,12 +85,10 @@ async function loadSavedVideos(mode, elements) {
             const itemText = document.createElement('span');
             itemText.title = 'Click to select this subtitle'; 
 
+            // --- MODIFICATION START: Use the concise title from content.js ---
             const title = savedSub.title || 'Unknown Title';
-            const baseLang = getLanguageName(savedSub.baseLang || '??');
-            const targetLang = getLanguageName(savedSub.targetLang || '??');
-            const modeText = savedSub.isTranslatedOnly ? 'Translated' : 'Dual';
-            const styleText = (savedSub.style || 'N/A').charAt(0).toUpperCase() + (savedSub.style || 'N/A').slice(1);
-            itemText.textContent = `${title} - ${baseLang} to ${targetLang} - ${modeText} - ${styleText}`;
+            itemText.textContent = title;
+            // --- MODIFICATION END ---
             
             itemText.addEventListener('click', () => {
                 Array.from(elements.savedVideosList.children).forEach(child => {
@@ -1553,17 +1551,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // --- START: NEW: Set initial state of offline preference controls ---
-            const initialMode = selectedSub.isTranslatedOnly ? 'translated_only' : 'dual';
-            const initialStyle = selectedSub.style || 'netflix';
+            // NOTE: isTranslatedOnly and style are NO LONGER saved in content.js, so we default to the UI state.
+            // The logic here is now primarily for consistency and enabling the edit button.
             
-            document.getElementById(`subtitleMode${initialMode.charAt(0).toUpperCase() + initialMode.slice(1)}Offline`).checked = true;
+            const selectedOfflineMode = elements.subtitleModeGroupOffline.querySelector('input[name="subtitleModeOffline"]:checked').value;
+            const selectedOfflineStyle = elements.subtitleStyleGroupOffline.querySelector('input[name="subtitleStyleOffline"]:checked').value;
             
-            const styleElement = document.getElementById(`subtitleStyle${initialStyle.charAt(0).toUpperCase() + initialStyle.slice(1)}Offline`);
-            if (styleElement) styleElement.checked = true;
-            
-            const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(initialStyle);
-            elements.editStyleSettingsButtonOffline.disabled = !hasSettings;
-            elements.editStyleSettingsButtonOffline.title = `Edit ${initialStyle.charAt(0).toUpperCase() + initialStyle.slice(1)} Settings`;
+            // We use the UI state to set the general extension preferences before sending the message
+            await chrome.storage.local.set({ 
+                'translated_only_pref': (selectedOfflineMode === 'translated_only'),
+                'subtitle_style_pref': selectedOfflineStyle
+            });
             // --- END: NEW ---
             
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -1630,17 +1628,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // --- START: NEW OFFLINE PREFERENCE LISTENERS ---
     elements.subtitleModeGroupOffline.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
+        radio.addEventListener('change', async (e) => {
             if (e.target.checked) {
-                sendLiveStyleUpdate(elements, true); // Send live update for offline mode
+                 await chrome.storage.local.set({ 'translated_only_pref': (e.target.value === 'translated_only') });
+                 sendLiveStyleUpdate(elements, true); // Send live update for offline mode
             }
         });
     });
 
     elements.subtitleStyleGroupOffline.querySelectorAll('input[type="radio"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
+        radio.addEventListener('change', async (e) => {
             if (e.target.checked) {
                 const selectedStyle = e.target.value;
+                await chrome.storage.local.set({ 'subtitle_style_pref': selectedStyle });
                 const hasSettings = ['netflix', 'custom', 'vocabulary'].includes(selectedStyle);
                 elements.editStyleSettingsButtonOffline.disabled = !hasSettings;
                 elements.editStyleSettingsButtonOffline.title = `Edit ${selectedStyle.charAt(0).toUpperCase() + selectedStyle.slice(1)} Settings`;
@@ -1749,6 +1749,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log("Detected style or mode change, sending live update...");
                 sendLiveStyleUpdate(elements);
             }
+            
+            // --- NEW: Also check for offline changes and update live ---
+            const hasOfflinePrefChange = keys.some(key => key.startsWith('translated_only_pref') || key.startsWith('subtitle_style_pref'));
+            if (hasOfflinePrefChange && isPopupInitialized && currentMasterMode === 'offline') {
+                 console.log("Detected offline style or mode change, sending live update...");
+                 sendLiveStyleUpdate(elements, true);
+            }
+            // --- END NEW ---
         }
     });
 
