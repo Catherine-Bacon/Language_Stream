@@ -74,9 +74,9 @@ async function loadSavedVideos(mode, elements) {
             return;
         }
 
-        subsForThisService.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
         elements.savedVideosList.innerHTML = ''; 
+
+        subsForThisService.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
         subsForThisService.forEach(savedSub => {
             const listItem = document.createElement('div');
@@ -614,61 +614,13 @@ async function checkLanguagePairAvailability(elements) {
     try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs[0] && tabs[0].id) {
-            // --- FIX: Ensure content.js is injected before sending a message ---
-            const tabId = tabs[0].id;
-            chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                files: ['content.js']
-            }, () => {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                command: "check_language_pair",
+                baseLang: baseLangCode,
+                targetLang: targetLangCode
+            }).then(response => {
                 if (chrome.runtime.lastError) {
-                    console.warn("Language check injection error:", chrome.runtime.lastError.message);
-                    let tabType = currentMode.charAt(0).toUpperCase() + currentMode.slice(1);
-                    elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
-                    elements.langStatusText.style.color = getModeColor();
-                    updateGenerateButtonState(elements);
-                    return;
-                }
-                
-                // --- Injection successful, NOW send the message ---
-                chrome.tabs.sendMessage(tabId, {
-                    command: "check_language_pair",
-                    baseLang: baseLangCode,
-                    targetLang: targetLangCode
-                }).then(response => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("Language check error:", chrome.runtime.lastError.message);
-                        let tabType;
-                        if (currentMode === 'netflix') tabType = 'Netflix';
-                        else if (currentMode === 'youtube') tabType = 'YouTube';
-                        else if (currentMode === 'disney') tabType = 'Disney+';
-                        else tabType = 'Prime Video';
-
-                        elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
-                        elements.langStatusText.style.color = getModeColor();
-                        updateGenerateButtonState(elements);
-                        return;
-                    }
-
-                    const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
-                    let currentTargetLangCode = null;
-                    if(currentInputLang.length === 2) {
-                        currentTargetLangCode = currentInputLang;
-                    } else if (currentInputLang.length > 2) {
-                        currentTargetLangCode = LANGUAGE_MAP[currentInputLang] || (Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang)) ? LANGUAGE_MAP[Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang))] : null);
-                    }
-
-                    if (currentTargetLangCode === response.targetLang) {
-                        if (response.isAvailable) {
-                            elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
-                            elements.langStatusText.style.color = "green";
-                        } else {
-                            elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
-                            elements.langStatusText.style.color = getModeColor();
-                        }
-                    }
-                    updateGenerateButtonState(elements);
-                }).catch(e => {
-                    console.warn("Could not send language pair check message:", e);
+                    console.warn("Language check error:", chrome.runtime.lastError.message);
                     let tabType;
                     if (currentMode === 'netflix') tabType = 'Netflix';
                     else if (currentMode === 'youtube') tabType = 'YouTube';
@@ -678,8 +630,38 @@ async function checkLanguagePairAvailability(elements) {
                     elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
                     elements.langStatusText.style.color = getModeColor();
                     updateGenerateButtonState(elements);
-                });
-            // --- END FIX ---
+                    return;
+                }
+
+                const currentInputLang = elements.targetLanguageInput.value.trim().toLowerCase();
+                let currentTargetLangCode = null;
+                if(currentInputLang.length === 2) {
+                    currentTargetLangCode = currentInputLang;
+                } else if (currentInputLang.length > 2) {
+                    currentTargetLangCode = LANGUAGE_MAP[currentInputLang] || (Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang)) ? LANGUAGE_MAP[Object.keys(LANGUAGE_MAP).find(key => key.startsWith(currentInputLang))] : null);
+                }
+
+                if (currentTargetLangCode === response.targetLang) {
+                    if (response.isAvailable) {
+                        elements.langStatusText.textContent = `Ready to translate to ${getLanguageName(response.targetLang)}!`;
+                        elements.langStatusText.style.color = "green";
+                    } else {
+                        elements.langStatusText.textContent = "Language pair not yet available, please retry with different inputs.";
+                        elements.langStatusText.style.color = getModeColor();
+                    }
+                }
+                updateGenerateButtonState(elements);
+            }).catch(e => {
+                console.warn("Could not send language pair check message:", e);
+                let tabType;
+                if (currentMode === 'netflix') tabType = 'Netflix';
+                else if (currentMode === 'youtube') tabType = 'YouTube';
+                else if (currentMode === 'disney') tabType = 'Disney+';
+                else tabType = 'Prime Video';
+
+                elements.langStatusText.textContent = `Cannot check: please reload the ${tabType} tab.`;
+                elements.langStatusText.style.color = getModeColor();
+                updateGenerateButtonState(elements);
             });
         }
     } catch (e) {
@@ -728,66 +710,48 @@ async function checkPrimeFileAndDetectLanguage(elements, ttmlString) {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
         if (tabs[0] && tabs[0].id) {
-            // --- FIX: Ensure content.js is injected before sending a message ---
-            const tabId = tabs[0].id;
-            chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                files: ['content.js']
-            }, () => {
+            chrome.tabs.sendMessage(tabs[0].id, {
+                command: "detect_language_from_ttml",
+                ttmlString: ttmlString
+            }).then(async (response) => {
                 if (chrome.runtime.lastError) {
-                    console.warn("Detection injection error:", chrome.runtime.lastError.message);
+                    console.warn("Detection error:", chrome.runtime.lastError.message);
                     elements.primeUrlStatusText.textContent = `Detection error. Reload tab.`;
                     elements.primeUrlStatusText.style.color = "#00A8E1";
-                    chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                    await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                     updateGenerateButtonState(elements);
                     return;
                 }
 
-                // --- Injection successful, NOW send the message ---
-                chrome.tabs.sendMessage(tabId, {
-                    command: "detect_language_from_ttml",
-                    ttmlString: ttmlString
-                }).then(async (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("Detection error:", chrome.runtime.lastError.message);
-                        elements.primeUrlStatusText.textContent = `Detection error. Reload tab.`;
+                if (response && currentMode === 'prime') {
+                    if (response.baseLangCode) {
+                        const baseLangName = getLanguageName(response.baseLangCode);
+                        elements.primeUrlStatusText.textContent = `${baseLangName} file ready to translate!`;
+                        elements.primeUrlStatusText.style.color = "green";
+                        await chrome.storage.local.set({
+                            'detected_base_lang_name': baseLangName,
+                            'detected_base_lang_code': response.baseLangCode
+                        });
+                        checkLanguagePairAvailability(elements);
+                    } else {
+                        elements.primeUrlStatusText.textContent = `Language detection failed.`;
                         elements.primeUrlStatusText.style.color = "#00A8E1";
                         await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                        updateGenerateButtonState(elements);
-                        return;
                     }
-
-                    if (response && currentMode === 'prime') {
-                        if (response.baseLangCode) {
-                            const baseLangName = getLanguageName(response.baseLangCode);
-                            elements.primeUrlStatusText.textContent = `${baseLangName} file ready to translate!`;
-                            elements.primeUrlStatusText.style.color = "green";
-                            await chrome.storage.local.set({
-                                'detected_base_lang_name': baseLangName,
-                                'detected_base_lang_code': response.baseLangCode
-                            });
-                            checkLanguagePairAvailability(elements);
-                        } else {
-                            elements.primeUrlStatusText.textContent = `Language detection failed.`;
-                            elements.primeUrlStatusText.style.color = "#00A8E1";
-                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                        }
-                        updateGenerateButtonState(elements);
-                    }
-                }).catch(e => {
-                   if (!e.message.includes('Receiving end does not exist')) {
-                        console.warn("Could not send detection message, content script not ready:", e);
-                   }
-                   elements.primeUrlStatusText.textContent = `Detection failed. Please reload the Prime Video tab.`;
-                   elements.primeUrlStatusText.style.color = "#00A8E1";
-                   updateGenerateButtonState(elements);
-                });
-            // --- END FIX ---
+                    updateGenerateButtonState(elements);
+                }
+            }).catch(e => {
+               if (!e.message.includes('Receiving end does not exist')) {
+                    console.warn("Could not send detection message, content script not ready:", e);
+               }
+               elements.primeUrlStatusText.textContent = `Detection failed. Reload tab.`;
+               elements.primeUrlStatusText.style.color = "#00A8E1";
+               updateGenerateButtonState(elements);
             });
         }
     } catch (e) {
         console.warn("Could not query tabs for Prime detection:", e);
-        elements.primeUrlStatusText.textContent = `Detection failed. Please reload the Prime Video tab.`;
+        elements.primeUrlStatusText.textContent = `Detection failed. Reload tab.`;
         elements.primeUrlStatusText.style.color = "#00A8E1";
         updateGenerateButtonState(elements);
     }
@@ -815,61 +779,40 @@ async function checkDisneyUrlAndDetectLanguage(elements) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
             if (tabs[0] && tabs[0].id) {
-                // --- FIX: Ensure content.js is injected before sending a message ---
-                const tabId = tabs[0].id;
-                chrome.scripting.executeScript({
-                    target: { tabId: tabId },
-                    files: ['content.js']
-                }, () => {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    command: "detect_language_disney",
+                    url: url
+                }).then(async (response) => {
                     if (chrome.runtime.lastError) {
-                        console.warn("Detection injection error:", chrome.runtime.lastError.message);
-                        elements.disneyUrlStatusText.textContent = `Detection failed. Please reload the Disney+ tab.`;
-                        elements.disneyUrlStatusText.style.color = "#0d8199";
-                        updateGenerateButtonState(elements);
+                        console.warn("Detection error:", chrome.runtime.lastError.message);
                         return;
                     }
-                    
-                    // --- Injection successful, NOW send the message ---
-                    chrome.tabs.sendMessage(tabId, {
-                        command: "detect_language_disney",
-                        url: url
-                    }).then(async (response) => {
-                        if (chrome.runtime.lastError) {
-                            console.warn("Detection error:", chrome.runtime.lastError.message);
-                            return;
+                    if (response && elements.disneyUrlInput.value.trim() === response.url) {
+                        if (response.baseLangCode) {
+                            const baseLangName = getLanguageName(response.baseLangCode);
+                            elements.disneyUrlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
+                            elements.disneyUrlStatusText.style.color = "green";
+                            await chrome.storage.local.set({
+                                'detected_base_lang_name': baseLangName,
+                                'detected_base_lang_code': response.baseLangCode
+                            });
+                            checkLanguagePairAvailability(elements);
+                        } else {
+                            elements.disneyUrlStatusText.textContent = `Language detection failed.`;
+                            elements.disneyUrlStatusText.style.color = "#0d8199";
+                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                         }
-                        if (response && elements.disneyUrlInput.value.trim() === response.url) {
-                            if (response.baseLangCode) {
-                                const baseLangName = getLanguageName(response.baseLangCode);
-                                elements.disneyUrlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
-                                elements.disneyUrlStatusText.style.color = "green";
-                                await chrome.storage.local.set({
-                                    'detected_base_lang_name': baseLangName,
-                                    'detected_base_lang_code': response.baseLangCode
-                                });
-                                checkLanguagePairAvailability(elements);
-                            } else {
-                                elements.disneyUrlStatusText.textContent = `Language detection failed.`;
-                                elements.disneyUrlStatusText.style.color = "#0d8199";
-                                await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                            }
-                            updateGenerateButtonState(elements);
-                        }
-                    }).catch(e => {
-                       if (!e.message.includes('Receiving end does not exist')) {
-                            console.warn("Could not send detection message, content script not ready:", e);
-                       }
-                       elements.disneyUrlStatusText.textContent = `Detection failed. Please reload the Disney+ tab.`;
-                       elements.disneyUrlStatusText.style.color = "#0d8199";
-                       updateGenerateButtonState(elements);
-                    });
-                // --- END FIX ---
+                        updateGenerateButtonState(elements);
+                    }
+                }).catch(e => {
+                   if (!e.message.includes('Receiving end does not exist')) {
+                        console.warn("Could not send detection message, content script not ready:", e);
+                   }
+                   updateGenerateButtonState(elements);
                 });
             }
         } catch (e) {
             console.warn("Could not query tabs for Disney detection:", e);
-            elements.disneyUrlStatusText.textContent = `Detection failed. Please reload the Disney+ tab.`;
-            elements.disneyUrlStatusText.style.color = "#0d8199";
             updateGenerateButtonState(elements);
         }
     } else {
@@ -895,65 +838,44 @@ async function checkTranscriptAndDetectLanguage(elements) {
             if (tabs[0] && tabs[0].id) {
                 const transcriptSnippet = transcript.substring(0, 1000);
 
-                // --- FIX: Ensure content.js is injected before sending a message ---
-                const tabId = tabs[0].id;
-                chrome.scripting.executeScript({
-                    target: { tabId: tabId },
-                    files: ['content.js']
-                }, () => {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    command: "detect_language_from_text",
+                    text: transcriptSnippet
+                }).then(async (response) => {
                     if (chrome.runtime.lastError) {
-                        console.warn("Detection injection error:", chrome.runtime.lastError.message);
+                        console.warn("Detection error:", chrome.runtime.lastError.message);
                         elements.transcriptStatusText.textContent = `Language detection failed.`;
                         elements.transcriptStatusText.style.color = "#FF0000";
-                        chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
+                        await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                         return;
                     }
 
-                    // --- Injection successful, NOW send the message ---
-                    chrome.tabs.sendMessage(tabId, {
-                        command: "detect_language_from_text",
-                        text: transcriptSnippet
-                    }).then(async (response) => {
-                        if (chrome.runtime.lastError) {
-                            console.warn("Detection error:", chrome.runtime.lastError.message);
+                    if (response && elements.youtubeTranscriptInput.value.trim().startsWith(transcriptSnippet)) {
+                        if (response.baseLangCode) {
+                            const baseLangName = getLanguageName(response.baseLangCode);
+                            elements.transcriptStatusText.textContent = `${baseLangName} transcript ready to translate!`;
+                            elements.transcriptStatusText.style.color = "green";
+                            await chrome.storage.local.set({
+                                'detected_base_lang_name': baseLangName,
+                                'detected_base_lang_code': response.baseLangCode
+                            });
+                            checkLanguagePairAvailability(elements);
+                        } else {
                             elements.transcriptStatusText.textContent = `Language detection failed.`;
                             elements.transcriptStatusText.style.color = "#FF0000";
                             await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                            return;
                         }
-
-                        if (response && elements.youtubeTranscriptInput.value.trim().startsWith(transcriptSnippet)) {
-                            if (response.baseLangCode) {
-                                const baseLangName = getLanguageName(response.baseLangCode);
-                                elements.transcriptStatusText.textContent = `${baseLangName} transcript ready to translate!`;
-                                elements.transcriptStatusText.style.color = "green";
-                                await chrome.storage.local.set({
-                                    'detected_base_lang_name': baseLangName,
-                                    'detected_base_lang_code': response.baseLangCode
-                                });
-                                checkLanguagePairAvailability(elements);
-                            } else {
-                                elements.transcriptStatusText.textContent = `Language detection failed.`;
-                                elements.transcriptStatusText.style.color = "#FF0000";
-                                await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                            }
-                            updateGenerateButtonState(elements);
-                        }
-                    }).catch(e => {
-                       if (!e.message.includes('Receiving end does not exist')) {
-                            console.warn("Could not send detection message, content script not ready:", e);
-                       }
-                       elements.transcriptStatusText.textContent = `Detection failed. Please reload the YouTube tab.`;
-                       elements.transcriptStatusText.style.color = "#FF0000";
-                       updateGenerateButtonState(elements);
-                    });
-                // --- END FIX ---
+                        updateGenerateButtonState(elements);
+                    }
+                }).catch(e => {
+                   if (!e.message.includes('Receiving end does not exist')) {
+                        console.warn("Could not send detection message, content script not ready:", e);
+                   }
+                   updateGenerateButtonState(elements);
                 });
             }
         } catch (e) {
             console.warn("Could not query tabs for YouTube detection:", e);
-            elements.transcriptStatusText.textContent = `Detection failed. Please reload the YouTube tab.`;
-            elements.transcriptStatusText.style.color = "#FF0000";
             updateGenerateButtonState(elements);
         }
     } else {
@@ -986,64 +908,40 @@ async function checkUrlAndDetectLanguage(elements) {
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
 
             if (tabs[0] && tabs[0].id) {
-                // --- FIX: Ensure content.js is injected before sending a message ---
-                const tabId = tabs[0].id;
-                chrome.scripting.executeScript({
-                    target: { tabId: tabId },
-                    files: ['content.js']
-                }, () => {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    command: "detect_language",
+                    url: url
+                }).then(async (response) => {
                     if (chrome.runtime.lastError) {
-                        console.error("[POPUP] Injection failed during detection:", chrome.runtime.lastError.message);
-                        elements.urlStatusText.textContent = `Detection failed. Please reload the Netflix tab.`;
-                        elements.urlStatusText.style.color = "#e50914";
-                        updateGenerateButtonState(elements);
-                        return; // Stop if injection failed
+                        console.warn("Detection error:", chrome.runtime.lastError.message);
+                        return;
                     }
-
-                    // --- Injection successful, NOW send the message ---
-                    console.log(`[POPUP] 1. Sending 'detect_language' to tab ${tabId}.`);
-                    chrome.tabs.sendMessage(tabId, {
-                        command: "detect_language",
-                        url: url
-                    }).then(async (response) => {
-                        console.log("[POPUP] 4. SUCCESS: Received response from content script:", response);
-                        if (chrome.runtime.lastError) {
-                            console.warn("Detection error:", chrome.runtime.lastError.message);
-                            return;
+                    if (response && elements.subtitleUrlInput.value.trim() === response.url) {
+                        if (response.baseLangCode) {
+                            const baseLangName = getLanguageName(response.baseLangCode);
+                            elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
+                            elements.urlStatusText.style.color = "green";
+                            await chrome.storage.local.set({
+                                'detected_base_lang_name': baseLangName,
+                                'detected_base_lang_code': response.baseLangCode
+                            });
+                            checkLanguagePairAvailability(elements);
+                        } else {
+                            elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
+                            elements.urlStatusText.style.color = "#e50914";
+                            await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
                         }
-                        if (response && elements.subtitleUrlInput.value.trim() === response.url) {
-                            if (response.baseLangCode) {
-                                const baseLangName = getLanguageName(response.baseLangCode);
-                                elements.urlStatusText.textContent = `${baseLangName} subtitles ready to translate!`;
-                                elements.urlStatusText.style.color = "green";
-                                await chrome.storage.local.set({
-                                    'detected_base_lang_name': baseLangName,
-                                    'detected_base_lang_code': response.baseLangCode
-                                });
-                                checkLanguagePairAvailability(elements);
-                            } else {
-                                elements.urlStatusText.textContent = `Language detection failed. Ready to generate.`;
-                                elements.urlStatusText.style.color = "#e50914";
-                                await chrome.storage.local.remove(['detected_base_lang_name', 'detected_base_lang_code']);
-                            }
-                            updateGenerateButtonState(elements);
-                        }
-                    }).catch(e => {
-                       console.error("[POPUP] 5. FAILED: Message send failed. Error:", e.message);
-                       if (!e.message.includes('Receiving end does not exist')) {
-                            console.warn("Could not send detection message, content script not ready:", e);
-                       }
-                       elements.urlStatusText.textContent = `Detection failed. Please reload the Netflix tab.`;
-                       elements.urlStatusText.style.color = "#e50914";
-                       updateGenerateButtonState(elements);
-                    });
-                // --- END FIX ---
+                        updateGenerateButtonState(elements);
+                    }
+                }).catch(e => {
+                   if (!e.message.includes('Receiving end does not exist')) {
+                        console.warn("Could not send detection message, content script not ready:", e);
+                   }
+                   updateGenerateButtonState(elements);
                 });
             }
         } catch (e) {
             console.warn("Could not query tabs for Netflix detection:", e);
-            elements.urlStatusText.textContent = `Detection failed. Please reload the Netflix tab.`;
-            elements.urlStatusText.style.color = "#e50914";
             updateGenerateButtonState(elements);
         }
     } else {
@@ -1465,20 +1363,10 @@ async function handleCancelClick(elements) {
         
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs[0] && tabs[0].id) {
-                // --- FIX: Ensure content.js is injected before sending a message ---
-                const tabId = tabs[0].id;
-                chrome.scripting.executeScript({
-                    target: { tabId: tabId },
-                    files: ['content.js']
-                }, () => {
-                    if (chrome.runtime.lastError) console.warn("[POPUP] Script injection before clear failed:", chrome.runtime.lastError.message);
-                
-                    // Send cancel command to content script to hide floating window/clear styles
-                    chrome.tabs.sendMessage(tabId, { command: "cancel_processing" }).catch(e => {
-                        if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending final clear message:", e);
-                    });
+                // Send cancel command to content script to hide floating window/clear styles
+                chrome.tabs.sendMessage(tabs[0].id, { command: "cancel_processing" }).catch(e => {
+                    if (!e.message.includes('Receiving end does not exist')) console.error("[POPUP] Error sending final clear message:", e);
                 });
-                // --- END FIX ---
             }
         });
         
@@ -1548,19 +1436,7 @@ async function sendLiveStyleUpdate(elements, isOfflineUpdate = false) {
     try {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tabs[0] && tabs[0].id) {
-            // --- FIX: Ensure content.js is injected before sending a message ---
-            const tabId = tabs[0].id;
-            chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                files: ['content.js']
-            }, () => {
-                if (chrome.runtime.lastError) {
-                     console.warn("Live update injection error:", chrome.runtime.lastError.message);
-                     return;
-                }
-                 chrome.tabs.sendMessage(tabId, message);
-            });
-            // --- END FIX ---
+             chrome.tabs.sendMessage(tabs[0].id, message);
         }
     } catch (e) {
         console.warn("Could not send live style update:", e);
@@ -1696,11 +1572,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     target: { tabId: tabs[0].id },
                     files: ['content.js']
                 }, () => {
-                     if (chrome.runtime.lastError) {
+                    if (chrome.runtime.lastError) {
                          console.error("Error injecting content.js for offline mode:", chrome.runtime.lastError.message);
                          elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
                          return;
-                     }
+                    }
                     chrome.tabs.sendMessage(tabs[0].id, {
                         command: "display_offline_subtitles",
                         subData: selectedSub

@@ -1,11 +1,7 @@
+Gemini
 /* --- content.js (ZMODYFIKOWANY AND FIXED) --- */
 // Wrap the entire script in an IIFE to isolate scope and prevent redeclaration errors
 (function() {
-    
-    // --- ADD THIS LOG ---
-    console.log(`[CONTENT SCRIPT] 0. Script INJECTED and RUNNING on ${window.location.hostname}.`);
-    // --- END LOG ---
-
     // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
     // Variables are now local to the IIFE scope
     var floatingWindow = null;
@@ -148,11 +144,6 @@
                 }
             });
             console.log(`Successfully parsed ${parsedSubtitles.length} subtitles.`);
-            // --- MODIFIED: Return false if no subtitles were successfully parsed ---
-            if (parsedSubtitles.length === 0) {
-                 sendStatusUpdate("No valid subtitles found in content. Check URL validity.", 0, url, 'url');
-                 return false;
-            }
             return true;
         } catch (e) {
             console.error("Fatal error during XML parsing:", e);
@@ -199,13 +190,7 @@
                 }
             }
             console.log(`Successfully parsed ${parsedSubtitles.length} VTT subtitles.`);
-            // --- MODIFIED: Ensure proper status update on zero length parse ---
-            if (parsedSubtitles.length === 0) {
-                const isDisney = window.location.hostname === 'www.disneyplus.com';
-                sendStatusUpdate(isDisney ? "No valid subtitles found in Disney+ content." : "No valid subtitles found in VTT content.", 0, url, 'url');
-                return false;
-            }
-            return true;
+            return parsedSubtitles.length > 0;
         } catch (e) {
             console.error("Fatal error during VTT parsing:", e);
             // MODIFIED: Added check for context
@@ -890,10 +875,6 @@
     }
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        // --- ADD THIS LOG ---
-        console.log("[CONTENT SCRIPT] 1. Listener received a command:", request.command);
-        // --- END LOG ---
-        
         // Check Language Pair
         if (request.command === "check_language_pair") {
             (async () => {
@@ -936,9 +917,6 @@
 
         // Detect Language from URL (Netflix)
         if (request.command === "detect_language") {
-            // --- MODIFY THIS LOG ---
-            console.log("[CONTENT SCRIPT] 2. 'detect_language' command MATCHED. Starting fetch/parse process."); // <-- MODIFIED LOG
-            // --- END LOG ---
             (async () => {
                 parsedSubtitles = [];
                 const xmlContent = await fetchSubtitleContent(request.url);
@@ -949,9 +927,6 @@
                         baseLangCode = await detectBaseLanguage();
                     }
                 }
-                // --- MODIFY THIS LOG ---
-                console.log(`[CONTENT SCRIPT] 3. Sending response. baseLangCode: ${baseLangCode}`); // <-- MODIFIED LOG
-                // --- END LOG ---
                 sendResponse({ url: request.url, baseLangCode: baseLangCode });
             })();
             return true;
