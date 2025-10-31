@@ -1013,6 +1013,8 @@
     }
     
     // --- EXECUTE INITIALIZATION IMMEDIATELY ---
+    // NOTE: Initialization is still needed outside of a command, but the command 
+    // itself is the source of truth for the *current* execution's preferences.
     initializePreferences();
     // --- END NEW FUNCTION ---
 
@@ -1100,6 +1102,7 @@
             // --- FIX 2B: Ensure flag is false during online process ---
             isOfflineMode = false;
             // --- END FIX 2B ---
+            // --- CRUCIAL FIX: Update all preferences from the request payload ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1110,6 +1113,8 @@
             fontColorPref = request.font_color;
             fontColorAlphaPref = request.font_color_alpha;
             subtitleStylePref = request.colourCoding;
+            // --- END CRUCIAL FIX ---
+            
             translationCache = {};
             if (syncInterval) clearInterval(syncInterval);
             const url = request.url;
@@ -1147,6 +1152,7 @@
             // --- FIX 2B: Ensure flag is false during online process ---
             isOfflineMode = false;
             // --- END FIX 2B ---
+            // --- CRUCIAL FIX: Update all preferences from the request payload ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1157,6 +1163,8 @@
             fontColorPref = request.font_color;
             fontColorAlphaPref = request.font_color_alpha;
             subtitleStylePref = request.colourCoding;
+            // --- END CRUCIAL FIX ---
+            
             translationCache = {};
             if (syncInterval) clearInterval(syncInterval);
             if (!('Translator' in self)) { sendStatusUpdate("ERROR: Chrome Translator API not detected.", 0, null, 'transcript'); isProcessing = false; return false; }
@@ -1191,6 +1199,7 @@
             // --- FIX 2B: Ensure flag is false during online process ---
             isOfflineMode = false;
             // --- END FIX 2B ---
+            // --- CRUCIAL FIX: Update all preferences from the request payload ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1201,6 +1210,8 @@
             fontColorPref = request.font_color;
             fontColorAlphaPref = request.font_color_alpha;
             subtitleStylePref = request.colourCoding;
+            // --- END CRUCIAL FIX ---
+            
             translationCache = {};
             if (syncInterval) clearInterval(syncInterval);
             const url = request.url;
@@ -1238,6 +1249,7 @@
             // --- FIX 2B: Ensure flag is false during online process ---
             isOfflineMode = false;
             // --- END FIX 2B ---
+            // --- CRUCIAL FIX: Update all preferences from the request payload ---
             subtitleLanguages.target = request.targetLang;
             isTranslatedOnly = request.translatedOnly;
             shouldSaveOffline = request.saveOffline; 
@@ -1248,6 +1260,8 @@
             fontColorPref = request.font_color;
             fontColorAlphaPref = request.font_color_alpha;
             subtitleStylePref = request.colourCoding;
+            // --- END CRUCIAL FIX ---
+            
             translationCache = {};
             if (syncInterval) clearInterval(syncInterval);
             const urlStub = 'prime_file_upload'; 
