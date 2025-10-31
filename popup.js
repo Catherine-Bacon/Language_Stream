@@ -52,7 +52,7 @@ const PREF_KEYS = Object.keys(NETFLIX_PRESET);
 
 
 const LANGUAGE_MAP = {
-    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kn": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tajik": "tg", "th": "thai", "ti": "tigrinya", "tk": "turkmen", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xhosa", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
+    "afar": "aa", "abkhazian": "ab", "avesta": "ae", "afrikaans": "af", "akan": "ak", "amharic": "am", "aragonese": "an", "arabic": "ar", "assamese": "as", "avaric": "av", "aymara": "ay", "azerbaijan": "az", "bashkir": "ba", "belarusian": "be", "bulgarian": "bg", "bihari languages": "bh", "bislama": "bi", "bambara": "bm", "bengali / bangla": "bn", "tibetan": "bo", "breton": "br", "bosnian": "bs", "catalan / valencian": "ca", "chechen": "ce", "chamorro": "ch", "corsican": "co", "cree": "cr", "czech": "cs", "church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic": "cu", "chuvash": "cv", "welsh": "cy", "danish": "da", "german": "de", "dhivehi / divehi / maldivian": "dv", "dzongkha": "dz", "ewe": "ee", "modern greek (1453-)": "el", "english": "en", "esperanto": "eo", "spanish / castilian": "es", "estonian": "et", "basque": "eu", "persian": "fa", "fulah": "ff", "finnish": "fi", "fijian": "fj", "faroese": "fo", "french": "fr", "western frisian": "fy", "irish": "ga", "scottish gaelic / gaelic": "gd", "galician": "gl", "guarani": "gn", "gujarati": "gu", "manx": "gv", "hausa": "ha", "hebrew": "he", "hindi": "hi", "hiri motu": "ho", "croatian": "hr", "haitian / haitian creole": "ht", "hungarian": "hu", "armenian": "hy", "herero": "hz", "interlingua (international auxiliary language association)": "ia", "indonesian": "id", "interlingue / occidental": "ie", "igbo": "ig", "sichuan yi / nuosu": "ii", "inupiaq": "ik", "ido": "io", "icelandic": "is", "italian": "it", "inuktitut": "iu", "japanese": "ja", "javanese": "jv", "georgian": "ka", "kongo": "kg", "kikuyu / gikuyu": "ki", "kuanyama / kwanyama": "kj", "kazakh": "kk", "kalaallisut / greenlandic": "kl", "khmer / central khmer": "km", "kn": "kn", "korean": "ko", "kanuri": "kr", "kashmiri": "ks", "kurdish": "ku", "komi": "kv", "cornish": "kw", "kirghiz / kyrgyz": "ky", "latin": "la", "luxembourgish / letzeburgesch": "lb", "ganda / luganda": "lg", "limburgan / limburger / limburgish": "li", "lingala": "ln", "lao": "lo", "lithuanian": "lt", "luba-katanga": "lu", "latvian": "lv", "malagasy": "mg", "marshallese": "mh", "maori": "mi", "macedonian": "mk", "malayalam": "ml", "mongolian": "mn", "marathi": "mr", "malay (macrolanguage)": "ms", "maltese": "mt", "burmese": "my", "nauru": "na", "norwegian bokmål": "nb", "north ndebele": "nd", "nepali (macrolanguage)": "ne", "ndonga": "ng", "dutch / flemish": "nl", "norwegian nynorsk": "nn", "norwegian": "no", "south ndebele": "nr", "navajo / navaho": "nv", "nyanja / chewa / chichewa": "ny", "occitan (post 1500)": "oc", "ojibwa": "oj", "oromo": "om", "oriya (macrolanguage) / odia (macrolanguage)": "or", "ossetian / ossetic": "os", "panjabi / punjabi": "pa", "pali": "pi", "polish": "pl", "pushto / pashto": "ps", "portuguese": "pt", "quechua": "qu", "romansh": "rm", "rundi": "rn", "romanian / moldavian / moldovan": "ro", "russian": "ru", "kinyarwanda": "rw", "sanskrit": "sa", "sardinian": "sc", "sindhi": "sd", "northern sami": "se", "sango": "sg", "sinhala / sinhalese": "si", "slovak": "sk", "slovenian": "sl", "samoan": "sm", "shona": "sn", "somali": "so", "albanian": "sq", "serbian": "sr", "swati": "ss", "southern sotho": "st", "sundanese": "su", "swedish": "sv", "swahili (macrolanguage)": "sw", "tamil": "ta", "telugu": "te", "tajik": "tg", "th": "thai", "ti": "tigrinya", "tk": "turkmen", "tagalog": "tl", "tswana": "tn", "tonga (tonga islands)": "to", "turkish": "tr", "tsonga": "ts", "tatar": "tt", "twi": "tw", "tahitian": "ty", "uighur / uyghur": "ug", "ukrainian": "uk", "urdu": "ur", "uzbek": "uz", "venda": "ve", "vietnamese": "vi", "volapük": "vo", "walloon": "wa", "wolof": "wo", "xhosa": "xhosa", "yiddish": "yi", "yoruba": "yo", "zhuang / chuang": "za", "chinese": "zh", "zulu": "zu"
 };
 
 let currentMode = 'youtube';
@@ -131,13 +131,6 @@ async function loadSavedVideos(mode, elements) {
                 listItem.classList.add('active');
                 selectedOfflineTimestamp = savedSub.timestamp;
                 console.log(`Selected offline sub: ${selectedOfflineTimestamp}`);
-                
-                // --- NEW: Reset time inputs on selection ---
-                elements.offlineTimeHours.value = 0;
-                elements.offlineTimeMinutes.value = 0;
-                elements.offlineTimeSeconds.value = 0;
-                // --- END NEW ---
-                
                 updateDisplayOfflineButtonState(elements); // <--- ADDED
             });
             
@@ -265,29 +258,13 @@ function updateGenerateButtonState(elements) {
 // --- NEW FUNCTION: Manages the state and color of the Offline 'Display Subtitles' button ---
 function updateDisplayOfflineButtonState(elements) {
     const isSelected = selectedOfflineTimestamp !== null;
-    
-    // --- NEW: Read Time Inputs ---
-    // Read values, default to 0 if empty or non-numeric (input type="number" helps prevent non-numeric issues)
-    const h = parseInt(elements.offlineTimeHours.value) || 0;
-    const m = parseInt(elements.offlineTimeMinutes.value) || 0;
-    const s = parseInt(elements.offlineTimeSeconds.value) || 0;
-    
-    // Check constraints and non-negativity
-    // NOTE: This logic ensures the button is greyed out if time inputs are invalid or not selected.
-    const isTimeValid = !isNaN(h) && h >= 0 && 
-                        !isNaN(m) && m >= 0 && m <= 59 &&
-                        !isNaN(s) && s >= 0 && s <= 59;
-                        
-    const shouldBeEnabled = isSelected && isTimeValid;
-    // --- END NEW ---
-
     const modeColor = getModeColor();
     const greyColor = '#cccccc';
 
-    elements.displayOfflineSubtitlesButton.disabled = !shouldBeEnabled;
+    elements.displayOfflineSubtitlesButton.disabled = !isSelected;
     
     // Explicitly set the background color
-    if (shouldBeEnabled) {
+    if (isSelected) {
         elements.displayOfflineSubtitlesButton.style.backgroundColor = modeColor;
     } else {
         // Use the grey color when disabled
@@ -308,7 +285,7 @@ function updateUIMode(mode, elements) {
     elements.disneyModeButton.classList.remove('active');
     elements.primeModeButton.classList.remove('active');
 
-    if (currentMasterMode === 'offline') {
+    if (currentMasterMode === 'online') {
         elements.netflixInputs.classList.add('hidden-no-space');
         elements.youtubeInputs.classList.add('hidden-no-space');
         elements.disneyInputs.classList.add('hidden-no-space');
@@ -318,14 +295,12 @@ function updateUIMode(mode, elements) {
         elements.transcriptStatusText.classList.add('hidden-no-space');
         elements.disneyUrlStatusText.classList.add('hidden-no-space');
         elements.primeUrlStatusText.classList.add('hidden-no-space');
-        
-        // --- NEW LOGIC: Hide manual time input for YouTube, show for others ---
-        const needsManualTime = (mode !== 'youtube');
-        elements.offlineTimeRow.classList.toggle('hidden-no-space', !needsManualTime);
-        // --- END NEW LOGIC ---
-        
-    } else { // 'online'
-        // ... (online mode setup) ...
+    } else { // 'offline'
+        // NEW: Reset offline preference controls to default on mode switch
+        elements.subtitleModeDualOffline.checked = true;
+        elements.subtitleStyleNetflixOffline.checked = true;
+        elements.editStyleSettingsButtonOffline.disabled = false;
+        elements.editStyleSettingsButtonOffline.title = 'Edit Netflix Settings';
     }
     
     // --- NEW: Recolor master buttons when service mode changes ---
@@ -480,12 +455,6 @@ async function resetStatus(elements) {
     elements.disneyUrlInput.value = '';
     elements.primeFileInput.value = '';
     elements.targetLanguageInput.value = '';
-    
-    // --- NEW: Reset Offline Time Inputs ---
-    elements.offlineTimeHours.value = 0;
-    elements.offlineTimeMinutes.value = 0;
-    elements.offlineTimeSeconds.value = 0;
-    // --- END NEW ---
 
     await chrome.storage.local.set({
         'translated_only_pref': false,
@@ -602,10 +571,10 @@ async function stopProcessingUI(elements) {
     elements.confirmButton.classList.remove('hidden-no-space');
     
     // --- NEW: Un-hide instruction divs ---
-    elements.urlInstructions.classList.add('hidden-no-space');
-    elements.transcriptInstructions.classList.add('hidden-no-space');
-    elements.disneyInstructions.classList.add('hidden-no-space');
-    elements.primeInstructions.classList.add('hidden-no-space');
+    elements.urlInstructions.classList.remove('hidden-no-space');
+    elements.transcriptInstructions.classList.remove('hidden-no-space');
+    elements.disneyInstructions.classList.remove('hidden-no-space');
+    elements.primeInstructions.classList.remove('hidden-no-space');
     // --- MODIFICATION END ---
 
     // The instruction box specific to the *current mode* should be made visible when its input box is shown
@@ -1640,7 +1609,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         primeFileInput: document.getElementById('primeFileInput'),
         primeUploadButton: document.getElementById('primeUploadButton'),
         primeUrlStatusText: document.getElementById('primeUrlStatusText'),
-        // --- END MODIFICATION ---
+        // --- MODIFICATION END ---
         onlineModeButton: document.getElementById('onlineModeButton'),
         offlineModeButton: document.getElementById('offlineModeButton'),
         onlineModeContainer: document.getElementById('online-mode-container'),
@@ -1649,12 +1618,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         offlineInstructionsText: document.getElementById('offlineInstructionsText'),
         displayOfflineSubtitlesButton: document.getElementById('displayOfflineSubtitlesButton'),
         saveForOfflineCheckbox: document.getElementById('saveForOfflineCheckbox'),
-        // --- NEW TIME INPUTS ---
-        offlineTimeHours: document.getElementById('offlineTimeHours'),
-        offlineTimeMinutes: document.getElementById('offlineTimeMinutes'),
-        offlineTimeSeconds: document.getElementById('offlineTimeSeconds'),
-        offlineTimeRow: document.getElementById('offlineTimeRow'), // ADDED reference
-        // --- END NEW TIME INPUTS ---
         // --- NEW OFFLINE PREFERENCE ELEMENTS ---
         offlinePreferencesHeader: document.getElementById('offlinePreferencesHeader'),
         subtitleModeGroupOffline: document.getElementById('subtitleModeGroupOffline'),
@@ -1693,14 +1656,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => loadSavedVideos(currentMode, elements), 2000); 
             return;
         }
-
-        // --- NEW: Time Calculation ---
-        const hours = parseInt(elements.offlineTimeHours.value) || 0;
-        const minutes = parseInt(elements.offlineTimeMinutes.value) || 0;
-        const seconds = parseInt(elements.offlineTimeSeconds.value) || 0;
-        
-        const startTimeSeconds = (hours * 3600) + (minutes * 60) + seconds;
-        // --- END NEW ---
 
         try {
             const data = await chrome.storage.local.get('ls_offline_subtitles');
@@ -1742,10 +1697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     chrome.tabs.sendMessage(tabs[0].id, {
                         command: "display_offline_subtitles",
-                        subData: selectedSub,
-                        // --- PASS THE START TIME ---
-                        startTimeSeconds: startTimeSeconds 
-                        // --- END PASSING ---
+                        subData: selectedSub
                     }, () => {
                          if (chrome.runtime.lastError) {
                             console.warn("Could not send offline display message:", chrome.runtime.lastError.message);
@@ -1824,9 +1776,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- END: NEW OFFLINE PREFERENCE LISTENERS ---
     
     // --- NEW: Add event listener to the offline display button for immediate state update ---
-    elements.offlineTimeHours.addEventListener('input', updateDisplayOfflineButtonState);
-    elements.offlineTimeMinutes.addEventListener('input', updateDisplayOfflineButtonState);
-    elements.offlineTimeSeconds.addEventListener('input', updateDisplayOfflineButtonState);
+    elements.displayOfflineSubtitlesButton.addEventListener('click', () => {
+        // Since the click handler includes logic to load/display subs, this is mainly for preventing disabled clicks.
+    });
     // --- END NEW ---
 
     elements.editStyleSettingsButton.addEventListener('click', () => {

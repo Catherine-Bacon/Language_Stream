@@ -108,7 +108,7 @@
         font-size: 0.9em;
         color: #333;
       }
-      select, button, input[type="text"], textarea, input[type="number"] {
+      select, button, input[type="text"], textarea {
         width: 100%;
         padding: 8px;
         margin-top: 5px;
@@ -350,7 +350,7 @@
       #saved-videos-list {
         border: 1px solid #ddd;
         border-radius: 4px;
-        height: 150px; /* DECREASED FROM 200px */
+        height: 200px;
         overflow-y: auto;
         background-color: #f9f9f9;
         /* MODIFICATION: Remove padding, items will have it */
@@ -583,16 +583,8 @@
       <div id="saved-videos-list">
         <p>No saved videos found for this service.</p>
       </div>
-      
-      <div id="offlineTimeRow" class="preference-row hidden-no-space" style="margin-top: 15px; margin-bottom: 10px; align-items: flex-start; justify-content: space-between;">
-          <p style="width: auto; margin-top: 5px;">Start Time:</p>
-          <div style="display: flex; gap: 5px; flex-grow: 1; margin-left: 10px;">
-              <input type="number" id="offlineTimeHours" placeholder="H" min="0" value="0" style="width: 30%;">
-              <input type="number" id="offlineTimeMinutes" placeholder="M" min="0" max="59" value="0" style="width: 30%;">
-              <input type="number" id="offlineTimeSeconds" placeholder="S" min="0" max="59" value="0" style="width: 30%;">
-          </div>
-      </div>
-      <button id="displayOfflineSubtitlesButton" type="button" style="margin-top: 0; background-color: #cccccc;" disabled>Display Subtitles</button>
+
+      <button id="displayOfflineSubtitlesButton" type="button" style="margin-top: 15px; background-color: #4CAF50;">Display Subtitles</button>
 
       <div class="preference-row" style="margin-top: 10px;">
           <p>Mode:</p>
