@@ -894,9 +894,18 @@
                     title = title.replace(/\s*\|\s*Netflix.*$/i, '').trim();
                 }
             } else if (hostname.includes('disneyplus.com')) {
-                title = document.querySelector('h1[data-testid="program-title"]')?.textContent.trim() ||
-                        document.querySelector('meta[property="og:title"]')?.content ||
-                        document.title.split(' | ')[0].trim();
+                // Prioritize document.title as it seems to have the full context
+                let docTitle = document.title;
+                
+                // Check if it contains the separator
+                if (docTitle && docTitle.includes(' | ')) {
+                    title = docTitle.split(' | ')[0].trim();
+                } else {
+                    // Fallback to the other selectors if document.title is weird
+                    title = document.querySelector('h1[data-testid="program-title"]')?.textContent.trim() ||
+                            document.querySelector('meta[property="og:title"]')?.content ||
+                            docTitle; // Use the original docTitle as last resort
+                }
             } else if (hostname.includes('primevideo.com') || hostname.includes('amazon.')) {
                 title = document.querySelector('.atvwebplayersdk-title-text')?.textContent.trim() ||
                         document.querySelector('h1[data-automation-id="title"]')?.textContent.trim() ||
