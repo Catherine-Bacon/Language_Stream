@@ -1,6 +1,13 @@
 /* --- content.js (FINAL ZMODYFIKOWANY AND FIXED) --- */
 // Wrap the entire script in an IIFE to isolate scope and prevent redeclaration errors
 (function() {
+    // --- FIX 1: CONTENT SCRIPT GUARD ---
+    if (window.LanguageStreamHasRun) {
+        return;
+    }
+    window.LanguageStreamHasRun = true;
+    // --- END FIX 1 ---
+    
     // --- SAFE GLOBAL VARIABLE INITIALIZATION ---
     // Variables are now local to the IIFE scope
     var floatingWindow = null;
