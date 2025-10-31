@@ -371,9 +371,6 @@
         border-bottom: 1px solid #eee;
         font-size: 0.85em;
       }
-      .saved-video-item:last-child {
-          border-bottom: none;
-      }
       .saved-video-item span {
         flex-grow: 1;
         margin-right: 10px;
@@ -577,10 +574,11 @@
         <p>No saved videos found for this service.</p>
       </div>
       
-      <button id="displayOfflineSubtitlesButton" type="button" style="background-color: #4CAF50;">Display Subtitles</button>
+      <button id="displayOfflineSubtitlesButton" type="button" style="margin-top: 5px; background-color: #4CAF50;">Display Subtitles</button>
       
+      <h3 id="offlinePreferencesHeader" style="margin-top: 15px;">Subtitle Preferences</h3> 
       
-      <div class="preference-row" style="margin-top: 10px;">
+      <div class="preference-row">
           <p>Mode:</p>
           <div id="subtitleModeGroupOffline" class="radio-group">
               <label>
