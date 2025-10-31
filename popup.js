@@ -1,4 +1,4 @@
-/* --- popup.js (FINAL ZMODYFIKOWANY) --- */
+/* --- popup.js (FINAL ZMODYFIKOWANY AND FIXED) --- */
 console.log("1. popup.js script file loaded.");
 
 let isPopupInitialized = false;
@@ -203,7 +203,7 @@ function updateMasterMode(masterMode, elements) {
 }
 
 function updateGenerateButtonState(elements) {
-    // Check if button is in "Generate" mode
+    // Check if button is in "Generate" mode (not cancel/clear mode)
     if (isConfirmButtonAsCancel) return; 
 
     const isInputValid = (currentMode === 'netflix' && elements.urlStatusText.style.color === 'green') ||
@@ -212,7 +212,17 @@ function updateGenerateButtonState(elements) {
                          (currentMode === 'prime' && elements.primeUrlStatusText.style.color === 'green');
     const isLangValid = elements.langStatusText.style.color === 'green';
 
-    elements.confirmButton.disabled = !(isInputValid && isLangValid);
+    const shouldBeEnabled = isInputValid && isLangValid;
+    
+    // Set the disabled property
+    elements.confirmButton.disabled = !shouldBeEnabled;
+    
+    // Explicitly set the background color based on enabled state
+    if (shouldBeEnabled) {
+        elements.confirmButton.style.backgroundColor = getModeColor(); // Mode color when available
+    } else {
+        elements.confirmButton.style.backgroundColor = '#cccccc'; // Grey when unavailable
+    }
 }
 
 function updateUIMode(mode, elements) {
@@ -411,7 +421,7 @@ async function resetStatus(elements) {
     // --- MODIFICATION START: Reset confirm button state ---
     isConfirmButtonAsCancel = false;
     elements.confirmButton.textContent = "Generate Subtitles";
-    elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
+    elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED (Will be overwritten by updateGenerateButtonState call below if disabled)
     elements.confirmButton.disabled = true;
     // elements.cancelButton.classList.add('hidden-no-space'); // Removed
     // --- MODIFICATION END ---
@@ -458,6 +468,7 @@ async function resetStatus(elements) {
 
     console.log("Processing status reset completed. Fields cleared.");
     await checkLanguagePairAvailability(elements);
+    updateGenerateButtonState(elements); // <-- RE-RUNNING THIS TO APPLY GREY COLOR
 }
 
 async function stopProcessingUI(elements) {
@@ -488,7 +499,7 @@ async function stopProcessingUI(elements) {
     // --- MODIFICATION START: Reset confirm button state ---
     isConfirmButtonAsCancel = false;
     elements.confirmButton.textContent = "Generate Subtitles";
-    elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
+    elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED (Will be overwritten by updateGenerateButtonState below if disabled)
     elements.confirmButton.classList.remove('hidden-no-space');
     // elements.cancelButton.classList.add('hidden-no-space'); // Removed
     // --- MODIFICATION END ---
@@ -546,7 +557,7 @@ async function stopProcessingUI(elements) {
     elements.langStatusText.classList.remove('hidden-no-space');
     checkLanguagePairAvailability(elements);
     updateGenerateButtonState(elements);
-
+    
     console.log("Processing stopped. UI reset.");
 }
 
@@ -1113,7 +1124,7 @@ async function loadSavedStatus(elements) {
                 // --- MODIFICATION: Reset confirm button state ---
                 isConfirmButtonAsCancel = false;
                 elements.confirmButton.textContent = "Generate Subtitles";
-                elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED
+                elements.confirmButton.style.backgroundColor = getModeColor(); // <--- UPDATED (Will be overwritten by updateGenerateButtonState below if disabled)
                 // --- END MODIFICATION ---
 
                 elements.langStatusText.classList.remove('hidden-no-space');
@@ -1144,7 +1155,7 @@ async function loadSavedStatus(elements) {
                 }
 
                 checkLanguagePairAvailability(elements);
-                updateGenerateButtonState(elements);
+                updateGenerateButtonState(elements); // <-- RE-RUNNING THIS TO APPLY GREY COLOR
         }
     }
     isPopupInitialized = true;
@@ -1433,8 +1444,9 @@ async function sendLiveStyleUpdate(elements, isOfflineUpdate = false) {
     const styleGroup = isOfflineUpdate ? elements.subtitleStyleGroupOffline : elements.subtitleStyleGroup;
     
     const selectedSubtitleMode = modeGroup.querySelector('input[name="subtitleMode' + (isOfflineUpdate ? 'Offline' : '') + '"]:checked').value;
-    const translatedOnly = (selectedSubtitleMode === 'translated_only');
     const selectedStyle = styleGroup.querySelector('input[name="subtitleStyle' + (isOfflineUpdate ? 'Offline' : '') + '"]:checked').value;
+
+    const translatedOnly = (selectedSubtitleMode === 'translated_only');
 
     const defaults = (selectedStyle === 'netflix' || selectedStyle === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
     const stylePrefix = `${selectedStyle}_`;
