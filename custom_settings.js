@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEFAULT_STREAMING_PRESET = {
         font_size: 1.0, 
         background_color: 'black',
-        background_alpha: 0.8, // Semi-transparent black
+        background_alpha: 0.0, // MODIFIED: Window background is now fully transparent
         font_shadow: 'black_shadow',
         font_color: 'white',
         font_color_alpha: 1.0

@@ -55,6 +55,10 @@
         font_color: 'white',
         font_color_alpha: 1.0
     };
+    
+    // --- NEW CONSTANT: Fixed background for the boxed/highlighter style ---
+    const DEFAULT_BOX_BG = 'rgba(0, 0, 0, 0.8)';
+    // --- END NEW CONSTANT ---
 
     function sendStatusUpdate(message, progress, url = null, route = 'main') {
         if (isCancelled && progress < 100) return; // Allow final cancellation message if needed
@@ -303,6 +307,10 @@
         } else {
             const windowDiv = document.createElement('div');
             windowDiv.id = 'language-stream-window';
+            
+            // NOTE: The main window background color is set below in updateSubtitleDisplay based on backgroundAlphaPref
+            // which is 0.0 for 'default' style and 1.0/0.8 for netflix/custom.
+            
             windowDiv.style.cssText = `position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1200px; min-height: 50px; background-color: rgba(0, 0, 0, 0); padding: 0; z-index: 9999; color: ${defaultFontColor}; font-family: 'Inter', sans-serif; font-size: 3.6rem; text-align: center; line-height: 1.4; cursor: grab; display: none; text-shadow: ${textShadow}; pointer-events: none;`;
             makeDraggable(windowDiv);
 
@@ -591,15 +599,30 @@
         const currentFontSizeEm = getFontSizeEm(fontSizeEm); // MODIFIED: Call function with numeric value
         const currentFontShadow = getFontShadowCss(fontShadowPref);
         const baseFontColor = colorNameToRgba(fontColorPref, fontColorAlphaPref);
-        let currentSpanBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref);
+        
+        // Use the window's background alpha setting (which is 0.0 for 'default' and 1.0/0.8 for others)
+        let currentWindowBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref); 
         const fontWeight = (subtitleStylePref === 'netflix') ? 'bold' : 'normal';
 
         floatingWindow.style.textShadow = currentFontShadow;
         floatingWindow.style.color = baseFontColor;
+        floatingWindow.style.backgroundColor = currentWindowBgColor; // Set the window background
 
         const getSpanStyle = (colorOverride = null) => {
             const finalColor = colorOverride || baseFontColor;
-            const finalBgColor = (subtitleStylePref === 'vocabulary') ? colorNameToRgba('none', 0) : currentSpanBgColor;
+            
+            let finalBgColor;
+            if (subtitleStylePref === 'vocabulary') {
+                finalBgColor = colorNameToRgba('none', 0); // No box background for vocab
+            } else if (subtitleStylePref === 'default') {
+                finalBgColor = DEFAULT_BOX_BG; // Semi-transparent black box background
+            } else {
+                // Use the setting's color/opacity for Netflix/Custom styles (backgroundAlphaPref used for window, background_color used for span)
+                // Note: For Netflix/Custom, backgroundAlphaPref should ideally be 1.0/0.8 but is currently used for the window above.
+                // We will use the stored opacity (backgroundAlphaPref) for the span background as well for these modes for compatibility.
+                finalBgColor = colorNameToRgba(backgroundColorPref, backgroundAlphaPref); 
+            }
+
             // MODIFIED: Use the calculated font size variable
             return `display: inline-block; padding: 0 0.2em; border-radius: 0.2em; background-color: ${finalBgColor}; font-size: ${currentFontSizeEm}; font-weight: ${fontWeight}; pointer-events: auto; color: ${finalColor};`;
         };
@@ -629,7 +652,7 @@
             let translatedStyle = getSpanStyle(baseFontColor);
             if (subtitleStylePref === 'grammar') {
                 translatedStyle = getSpanStyle(colorNameToRgba('cyan', fontColorAlphaPref));
-            } else if (subtitleStylePref === 'custom' || subtitleStylePref === 'netflix') {
+            } else if (subtitleStylePref === 'custom' || subtitleStylePref === 'netflix' || subtitleStylePref === 'default') { // Added 'default' here to ensure style is applied
                 translatedStyle = getSpanStyle(colorNameToRgba(fontColorPref, fontColorAlphaPref));
             }
             const style = isTranslated ? translatedStyle : originalStyle;
@@ -1318,7 +1341,7 @@
             // Preferences loaded here reflect the current choices in the OFFLINE UI.
             (async () => {
                 const styleKeys = ['font_size', 'background_color', 'background_alpha', 'font_shadow', 'font_color', 'font_color_alpha'];
-                const keysToLoad = ['translated_only_pref', 'subtitle_style_pref', ...styleKeys.flatMap(k => [`netflix_${k}`, `custom_${k}`, `vocabulary_${k}`])];
+                const keysToLoad = ['translated_only_pref', 'subtitle_style_pref', ...styleKeys.flatMap(k => [`netflix_${k}`, `custom_${k}`, `vocabulary_${k}`, `default_${k}`])]; // ADDED 'default'
                 
                 const offlinePrefs = await chrome.storage.local.get(keysToLoad);
                 
@@ -1327,7 +1350,13 @@
                 
                 // Apply the style preferences corresponding to the currently selected style
                 const stylePrefix = `${subtitleStylePref}_`;
-                const defaults = (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+                const defaults = (subtitleStylePref === 'netflix') 
+                    ? NETFLIX_PRESET 
+                    : (subtitleStylePref === 'vocabulary') 
+                        ? NETFLIX_PRESET 
+                        : (subtitleStylePref === 'default') 
+                            ? DEFAULT_STREAMING_PRESET
+                            : CUSTOM_DEFAULTS;
 
                 // MODIFIED: font_size is now a number
                 fontSizeEm = offlinePrefs[`${stylePrefix}font_size`] || defaults.font_size;
