@@ -2,6 +2,7 @@
 // Wrap the entire script in an IIFE to isolate scope and prevent redeclaration errors
 (function() {
     // --- FIX 1: CONTENT SCRIPT GUARD ---
+    // Prevents double execution and ensures a single execution context.
     if (window.LanguageStreamHasRun) {
         return;
     }
@@ -842,14 +843,19 @@
                         document.querySelector('meta[name="title"]')?.content ||
                         document.title.replace(' - YouTube', '').trim();
             } else if (hostname.includes('netflix.com')) {
-                // Try the video title displayed near the player controls
-                let videoTitleElement = document.querySelector('.video-title h4') || document.querySelector('.video-title .title');
+                // Priority 1: Use the class name found in your developer tools (new React selector)
+                let videoTitleElement = document.querySelector('h2.default-ltr-iqcdef-cache-er2d3m') || 
+                                        // Priority 2: Older, still sometimes working player title selectors
+                                        document.querySelector('.video-title h4') || 
+                                        document.querySelector('.video-title .title') ||
+                                        document.querySelector('.player-status-main-title');
+                
                 if (videoTitleElement) {
                     title = videoTitleElement.textContent.trim();
                 } else {
-                    // Fallback to og:title and then document.title, cleaning up the Netflix-specific title structure
+                    // Priority 3: Fallback to og:title and then document.title
                     title = document.querySelector('meta[property="og:title"]')?.content || document.title;
-                    // Remove "Watch X | Netflix Official Site" or similar
+                    // Clean up the Netflix-specific title structure (e.g., "Watch X | Netflix Official Site")
                     title = title.replace(/\s*\|\s*Netflix.*$/i, '').trim();
                 }
             } else if (hostname.includes('disneyplus.com')) {
@@ -1292,22 +1298,12 @@
         
         // --- REVISED Display Offline Subtitles Listener ---
         if (request.command === "display_offline_subtitles" && request.subData) {
-            console.log("Received command to display offline subtitles.");
-            if (isProcessing) {
-                console.warn("Cannot display offline subs while processing online subs.");
-                return false; 
-            }
+            if (isProcessing) return false;
             if (syncInterval) clearInterval(syncInterval);
             
             const data = request.subData;
-            
-            // Subtitles array now contains the color-coding data
             parsedSubtitles = data.subtitles || [];
-            
-            if (parsedSubtitles.length === 0) {
-                console.error("Offline data sent, but subtitles array is empty.");
-                return false;
-            }
+            if (parsedSubtitles.length === 0) return false;
 
             subtitleLanguages.base = data.baseLang || 'en';
             subtitleLanguages.target = data.targetLang || 'es';
@@ -1317,8 +1313,7 @@
             // --- END FIX 2B ---
             
             // --- MODIFICATION START: Load live preferences from storage ---
-            // The popup should be sending a new "update_style_and_mode" immediately after 
-            // starting display, but we loads the preferences here for the absolute first render.
+            // Preferences loaded here reflect the current choices in the OFFLINE UI.
             (async () => {
                 const styleKeys = ['font_size', 'background_color', 'background_alpha', 'font_shadow', 'font_color', 'font_color_alpha'];
                 const keysToLoad = ['translated_only_pref', 'subtitle_style_pref', ...styleKeys.flatMap(k => [`netflix_${k}`, `custom_${k}`, `vocabulary_${k}`])];
