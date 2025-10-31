@@ -1472,7 +1472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         urlHeader: document.getElementById('urlHeader'),
         languageHeader: document.getElementById('languageHeader'),
         generateHeader: document.getElementById('generateHeader'),
-        preferencesHeader: document.getElementById('preferencesHeader'),
+        // REMOVED: preferencesHeader: document.getElementById('preferencesHeader'),
         netflixInputs: document.getElementById('netflixInputs'),
         youtubeInputs: document.getElementById('youtubeInputs'),
         transcriptHeader: document.getElementById('transcriptHeader'),
