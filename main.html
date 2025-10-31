@@ -166,16 +166,18 @@
       button#cancelButton:hover {
         background-color: #999;
       }
+      /* --- MODIFICATION START: Updated colors for disabled state --- */
       button:disabled,
       button[disabled]{
         background-color: #cccccc;
-        color: #666666;
+        color: white;
         cursor: not-allowed;
       }
       button:disabled:hover,
       button[disabled]:hover {
         background-color: #cccccc;
       }
+      /* --- MODIFICATION END --- */
 
       .hidden-no-space {
           display: none !important;
@@ -577,7 +579,7 @@
         <p>No saved videos found for this service.</p>
       </div>
       
-      <button id="displayOfflineSubtitlesButton" type="button" style="margin-top: 15px; background-color: #4CAF50;">Display Subtitles</button>
+      <button id="displayOfflineSubtitlesButton" type="button" style="background-color: #4CAF50;">Display Subtitles</button>
       
       
       <div class="preference-row" style="margin-top: 10px;">
