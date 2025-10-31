@@ -1,7 +1,15 @@
 # Language_Stream
-Smart subtitle generator built for binge watchers and language learners. 
+Smart subtitle generator built for language learners and binge watchers
 
-- Translates subtiles so you don't miss out if your language is unavailable
-- Dual language mode for language learners, with colour coding to highlight word-for-word translation
-- Customisable styles to suit your own preferences
-- Works with Netflix, YouTube, Disney+ and Prime Video
+APIs used: Translator API and Language Detection API
+
+Problems to Solve: Challenging language learning, Videos without your desired language’s subtitles, and Unintuitive subtitle experiences
+
+Features and Functionality:
+-	Works with YouTube, Netflix, Disney+ and Prime Video
+-	Dual language mode and colour-coded translations to aid in language learning
+-	Translates subtitles to and from hundreds of languages so you don't miss out if your language’s subtitles are unavailable
+-	Online and Offline functionality with subtitle saving
+-	Customisable subtitle styles and modes to suit your personal preferences
+
+Built for Google Chrome Built-in AI Challenge 2025
