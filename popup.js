@@ -305,7 +305,7 @@ function updateUIMode(mode, elements) {
         // --- NEW MODIFICATION START: Time input visibility for offline mode ---
         const isYoutube = mode === 'youtube';
         elements.startHours.parentElement.parentElement.classList.toggle('hidden-no-space', isYoutube);
-        document.getElementById('manualTimeHeader').classList.toggle('hidden-no-space', isYoutube);
+        document.getElementById('manualTimeHeader').classList.add('hidden-no-space');
 
         // Update the header text for the saved list based on time input visibility
         if (elements.savedVideosHeader) {
