@@ -1,4 +1,3 @@
-Gemini
 /* --- popup.js (REVISED AND FIXED) --- */
 console.log("1. popup.js script file loaded.");
 
