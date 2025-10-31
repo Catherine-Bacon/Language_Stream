@@ -28,6 +28,24 @@
     let currentSubtitleIndex = -1;
     // --- END MODIFICATION ---
 
+    // Define preset defaults for style loading robustness (used in display_offline_subtitles)
+    const NETFLIX_PRESET = {
+        font_size: 'medium',
+        background_color: 'none',
+        background_alpha: 1.0,
+        font_shadow: 'black_shadow',
+        font_color: 'white',
+        font_color_alpha: 1.0
+    };
+    const CUSTOM_DEFAULTS = {
+        font_size: 'medium',
+        background_color: 'black',
+        background_alpha: 0.8,
+        font_shadow: 'black_shadow',
+        font_color: 'white',
+        font_color_alpha: 1.0
+    };
+
     function sendStatusUpdate(message, progress, url = null, route = 'main') {
         if (isCancelled && progress < 100) return; // Allow final cancellation message if needed
         // Ensure progress doesn't exceed 100
@@ -137,8 +155,9 @@
                         text: text,
                         translatedText: null,
                         // Remove color properties, they are large and derived on demand
-                        // baseWordColors: null,
-                        // translatedWordColors: null
+                        tempBaseWordColors: null,
+                        tempTranslatedWordColors: null,
+                        colorCodeCount: 0
                     });
                 }
             });
@@ -182,8 +201,9 @@
                             text: text,
                             translatedText: null,
                             // Remove color properties
-                            // baseWordColors: null,
-                            // translatedWordColors: null
+                            tempBaseWordColors: null,
+                            tempTranslatedWordColors: null,
+                            colorCodeCount: 0
                         });
                     }
                 }
@@ -575,7 +595,7 @@
         const buildColorCodedHtml = (text, colorCodes, defaultColor, isBaseLanguage) => {
             if (!colorCodes || subtitleStylePref !== 'vocabulary') {
                 const finalStyle = isBaseLanguage ? getSpanStyle(defaultColor) : getSpanStyle(colorNameToRgba('yellow', fontColorAlphaPref));
-                return `<span style="${finalStyle}">${text}</span>`;
+                return `<span style="${getSpanStyle(finalStyle)}">${text}</span>`; // Added getSpanStyle() wrapper
             }
             const words = text.split(/\s+/).filter(w => w.length > 0);
             let finalHtml = words.map((word, index) => {
@@ -812,12 +832,43 @@
         return title || 'Unknown Title';
     }
 
+    // --- REVISED saveSubtitlesOffline function ---
     async function saveSubtitlesOffline() {
         console.log("Attempting to save subtitles for offline use...");
         if (!parsedSubtitles || parsedSubtitles.length === 0) {
             console.warn("No parsed subtitles available to save.");
             return;
         }
+        
+        // --- NEW: Generate vocabulary color coding for all subtitles if missing ---
+        const subsMissingVocab = parsedSubtitles.some(sub => !sub.tempBaseWordColors || sub.tempBaseWordColors.length === 0);
+        
+        if (subsMissingVocab) {
+             console.log("Generating missing vocabulary color data for offline saving...");
+             
+             // To ensure the helper function works, we save the current style/mode and set the necessary context
+             const originalStyle = subtitleStylePref;
+             const originalIsTranslatedOnly = isTranslatedOnly;
+
+             subtitleStylePref = 'vocabulary';
+             isTranslatedOnly = false; // Must be dual mode for matching to work correctly
+             
+             sendStatusUpdate("Generating vocabulary data for offline use...", 98);
+
+             // Run vocab color coding for all subtitles that don't have it
+             for(const sub of parsedSubtitles) {
+                 if (!sub.tempBaseWordColors || sub.tempBaseWordColors.length === 0) {
+                    // Check if translation text is available before processing
+                    if (sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
+                       await processVocabColorCoding(sub); // This mutates 'sub' by adding color props
+                    }
+                 }
+             }
+
+             subtitleStylePref = originalStyle; // Restore original style
+             isTranslatedOnly = originalIsTranslatedOnly; // Restore original mode
+        }
+        // --- END NEW ---
 
         let serviceMode = 'unknown';
         const hostname = window.location.hostname;
@@ -832,22 +883,29 @@
         }
 
         const videoTitle = getVideoTitle();
+        
+        // --- MODIFICATION: Create an array of subtitles with ONLY the necessary saved properties ---
+        const subtitlesForSaving = parsedSubtitles.map(sub => ({
+            begin: sub.begin,
+            end: sub.end,
+            text: sub.text,
+            translatedText: sub.translatedText,
+            // Include the generated color data explicitly (now mandatory for offline)
+            tempBaseWordColors: sub.tempBaseWordColors || null,
+            tempTranslatedWordColors: sub.tempTranslatedWordColors || null,
+            colorCodeCount: sub.colorCodeCount || 0
+        }));
+        // --- END MODIFICATION ---
+
         const saveData = {
-            title: videoTitle,
+            // --- MODIFICATION: Updated Title Format ---
+            title: `${videoTitle} - ${subtitleLanguages.base.toUpperCase()} to ${subtitleLanguages.target.toUpperCase()}`,
+            // --- END MODIFICATION ---
             baseLang: subtitleLanguages.base,
             targetLang: subtitleLanguages.target,
-            isTranslatedOnly: isTranslatedOnly,
-            style: subtitleStylePref,
+            // --- MODIFICATION: Removed isTranslatedOnly, style, and stylePrefs as they are set by offline UI ---
             timestamp: Date.now(),
-            subtitles: parsedSubtitles, 
-            stylePrefs: {
-                font_size: fontSizeEm,
-                background_color: backgroundColorPref,
-                background_alpha: backgroundAlphaPref,
-                font_shadow: fontShadowPref,
-                font_color: fontColorPref,
-                font_color_alpha: fontColorAlphaPref
-            }
+            subtitles: subtitlesForSaving, 
         };
 
         try {
@@ -867,11 +925,13 @@
             }
 
             await chrome.storage.local.set({ 'ls_offline_subtitles': allSavedSubs });
-            console.log(`Subtitles saved successfully for ${serviceMode}: "${videoTitle}"`);
+            console.log(`Subtitles saved successfully for ${serviceMode}: "${saveData.title}"`);
         } catch (error) {
             console.error("Error saving subtitles to chrome.storage.local:", error);
         }
     }
+    // --- END REVISED saveSubtitlesOffline function ---
+
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Check Language Pair
@@ -1120,7 +1180,7 @@
             return true;
         }
         
-        // Display Offline Subtitles
+        // --- REVISED Display Offline Subtitles Listener ---
         if (request.command === "display_offline_subtitles" && request.subData) {
             console.log("Received command to display offline subtitles.");
             if (isProcessing) {
@@ -1131,7 +1191,9 @@
             
             const data = request.subData;
             
+            // Subtitles array now contains the color-coding data
             parsedSubtitles = data.subtitles || [];
+            
             if (parsedSubtitles.length === 0) {
                 console.error("Offline data sent, but subtitles array is empty.");
                 return false;
@@ -1139,29 +1201,46 @@
 
             subtitleLanguages.base = data.baseLang || 'en';
             subtitleLanguages.target = data.targetLang || 'es';
-            isTranslatedOnly = data.isTranslatedOnly || false;
-            subtitleStylePref = data.style || 'netflix';
             
-            const prefs = data.stylePrefs || {}; 
-            fontSizeEm = prefs.font_size || 'medium';
-            backgroundColorPref = prefs.background_color || 'black';
-            backgroundAlphaPref = prefs.background_alpha || 0.8;
-            fontShadowPref = prefs.font_shadow || 'black_shadow';
-            fontColorPref = prefs.font_color || 'white';
-            fontColorAlphaPref = prefs.font_color_alpha || 1.0;
-            
-            isProcessing = false;
-            isCancelled = false;
-            translationCache = {}; 
-            
-            createFloatingWindow();
-            hideNativeSubtitles();
-            startSubtitleSync();
-            
-            console.log(`Successfully loaded ${parsedSubtitles.length} offline subtitles for display.`);
+            // --- MODIFICATION START: Load live preferences from storage ---
+            // The popup should be sending a new "update_style_and_mode" immediately after 
+            // starting display, but we load the preferences here for the absolute first render.
+            (async () => {
+                const styleKeys = ['font_size', 'background_color', 'background_alpha', 'font_shadow', 'font_color', 'font_color_alpha'];
+                const keysToLoad = ['translated_only_pref', 'subtitle_style_pref', ...styleKeys.flatMap(k => [`netflix_${k}`, `custom_${k}`, `vocabulary_${k}`])];
+                
+                const offlinePrefs = await chrome.storage.local.get(keysToLoad);
+                
+                isTranslatedOnly = offlinePrefs.translated_only_pref || false;
+                subtitleStylePref = offlinePrefs.subtitle_style_pref || 'netflix';
+                
+                // Apply the style preferences corresponding to the currently selected style
+                const stylePrefix = `${subtitleStylePref}_`;
+                const defaults = (subtitleStylePref === 'netflix' || subtitleStylePref === 'vocabulary') ? NETFLIX_PRESET : CUSTOM_DEFAULTS;
+
+                fontSizeEm = offlinePrefs[`${stylePrefix}font_size`] || defaults.font_size;
+                backgroundColorPref = offlinePrefs[`${stylePrefix}background_color`] || defaults.background_color;
+                backgroundAlphaPref = offlinePrefs[`${stylePrefix}background_alpha`] || defaults.background_alpha;
+                fontShadowPref = offlinePrefs[`${stylePrefix}font_shadow`] || defaults.font_shadow;
+                fontColorPref = offlinePrefs[`${stylePrefix}font_color`] || defaults.font_color;
+                fontColorAlphaPref = offlinePrefs[`${stylePrefix}font_color_alpha`] || defaults.font_color_alpha;
+                // --- END MODIFICATION ---
+
+                isProcessing = false;
+                isCancelled = false;
+                translationCache = {}; 
+                
+                createFloatingWindow();
+                hideNativeSubtitles();
+                startSubtitleSync();
+                
+                console.log(`Successfully loaded ${parsedSubtitles.length} offline subtitles for display.`);
+            })();
             
             return false; 
         }
+        // --- END REVISED Display Offline Subtitles Listener ---
+
 
         // --- MODIFICATION START: New listener for live style updates ---
         if (request.command === "update_style_and_mode") {
@@ -1181,20 +1260,17 @@
             const videoElement = getVideoElement();
             if (videoElement) {
                 // Force re-draw by briefly clearing the index and re-running update
-                const tempIndex = currentSubtitleIndex;
+                const tempTime = videoElement.currentTime;
                 currentSubtitleIndex = -1; // Force re-render
-                updateSubtitleDisplay(videoElement.currentTime);
-                currentSubtitleIndex = tempIndex; // Restore index
+                updateSubtitleDisplay(tempTime);
             } else if (disneyTimeElement) {
                  // For Disney+, just call the update function
                  const timeString = disneyTimeElement.getAttribute('aria-valuenow');
                  if (timeString !== null) {
                     const currentTime = parseFloat(timeString);
                     if (!isNaN(currentTime)) {
-                        const tempIndex = currentSubtitleIndex;
                         currentSubtitleIndex = -1; // Force re-render
                         updateSubtitleDisplay(currentTime);
-                        currentSubtitleIndex = tempIndex; // Restore index
                     }
                  }
             }
