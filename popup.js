@@ -22,6 +22,13 @@ const PROCESSING_POPUP_HEIGHT_PRIME = '520px'; // 465 + 55
 const OFFLINE_POPUP_HEIGHT = '485px';
 // --- END MODIFICATION ---
 
+function setPopupHeight(targetHeight) {
+    if (document.body.style.height === targetHeight) return;
+    document.body.style.height = targetHeight;
+    // Force a browser reflow/re-layout to prompt immediate popup resize
+    void document.body.offsetHeight;
+}
+
 const NETFLIX_PRESET = {
     font_size: 'medium',
     background_color: 'none',
@@ -169,7 +176,7 @@ function updateMasterMode(masterMode, elements) {
         elements.confirmButton.classList.add('hidden-no-space');
         // elements.cancelButton.classList.add('hidden-no-space'); // Removed
         
-        document.body.style.height = OFFLINE_POPUP_HEIGHT;
+        setPopupHeight(OFFLINE_POPUP_HEIGHT);
 
         updateUIMode(currentMode, elements);
 
@@ -248,10 +255,10 @@ function updateUIMode(mode, elements) {
             elements.urlStatusText.classList.remove('hidden-no-space');
             elements.urlHeader.textContent = '1. Retrieve Subtitle URL';
             if (!isProcessing) {
-                document.body.style.height = NETFLIX_SETUP_HEIGHT;
+                setPopupHeight(NETFLIX_SETUP_HEIGHT);
                 checkUrlAndDetectLanguage(elements);
             } else {
-                document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+                setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
             }
         }
 
@@ -268,10 +275,10 @@ function updateUIMode(mode, elements) {
             elements.transcriptStatusText.classList.remove('hidden-no-space');
             elements.transcriptHeader.textContent = '1. Retrieve Transcript';
             if (!isProcessing) {
-                document.body.style.height = YOUTUBE_SETUP_HEIGHT;
+                setPopupHeight(YOUTUBE_SETUP_HEIGHT);
                 checkTranscriptAndDetectLanguage(elements);
             } else {
-                document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+                setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
             }
         }
     } else if (mode === 'disney') {
@@ -288,10 +295,10 @@ function updateUIMode(mode, elements) {
             elements.disneyUrlStatusText.classList.remove('hidden-no-space');
             elements.disneyHeader.textContent = '1. Retrieve Subtitle URL';
             if (!isProcessing) {
-                document.body.style.height = DISNEY_SETUP_HEIGHT;
+                setPopupHeight(DISNEY_SETUP_HEIGHT);
                 checkDisneyUrlAndDetectLanguage(elements);
             } else {
-                document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+                setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
             }
         }
     } else if (mode === 'prime') {
@@ -307,10 +314,10 @@ function updateUIMode(mode, elements) {
             elements.primeUrlStatusText.classList.remove('hidden-no-space');
             elements.primeHeader.textContent = '1. Upload Subtitle File';
             if (!isProcessing) {
-                document.body.style.height = PRIME_SETUP_HEIGHT;
+                setPopupHeight(PRIME_SETUP_HEIGHT);
                 checkPrimeFileStatus(elements);
             } else {
-                document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
+                setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
             }
         }
     }
@@ -359,7 +366,7 @@ async function resetStatus(elements) {
         else if (currentMode === 'youtube') setupHeight = YOUTUBE_SETUP_HEIGHT;
         else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
         else setupHeight = PRIME_SETUP_HEIGHT;
-        document.body.style.height = setupHeight;
+        setPopupHeight(setupHeight);
     }
 
     elements.subtitleUrlInput.value = '';
@@ -437,7 +444,7 @@ async function stopProcessingUI(elements) {
         else if (currentMode === 'youtube') setupHeight = YOUTUBE_SETUP_HEIGHT;
         else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
         else setupHeight = PRIME_SETUP_HEIGHT;
-        document.body.style.height = setupHeight;
+        setPopupHeight(setupHeight);
     }
 
     elements.targetLanguageInput.disabled = false;
@@ -1022,10 +1029,10 @@ async function loadSavedStatus(elements) {
         if (status && status.progress > 0) {
             // --- MODIFICATION START: Show preferences, hide setup instructions ---
             // Set height based on mode
-            if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
-            else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
-            else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
-            else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
+            if (currentMode === 'netflix') setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
+            else if (currentMode === 'youtube') setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
+            else if (currentMode === 'disney') setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
+            else if (currentMode === 'prime') setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
 
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
@@ -1064,7 +1071,7 @@ async function loadSavedStatus(elements) {
                 else if (currentMode === 'youtube') setupHeight = YOUTUBE_SETUP_HEIGHT;
                 else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
                 else setupHeight = PRIME_SETUP_HEIGHT;
-                document.body.style.height = setupHeight;
+                setPopupHeight(setupHeight);
                 
                 // --- MODIFICATION: Reset confirm button state ---
                 isConfirmButtonAsCancel = false;
@@ -1117,10 +1124,10 @@ async function handleConfirmClick(elements) {
     console.log(`[POPUP] 'Generate Subtitles' button clicked for mode: ${currentMode}.`);
 
     // --- MODIFICATION: Use new processing height based on mode ---
-    if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
-    else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
-    else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
-    else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
+    if (currentMode === 'netflix') setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
+    else if (currentMode === 'youtube') setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
+    else if (currentMode === 'disney') setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
+    else if (currentMode === 'prime') setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
     // --- END MODIFICATION ---
 
     // --- MODIFICATION START: Hide setup instructions, keep preferences ---
@@ -1689,10 +1696,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             // --- MODIFICATION: Use new processing height based on mode ---
-            if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
-            else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
-            else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
-            else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
+            if (currentMode === 'netflix') setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
+            else if (currentMode === 'youtube') setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
+            else if (currentMode === 'disney') setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
+            else if (currentMode === 'prime') setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
             // --- END MODIFICATION ---
 
             const { progress, message, route } = request;
