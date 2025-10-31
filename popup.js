@@ -1,3 +1,4 @@
+Gemini
 /* --- popup.js (REVISED AND FIXED) --- */
 console.log("1. popup.js script file loaded.");
 
@@ -21,13 +22,6 @@ const PROCESSING_POPUP_HEIGHT_PRIME = '520px'; // 465 + 55
 
 const OFFLINE_POPUP_HEIGHT = '485px';
 // --- END MODIFICATION ---
-
-function setPopupHeight(targetHeight) {
-    if (document.body.style.height === targetHeight) return;
-    document.body.style.height = targetHeight;
-    // Force a browser reflow/re-layout to prompt immediate popup resize
-    void document.body.offsetHeight;
-}
 
 const NETFLIX_PRESET = {
     font_size: 'medium',
@@ -176,7 +170,7 @@ function updateMasterMode(masterMode, elements) {
         elements.confirmButton.classList.add('hidden-no-space');
         // elements.cancelButton.classList.add('hidden-no-space'); // Removed
         
-        setPopupHeight(OFFLINE_POPUP_HEIGHT);
+        document.body.style.height = OFFLINE_POPUP_HEIGHT;
 
         updateUIMode(currentMode, elements);
 
@@ -255,10 +249,10 @@ function updateUIMode(mode, elements) {
             elements.urlStatusText.classList.remove('hidden-no-space');
             elements.urlHeader.textContent = '1. Retrieve Subtitle URL';
             if (!isProcessing) {
-                setPopupHeight(NETFLIX_SETUP_HEIGHT);
+                document.body.style.height = NETFLIX_SETUP_HEIGHT;
                 checkUrlAndDetectLanguage(elements);
             } else {
-                setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
             }
         }
 
@@ -275,10 +269,10 @@ function updateUIMode(mode, elements) {
             elements.transcriptStatusText.classList.remove('hidden-no-space');
             elements.transcriptHeader.textContent = '1. Retrieve Transcript';
             if (!isProcessing) {
-                setPopupHeight(YOUTUBE_SETUP_HEIGHT);
+                document.body.style.height = YOUTUBE_SETUP_HEIGHT;
                 checkTranscriptAndDetectLanguage(elements);
             } else {
-                setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
             }
         }
     } else if (mode === 'disney') {
@@ -295,10 +289,10 @@ function updateUIMode(mode, elements) {
             elements.disneyUrlStatusText.classList.remove('hidden-no-space');
             elements.disneyHeader.textContent = '1. Retrieve Subtitle URL';
             if (!isProcessing) {
-                setPopupHeight(DISNEY_SETUP_HEIGHT);
+                document.body.style.height = DISNEY_SETUP_HEIGHT;
                 checkDisneyUrlAndDetectLanguage(elements);
             } else {
-                setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
             }
         }
     } else if (mode === 'prime') {
@@ -314,10 +308,10 @@ function updateUIMode(mode, elements) {
             elements.primeUrlStatusText.classList.remove('hidden-no-space');
             elements.primeHeader.textContent = '1. Upload Subtitle File';
             if (!isProcessing) {
-                setPopupHeight(PRIME_SETUP_HEIGHT);
+                document.body.style.height = PRIME_SETUP_HEIGHT;
                 checkPrimeFileStatus(elements);
             } else {
-                setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
+                document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
             }
         }
     }
@@ -366,7 +360,7 @@ async function resetStatus(elements) {
         else if (currentMode === 'youtube') setupHeight = YOUTUBE_SETUP_HEIGHT;
         else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
         else setupHeight = PRIME_SETUP_HEIGHT;
-        setPopupHeight(setupHeight);
+        document.body.style.height = setupHeight;
     }
 
     elements.subtitleUrlInput.value = '';
@@ -444,7 +438,7 @@ async function stopProcessingUI(elements) {
         else if (currentMode === 'youtube') setupHeight = YOUTUBE_SETUP_HEIGHT;
         else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
         else setupHeight = PRIME_SETUP_HEIGHT;
-        setPopupHeight(setupHeight);
+        document.body.style.height = setupHeight;
     }
 
     elements.targetLanguageInput.disabled = false;
@@ -1029,10 +1023,10 @@ async function loadSavedStatus(elements) {
         if (status && status.progress > 0) {
             // --- MODIFICATION START: Show preferences, hide setup instructions ---
             // Set height based on mode
-            if (currentMode === 'netflix') setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
-            else if (currentMode === 'youtube') setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
-            else if (currentMode === 'disney') setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
-            else if (currentMode === 'prime') setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
+            if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+            else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+            else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+            else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
 
             elements.statusBox.classList.remove('hidden-no-space');
             elements.statusText.textContent = status.message;
@@ -1071,7 +1065,7 @@ async function loadSavedStatus(elements) {
                 else if (currentMode === 'youtube') setupHeight = YOUTUBE_SETUP_HEIGHT;
                 else if (currentMode === 'disney') setupHeight = DISNEY_SETUP_HEIGHT;
                 else setupHeight = PRIME_SETUP_HEIGHT;
-                setPopupHeight(setupHeight);
+                document.body.style.height = setupHeight;
                 
                 // --- MODIFICATION: Reset confirm button state ---
                 isConfirmButtonAsCancel = false;
@@ -1124,10 +1118,10 @@ async function handleConfirmClick(elements) {
     console.log(`[POPUP] 'Generate Subtitles' button clicked for mode: ${currentMode}.`);
 
     // --- MODIFICATION: Use new processing height based on mode ---
-    if (currentMode === 'netflix') setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
-    else if (currentMode === 'youtube') setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
-    else if (currentMode === 'disney') setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
-    else if (currentMode === 'prime') setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
+    if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+    else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+    else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+    else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
     // --- END MODIFICATION ---
 
     // --- MODIFICATION START: Hide setup instructions, keep preferences ---
@@ -1696,10 +1690,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             // --- MODIFICATION: Use new processing height based on mode ---
-            if (currentMode === 'netflix') setPopupHeight(PROCESSING_POPUP_HEIGHT_NETFLIX);
-            else if (currentMode === 'youtube') setPopupHeight(PROCESSING_POPUP_HEIGHT_YOUTUBE);
-            else if (currentMode === 'disney') setPopupHeight(PROCESSING_POPUP_HEIGHT_DISNEY);
-            else if (currentMode === 'prime') setPopupHeight(PROCESSING_POPUP_HEIGHT_PRIME);
+            if (currentMode === 'netflix') document.body.style.height = PROCESSING_POPUP_HEIGHT_NETFLIX;
+            else if (currentMode === 'youtube') document.body.style.height = PROCESSING_POPUP_HEIGHT_YOUTUBE;
+            else if (currentMode === 'disney') document.body.style.height = PROCESSING_POPUP_HEIGHT_DISNEY;
+            else if (currentMode === 'prime') document.body.style.height = PROCESSING_POPUP_HEIGHT_PRIME;
             // --- END MODIFICATION ---
 
             const { progress, message, route } = request;
