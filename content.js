@@ -483,15 +483,30 @@
         const CRITICAL_BATCH_SIZE = 30;
         const criticalBatch = parsedSubtitles.slice(0, CRITICAL_BATCH_SIZE);
         const concurrentBatch = parsedSubtitles.slice(CRITICAL_BATCH_SIZE);
+        
+        // --- MODIFICATION: Re-balanced progress weights and added messages ---
         const START_PROGRESS = 60;
         const isVocab = (subtitleStylePref === 'vocabulary');
-        const TRANSLATION_WEIGHT = isVocab ? 20 : 30; 
-        const MATCHING_WEIGHT = isVocab ? 10 : 0; 
-        const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT;
-        const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? 20 : 30;
-        const CONCURRENT_MATCHING_WEIGHT = isVocab ? 10 : 0;
-        const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT;
         const SAVING_PROGRESS_POINT = 98; 
+
+        // The critical batch (first 30 lines) now goes from 60% to 70% (10 points)
+        // The concurrent batch (rest) now goes from 70% to 98% (28 points)
+        const CRITICAL_BATCH_WEIGHT = 10;
+        const CONCURRENT_BATCH_WEIGHT = 28;
+
+        // Define the start point for the concurrent batch
+        const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_WEIGHT; // = 70
+
+        // Split critical weight (10 points) for vocab vs. non-vocab
+        const TRANSLATION_WEIGHT = isVocab ? (CRITICAL_BATCH_WEIGHT / 2) : CRITICAL_BATCH_WEIGHT; // 5 or 10
+        const MATCHING_WEIGHT = isVocab ? (CRITICAL_BATCH_WEIGHT / 2) : 0;                       // 5 or 0
+        const CRITICAL_BATCH_TOTAL_WEIGHT = TRANSLATION_WEIGHT + MATCHING_WEIGHT; // Always 10
+
+        // Split concurrent weight (28 points) for vocab vs. non-vocab
+        const CONCURRENT_TRANSLATION_WEIGHT = isVocab ? (CONCURRENT_BATCH_WEIGHT / 2) : CONCURRENT_BATCH_WEIGHT; // 14 or 28
+        const CONCURRENT_MATCHING_WEIGHT = isVocab ? (CONCURRENT_BATCH_WEIGHT / 2) : 0;                      // 14 or 0
+        const CONCURRENT_BATCH_TOTAL_WEIGHT = CONCURRENT_TRANSLATION_WEIGHT + CONCURRENT_MATCHING_WEIGHT; // Always 28
+        // --- END MODIFICATION ---
         
         // --- FIX 2B: Ensure flag is false during online process ---
         isOfflineMode = false;
@@ -503,15 +518,26 @@
             if (isCancelled) throw new Error("ABORT_TRANSLATION");
             const sub = criticalBatch[index];
             sub.translatedText = await translateSubtitle(sub.text, baseLang, targetLang);
+            
+            // Calculate translation-only progress
             let progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * TRANSLATION_WEIGHT);
+            
             if (isVocab && sub.translatedText && !sub.translatedText.includes('Translation Failed')) {
+                 // --- MODIFICATION: Send status update *before* mapping ---
+                 sendStatusUpdate(`Mapping colours for vocab style...`, progress, url);
+                 // --- END MODIFICATION ---
+                 
                  await processVocabColorCoding(sub);
+                 
+                 // Now update progress to include matching weight
                  progress = START_PROGRESS + Math.floor(((index + 1) / criticalBatch.length) * CRITICAL_BATCH_TOTAL_WEIGHT);
             }
             sendStatusUpdate(`First ${index + 1} lines ready to watch!`, progress, url);
         }
 
-        const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT;
+        // --- MODIFICATION: This line was incorrect and is now based on the new weights ---
+        // const CONCURRENT_START_PROGRESS = START_PROGRESS + CRITICAL_BATCH_TOTAL_WEIGHT; // This line is now defined above
+        // --- END MODIFICATION ---
         sendStatusUpdate(`First ${CRITICAL_BATCH_SIZE} lines ready! Starting background translation...`, CONCURRENT_START_PROGRESS, url);
 
         const translationPromises = concurrentBatch.map(async (sub, index) => {
@@ -523,11 +549,22 @@
             if (index % 5 === 0 || index === concurrentBatch.length - 1) {
                 const progressRatio = (index + 1) / concurrentBatch.length;
                 const maxProgressBeforeSave = shouldSaveOffline ? SAVING_PROGRESS_POINT - 1 : 99;
+                
+                // --- MODIFICATION: Use the correct total weight based on vocab pref ---
                 const progress = CONCURRENT_START_PROGRESS + Math.floor(progressRatio * CONCURRENT_BATCH_TOTAL_WEIGHT);
+                // --- END MODIFICATION ---
+                
                 const displayProgress = Math.min(progress, maxProgressBeforeSave); 
 
                 if (displayProgress < 100) {
                     const totalReady = CRITICAL_BATCH_SIZE + index + 1;
+                    
+                    // --- MODIFICATION: Add vocab mapping message ---
+                    if (isVocab) {
+                        sendStatusUpdate(`Mapping colours for vocab style...`, displayProgress, url);
+                    }
+                    // --- END MODIFICATION ---
+                    
                     sendStatusUpdate(`First ${totalReady} lines ready to watch!`, displayProgress, url);
                 }
             }
