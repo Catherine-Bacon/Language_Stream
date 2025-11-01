@@ -1740,18 +1740,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                          elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
                          return;
                     }
+                    // Send the message without a callback
                     chrome.tabs.sendMessage(tabs[0].id, {
                         command: "display_offline_subtitles",
                         subData: selectedSub,
                         startAtTime: startAtTime // <-- PASS THE MANUAL OFFSET
-                    }, () => {
-                         if (chrome.runtime.lastError) {
-                            console.warn("Could not send offline display message:", chrome.runtime.lastError.message);
-                             elements.savedVideosList.innerHTML = `<p style="color: red;">Error: Please reload the tab and try again.</p>`;
-                         } else {
-                            window.close(); 
-                         }
                     });
+                    
+                    // Close the popup immediately after sending
+                    window.close();
                 });
             } else {
                 throw new Error("Could not find active tab.");
