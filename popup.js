@@ -9,12 +9,12 @@ let isConfirmButtonAsCancel = false;
 let isCancelledByPopup = false; 
 
 // --- MODIFICATION: Define heights for all modes (Processing height increased) ---
-const NETFLIX_SETUP_HEIGHT = '490px'; 
+const NETFLIX_SETUP_HEIGHT = '440px'; 
 const YOUTUBE_SETUP_HEIGHT = '465px';
 const DISNEY_SETUP_HEIGHT = '405px';
 const PRIME_SETUP_HEIGHT = '465px';
 // --- NEW: Recalculated processing heights (Setup + ProgressBar ~55px) ---
-const PROCESSING_POPUP_HEIGHT_NETFLIX = '545px'; // 490 + 55
+const PROCESSING_POPUP_HEIGHT_NETFLIX = '495px'; // 440 + 55
 const PROCESSING_POPUP_HEIGHT_YOUTUBE = '520px'; // 465 + 55
 const PROCESSING_POPUP_HEIGHT_DISNEY = '460px'; // 405 + 55
 const PROCESSING_POPUP_HEIGHT_PRIME = '520px'; // 465 + 55
@@ -431,7 +431,6 @@ function saveCurrentInputs(elements) {
         targetLang: elements.targetLanguageInput.value.trim(),
         youtubeTranscript: elements.youtubeTranscriptInput.value,
         disneyUrl: elements.disneyUrlInput.value.trim(),
-        videoTitle: elements.videoTitleInput.value.trim(),
     };
     chrome.storage.local.set({ 'ui_temp_state': currentState });
 }
@@ -468,7 +467,6 @@ async function resetStatus(elements) {
     elements.youtubeTranscriptInput.value = '';
     elements.disneyUrlInput.value = '';
     elements.primeFileInput.value = '';
-    elements.videoTitleInput.value = '';
     elements.targetLanguageInput.value = '';
     
     // --- NEW MODIFICATION START: Clear manual time inputs ---
@@ -506,7 +504,6 @@ async function resetStatus(elements) {
     elements.youtubeTranscriptInput.disabled = false;
     elements.disneyUrlInput.disabled = false;
     elements.primeUploadButton.disabled = false;
-    elements.videoTitleInput.disabled = false;
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -562,7 +559,6 @@ async function stopProcessingUI(elements) {
     elements.youtubeTranscriptInput.disabled = false;
     elements.disneyUrlInput.disabled = false;
     elements.primeUploadButton.disabled = false;
-    elements.videoTitleInput.disabled = false;
 
     elements.subtitleModeGroup.querySelectorAll('input').forEach(input => input.disabled = false);
     elements.subtitleStyleGroup.querySelectorAll('input').forEach(input => input.disabled = false);
@@ -1111,7 +1107,6 @@ async function loadSavedStatus(elements) {
         elements.youtubeTranscriptInput.disabled = false;
         elements.disneyUrlInput.disabled = false;
         elements.primeUploadButton.disabled = false;
-        elements.videoTitleInput.disabled = false;
 
         // elements.cancelButton.classList.add('hidden-no-space'); // Removed
         elements.statusBox.classList.add('hidden-no-space');
@@ -1151,14 +1146,12 @@ async function loadSavedStatus(elements) {
                 elements.subtitleUrlInput.value = data.ui_temp_state.url || '';
                 elements.youtubeTranscriptInput.value = data.ui_temp_state.youtubeTranscript || '';
                 elements.disneyUrlInput.value = data.ui_temp_state.disneyUrl || '';
-                elements.videoTitleInput.value = data.ui_temp_state.videoTitle || '';
             } else if (data.last_input) {
                 const fullLangName = Object.keys(LANGUAGE_MAP).find(key => LANGUAGE_MAP[key] === data.last_input.targetLang) || data.last_input.targetLang;
                 elements.targetLanguageInput.value = (fullLangName.charAt(0).toUpperCase() + fullLangName.slice(1));
                 elements.subtitleUrlInput.value = data.last_input.url || '';
                 elements.youtubeTranscriptInput.value = data.last_input.youtubeTranscript || '';
                 elements.disneyUrlInput.value = data.last_input.disneyUrl || '';
-                elements.videoTitleInput.value = data.last_input.videoTitle || '';
             }
         } else if (data.last_input) {
             // Processing or finished, load from last input
@@ -1167,7 +1160,6 @@ async function loadSavedStatus(elements) {
             elements.subtitleUrlInput.value = data.last_input.url || '';
             elements.youtubeTranscriptInput.value = data.last_input.youtubeTranscript || '';
             elements.disneyUrlInput.value = data.last_input.disneyUrl || '';
-            elements.videoTitleInput.value = data.last_input.videoTitle || '';
         }
 
         if (status && status.progress > 0) {
@@ -1193,7 +1185,6 @@ async function loadSavedStatus(elements) {
             elements.youtubeTranscriptInput.disabled = true;
             elements.disneyUrlInput.disabled = true;
             elements.primeUploadButton.disabled = true;
-            elements.videoTitleInput.disabled = true;
             elements.saveForOfflineCheckbox.disabled = true;
             elements.confirmButton.disabled = false; // Enable the button for cancel/clear
             
@@ -1303,7 +1294,6 @@ async function handleConfirmClick(elements) {
     elements.youtubeTranscriptInput.disabled = true;
     elements.disneyUrlInput.disabled = true;
     elements.primeUploadButton.disabled = true;
-    elements.videoTitleInput.disabled = true;
     elements.saveForOfflineCheckbox.disabled = true;
     // elements.confirmButton.disabled = true; // Was disabled here, now only disabled above if processing
     // --- END MODIFICATION ---
@@ -1313,7 +1303,6 @@ async function handleConfirmClick(elements) {
     const url = elements.subtitleUrlInput.value.trim();
     const transcript = elements.youtubeTranscriptInput.value.trim();
     const disneyUrl = elements.disneyUrlInput.value.trim();
-    const videoTitle = elements.videoTitleInput.value.trim();
     let primeTtmlString = null;
 
     if (currentMode === 'prime') {
@@ -1406,7 +1395,7 @@ async function handleConfirmClick(elements) {
 
     await chrome.storage.local.remove(['ls_status']);
     await chrome.storage.local.set({
-        last_input: { url, targetLang: targetLang, youtubeTranscript: transcript, disneyUrl: disneyUrl, primeFileContent: primeTtmlString, videoTitle: videoTitle },
+        last_input: { url, targetLang: targetLang, youtubeTranscript: transcript, disneyUrl: disneyUrl, primeFileContent: primeTtmlString },
         translated_only_pref: translatedOnly,
         subtitle_style_pref: selectedStyle,
     });
@@ -1435,7 +1424,6 @@ async function handleConfirmClick(elements) {
                 targetLang: targetLang,
                 translatedOnly: translatedOnly,
                 saveOffline: saveOffline, 
-                manualTitle: videoTitle,
                 ...finalStylePrefs,
                 colourCoding: selectedStyle
             };
@@ -1640,7 +1628,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         primeFileInput: document.getElementById('primeFileInput'),
         primeUploadButton: document.getElementById('primeUploadButton'),
         primeUrlStatusText: document.getElementById('primeUrlStatusText'),
-        videoTitleInput: document.getElementById('videoTitleInput'),
         // --- MODIFICATION END ---
         onlineModeButton: document.getElementById('onlineModeButton'),
         offlineModeButton: document.getElementById('offlineModeButton'),
@@ -1865,12 +1852,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveCurrentInputs(elements);
         }, 500);
     });
-    
-    // --- NEW: Listener for the manual title input ---
-    elements.videoTitleInput.addEventListener('input', () => {
-        saveCurrentInputs(elements);
-    });
-    // --- END NEW ---
 
     elements.primeUploadButton.addEventListener('click', () => {
         if (elements.primeUploadButton.textContent === "Clear Uploaded TTML") {
@@ -2029,7 +2010,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.youtubeTranscriptInput.disabled = true;
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
-                elements.videoTitleInput.disabled = true;
                 elements.saveForOfflineCheckbox.disabled = true; 
                 elements.confirmButton.disabled = false; // Enable the button for clear
                 
@@ -2053,7 +2033,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.youtubeTranscriptInput.disabled = true;
                 elements.disneyUrlInput.disabled = true;
                 elements.primeUploadButton.disabled = true;
-                elements.videoTitleInput.disabled = true;
                 elements.saveForOfflineCheckbox.disabled = true; 
                 elements.confirmButton.disabled = false; // Enable the button for cancel
                 

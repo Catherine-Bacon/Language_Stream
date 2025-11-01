@@ -37,10 +37,6 @@
     // --- MODIFICATION: Added isOfflineMode flag ---
     var isOfflineMode = false;
     // --- END MODIFICATION ---
-    
-    // --- ADD THIS LINE ---
-    var manualVideoTitle = null;
-    // --- END ADD ---
 
     let lastTime = -1; 
     let currentSubtitleIndex = -1;
@@ -882,40 +878,25 @@
                         document.querySelector('meta[name="title"]')?.content ||
                         document.title.replace(' - YouTube', '').trim();
             } else if (hostname.includes('netflix.com')) {
-                // --- NEW: Prioritize manual title if provided from popup ---
-                if (manualVideoTitle && manualVideoTitle.trim() !== '') {
-                    title = manualVideoTitle.trim();
-                } else {
-                // --- END NEW ---
-                    // Priority 1: Use the class name found in your developer tools (new React selector)
-                    let videoTitleElement = document.querySelector('h2.default-ltr-iqcdef-cache-er2d3m') || 
-                                            // Priority 2: Older, still sometimes working player title selectors
-                                            document.querySelector('.video-title h4') || 
-                                            document.querySelector('.video-title .title') ||
-                                            document.querySelector('.player-status-main-title');
-                    
-                    if (videoTitleElement) {
-                        title = videoTitleElement.textContent.trim();
-                    } else {
-                        // Priority 3: Fallback to og:title and then document.title
-                        title = document.querySelector('meta[property="og:title"]')?.content || document.title;
-                        // Clean up the Netflix-specific title structure (e.g., "Watch X | Netflix Official Site")
-                        title = title.replace(/\s*\|\s*Netflix.*$/i, '').trim();
-                    }
-                } // <-- This is the new closing brace for the 'else'
-            } else if (hostname.includes('disneyplus.com')) {
-                // Prioritize document.title as it seems to have the full context
-                let docTitle = document.title;
+                // Priority 1: Use the class name found in your developer tools (new React selector)
+                let videoTitleElement = document.querySelector('h2.default-ltr-iqcdef-cache-er2d3m') || 
+                                        // Priority 2: Older, still sometimes working player title selectors
+                                        document.querySelector('.video-title h4') || 
+                                        document.querySelector('.video-title .title') ||
+                                        document.querySelector('.player-status-main-title');
                 
-                // Check if it contains the separator
-                if (docTitle && docTitle.includes(' | ')) {
-                    title = docTitle.split(' | ')[0].trim();
+                if (videoTitleElement) {
+                    title = videoTitleElement.textContent.trim();
                 } else {
-                    // Fallback to the other selectors if document.title is weird
-                    title = document.querySelector('h1[data-testid="program-title"]')?.textContent.trim() ||
-                            document.querySelector('meta[property="og:title"]')?.content ||
-                            docTitle; // Use the original docTitle as last resort
+                    // Priority 3: Fallback to og:title and then document.title
+                    title = document.querySelector('meta[property="og:title"]')?.content || document.title;
+                    // Clean up the Netflix-specific title structure (e.g., "Watch X | Netflix Official Site")
+                    title = title.replace(/\s*\|\s*Netflix.*$/i, '').trim();
                 }
+            } else if (hostname.includes('disneyplus.com')) {
+                title = document.querySelector('h1[data-testid="program-title"]')?.textContent.trim() ||
+                        document.querySelector('meta[property="og:title"]')?.content ||
+                        document.title.split(' | ')[0].trim();
             } else if (hostname.includes('primevideo.com') || hostname.includes('amazon.')) {
                 title = document.querySelector('.atvwebplayersdk-title-text')?.textContent.trim() ||
                         document.querySelector('h1[data-automation-id="title"]')?.textContent.trim() ||
@@ -1159,7 +1140,6 @@
             if (isProcessing) return false;
             isProcessing = true;
             isCancelled = false;
-            manualVideoTitle = request.manualTitle || null;
             // --- FIX 2B: Ensure flag is false during online process ---
             isOfflineMode = false;
             // --- END FIX 2B ---
@@ -1462,7 +1442,6 @@
         // Cancel Processing
         if (request.command === "cancel_processing") {
             isCancelled = true;
-            manualVideoTitle = null;
             // --- FIX 2B: Clear flag when processing is cancelled/cleared ---
             isOfflineMode = false;
             manualTimeOffset = 0; // Reset offset on cancel
