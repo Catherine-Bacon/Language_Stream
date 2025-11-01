@@ -715,7 +715,7 @@
                     } else {
                         const baseHtml = buildSimpleHtml(text, false);
                         const translatedHtml = buildSimpleHtml(translatedText, true);
-innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
+                        innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml}`;
                     }
                 } 
                 // --- FIX 2C: Check for isOfflineMode to prevent 'Translating...' message offline ---
@@ -933,9 +933,7 @@ innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml
 
     // --- MODIFIED: Added language name map for save string ---
     const LANGUAGE_MAP_REVERSE = {
-        "aa": "Afar", "ab": "Abkhazian", "ae": "Avesta", "af": "Afrikaans", "ak": "Akan", "am": "Amharic", "an": "Aragonese", "ar": "Arabic", "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijan", "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari languages", "bi": "Bislama", "bm": "Bambara", "bn": "Bengali / bangla", "bo": "Tibetan", "br": "Breton", "bs": "Bosnian", "ca": "Catalan / valencian", "ce": "Chechen", "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech", "cu": "Church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish", "de": "German", "dv": "Dhivehi / divehi / maldivian", "dz": "Dzongkha", "ee": "Ewe", "el": "Modern greek (1453-)", "en": "English", "eo": "Esperanto", "es": "Spanish / castilian", "et": "Estonian", "eu": "Basque", "fa": "Persian", "ff": "Fulah", "fi": "Finnish", "fj": "Fijian", "fo": "Faroese", "fr": "French", "fy": "Western frisian", "ga": "Irish", "gd": "Scottish gaelic / gaelic", "gl": "Galician", "gn": "Guarani", "gu": "Gujarati", "gv": "Manx", "ha": "Hausa", "he": "Hebrew", "hi": "Hindi", "ho": "Hiri motu", "hr": "Croatian", "ht": "Haitian / haitian creole", "hu": "Hungarian", "hy": "Armenian", "hz": "Herero", "ia": "Interlingua (international auxiliary language association)", "id": "Indonesian", "ie": "Interlingue / occidental", "ig": "Igbo", "ii": "Sichuan yi / nuosu", "ik": "Inupiaq", "io": "Ido", "is": "Icelandic", "it": "Italian", "iu": "Inuktitut", "ja": "Japanese", "jv": "Javanese", "ka": "Georgiana", "kg": "Kongo", "ki": "Kikuyu / gikuyu", "kj": "Kuanyama / kwanyama", "kk": "Kazakh", "kl": "Kalaallisut / greenlandic", "km": "Khmer / central khmer", "kn": "Kn", "ko": "Korean", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "ms": "Malay (macrolanguage)", "mt": "Maltese", "my": "Burmese", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quecha", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan",ReadMe
-"ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "ts": "Tsonga", "tt": "Tatar", "tw": "Twi", "tahitian": "Ty", "ug": "Uighur / uyghur",ReadMe
-"uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "ve": "Venda", "vi": "Vietnamese", "vo": "Volapük", "wa": "Walloon", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yo": "Yoruba", "za": "Zhuang / chuang", "zh": "Chinese", "zu": "Zulu"
+        "aa": "Afar", "ab": "Abkhazian", "ae": "Avesta", "af": "Afrikaans", "ak": "Akan", "am": "Amharic", "an": "Aragonese", "ar": "Arabic", "as": "Assamese", "av": "Avaric", "ay": "Aymara", "az": "Azerbaijan", "ba": "Bashkir", "be": "Belarusian", "bg": "Bulgarian", "bh": "Bihari languages", "bi": "Bislama", "bm": "Bambara", "bn": "Bengali / bangla", "bo": "Tibetan", "br": "Breton", "bs": "Bosnian", "ca": "Catalan / valencian", "ce": "Chechen", "ch": "Chamorro", "co": "Corsican", "cr": "Cree", "cs": "Czech", "cu": "Church slavic / church slavonic / old bulgarian / old church slavonic / old slavonic", "cv": "Chuvash", "cy": "Welsh", "da": "Danish", "de": "German", "dv": "Dhivehi / divehi / maldivian", "dz": "Dzongkha", "ee": "Ewe", "el": "Modern greek (1453-)", "en": "English", "eo": "Esperanto", "es": "Spanish / castilian", "et": "Estonian", "eu": "Basque", "fa": "Persian", "ff": "Fulah", "fi": "Finnish", "fj": "Fijian", "fo": "Faroese", "fr": "French", "fy": "Western frisian", "ga": "Irish", "gd": "Scottish gaelic / gaelic", "gl": "Galician", "gn": "Guarani", "gu": "Gujarati", "gv": "Manx", "ha": "Hausa", "he": "Hebrew", "hi": "Hindi", "ho": "Hiri motu", "hr": "Croatian", "ht": "Haitian / haitian creole", "hu": "Hungarian", "hy": "Armenian", "hz": "Herero", "ia": "Interlingua (international auxiliary language association)", "id": "Indonesian", "ie": "Interlingue / occidental", "ig": "Igbo", "ii": "Sichuan yi / nuosu", "ik": "Inupiaq", "io": "Ido", "is": "Icelandic", "it": "Italian", "iu": "Inuktitut", "ja": "Japanese", "jv": "Javanese", "ka": "Georgiana", "kg": "Kongo", "ki": "Kikuyu / gikuyu", "kj": "Kuanyama / kwanyama", "kk": "Kazakh", "kl": "Kalaallisut / greenlandic", "km": "Khmer / central khmer", "kn": "Kn", "ko": "Korean", "kr": "Kanuri", "ks": "Kashmiri", "ku": "Kurdish", "kv": "Komi", "kw": "Cornish", "ky": "Kirghiz / kyrgyz", "la": "Latin", "lb": "Luxembourgish / letzeburgesch", "lg": "Ganda / luganda", "li": "Limburgan / limburger / limburgish", "ln": "Lingala", "lo": "Lao", "lt": "Lithuanian", "lu": "Luba-katanga", "lv": "Latvian", "mg": "Malagasy", "mh": "Marshallese", "mi": "Maori", "mk": "Macedonian", "ml": "Malayalam", "mn": "Mongolian", "mr": "Marathi", "ms": "Malay (macrolanguage)", "mt": "Maltese", "my": "Burmese", "na": "Nauru", "nb": "Norwegian bokmål", "nd": "North ndebele", "ne": "Nepali (macrolanguage)", "ng": "Ndonga", "nl": "Dutch / flemish", "nn": "Norwegian nynorsk", "no": "Norwegian", "nr": "South ndebele", "nv": "Navajo / navaho", "ny": "Nyanja / chewa / chichewa", "oc": "Occitan (post 1500)", "oj": "Ojibwa", "om": "Oromo", "or": "Oriya (macrolanguage) / odia (macrolanguage)", "os": "Ossetian / ossetic", "pa": "Panjabi / punjabi", "pi": "Pali", "pl": "Polish", "ps": "Pushto / pashto", "pt": "Portuguese", "qu": "Quechua", "rm": "Romansh", "rn": "Rundi", "ro": "Romanian / moldavian / moldovan", "ru": "Russian", "rw": "Kinyarwanda", "sa": "Sanskrit", "sc": "Sardinian", "sd": "Sindhi", "se": "Northern sami", "sg": "Sango", "si": "Sinhala / sinhalese", "sk": "Slovak", "sl": "Slovenian", "sm": "Samoan", "sn": "Shona", "so": "Somali", "sq": "Albanian", "sr": "Serbian", "ss": "Swati", "st": "Southern sotho", "su": "Sundanese", "sv": "Swedish", "sw": "Swahili (macrolanguage)", "ta": "Tamil", "te": "Telugu", "tg": "Tajik", "th": "Thai", "ti": "Tigrinya", "tk": "Turkmen", "tl": "Tagalog", "tn": "Tswana", "to": "Tonga (tonga islands)", "tr": "Turkish", "ts": "Tsonga", "tt": "Tatar", "tw": "Twi", "tahitian": "Ty", "ug": "Uighur / uyghur", "uk": "Ukrainian", "ur": "Urdu", "uz": "Uzbek", "ve": "Venda", "vi": "Vietnamese", "vo": "Volapük", "wa": "Walloon", "wo": "Wolof", "xhosa": "Xhosa", "yi": "Yiddish", "yo": "Yoruba", "za": "Zhuang / chuang", "zh": "Chinese", "zu": "Zulu"
     };
 
     function getLanguageName(langCode) {
@@ -1074,10 +1072,13 @@ innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml
         console.log(`Content script initialized preferences: Style=${subtitleStylePref}, Dual=${!isTranslatedOnly}`);
     }
     
-    // --- ***************************************************************** ---
-    // --- START FIX: The listener MUST be attached before the async init ---
-    // --- ***************************************************************** ---
-    
+    // --- EXECUTE INITIALIZATION IMMEDIATELY ---
+    // NOTE: Initialization is still needed outside of a command, but the command 
+    // itself is the source of truth for the *current* execution's preferences.
+    initializePreferences();
+    // --- END NEW FUNCTION ---
+
+
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // Check Language Pair
         if (request.command === "check_language_pair") {
@@ -1486,15 +1487,4 @@ innerHTML = isTranslatedOnly ? translatedHtml : `${baseHtml}<br>${translatedHtml
 
         return false; 
     });
-
-    // --- EXECUTE INITIALIZATION IMMEDIATELY ---
-    // NOTE: Initialization is still needed outside of a command, but the command 
-    // itself is the source of truth for the *current* execution's preferences.
-    initializePreferences();
-    // --- END NEW FUNCTION ---
-    
-    // --- *************************************************************** ---
-    // --- END FIX: The listener is now attached *before* the async init ---
-    // --- *************************************************************** ---
-
 })();
